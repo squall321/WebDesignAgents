@@ -10,18 +10,19 @@ PLAN.md의 마일스톤을 실행 단위로 분해. 완료 시 체크하고, 검
 - [x] 연계 구조 분석 — HEAXHub / HWAXPortal(GLM-5-2) / VoiceRecorder, 계획 반영 (PLAN.md §10, §12.5)
 - [x] VoiceRecorder 원샷 TTS API PR 제출 — [VoiceRecorder#1](https://github.com/squall321/VoiceRecorder/pull/1) (머지 대기)
 - [x] git 저장소 확정 — <https://github.com/squall321/WebDesignAgents> / ReportArchive는 복붙 모드 우선
-- [ ] 미해결 쟁점 5건 사용자 결정 (PLAN.md §16 — AX 권한, 대비 기준, write-back 여부, PAT 정책, 내레이터 음성)
+- [ ] 미해결 쟁점 사용자 결정 (PLAN.md §16) — write-back=순수HTML **확정(2026-07-25)**. 잔여 4건: AX 권한(M1)·대비 기준(M1)·PAT 정책(M3)·내레이터 음성(M3)
 
 ## M0 — 수동 파이프라인 검증 (export 먼저)
 
-- [ ] `pyproject.toml` + `uv.lock` 생성, `uv sync` (render extra 포함)
-- [ ] `web/runtime/`에 zip의 animations-v2.jsx·support.js 원본 배치, `web/vendor/`에 React/ReactDOM UMD·Babel standalone 커밋
-- [ ] 로컬 정적 http 서빙 스크립트 (`wdrender/server.py`)
-- [ ] `exporter_video.py` — 3단계 대기 → sync seek 루프 → PNG → ffmpeg → 검증: mp4 길이 = Σdur ±0.1s
-- [ ] `exporter_pptx.py` ①안 — stills seek 캡처 → 16:9 풀블리드 → 검증: 슬라이드 수 = 씬 수(+다단 페이즈)
-- [ ] narration 발표자 노트 삽입
-- [ ] 결정성 검증 — 동일 입력 2회 렌더, 같은 머신 해시 일치 + perceptual diff 임계값 실측 확정
-- [ ] frame-match 씬 경계 픽셀 diff 확인
+- [x] `pyproject.toml` + `uv.lock` 생성, `uv sync` (render extra 포함)
+- [x] `web/runtime/`에 zip의 animations-v2.jsx·support.js 원본 배치, `web/vendor/`에 React/ReactDOM UMD·Babel standalone 커밋
+- [x] 로컬 정적 http 서빙 스크립트 (`wdrender/server.py` — StaticServer)
+- [x] `exporter_video.py` — 3단계 대기 → sync seek 루프 → PNG → ffmpeg (길이=Σdur±0.1s 검증은 test_wdrender_smoke)
+- [x] `exporter_pptx.py` ①안 — stills seek 캡처 → 16:9 풀블리드 (슬라이드수=씬수 검증 포함)
+- [x] narration 발표자 노트 삽입 (cli 가 scene-data narration→notes 연결)
+- [ ] **결정성 검증 — 동일 입력 2회 렌더 해시 일치 하네스 + perceptual diff 임계값 실측 확정** ← M0 유일 잔여
+- [x] frame-match 씬 경계 픽셀 diff 확인 (gate7 + data/renders 경계 PNG 실산출)
+- [ ] Pretendard 폰트 로컬화 — 현재 build.py 가 CDN 로드(결정성·egress-0 위배), web/fonts 로컬 사본 + @font-face 전환
 
 ## M1 — MCP 심의 경로 + 반자동 생성
 

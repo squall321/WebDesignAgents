@@ -31,7 +31,7 @@
   function DotGrid(props) {
     var t = props.t, theme = props.theme;
     return (
-      <div style={{
+      <div data-qa-clip-ok="true" style={{
         position: 'absolute', inset: -60, opacity: 0.55,
         backgroundImage: 'radial-gradient(' + theme.component.frame.dot + ' 1.6px, transparent 1.6px)',
         backgroundSize: '46px 46px',
@@ -381,7 +381,7 @@
             {members.map(function (p, i) {
               var ck = A(t, ckAt + i * ckStagger, 0.4, 0, 1, popE);
               return (
-                <div key={i} style={{
+                <div key={i} data-qa-clip-ok="true" style={{
                   position: 'relative', width: cv.avatarSize, height: cv.avatarSize,
                   borderRadius: theme.radius.pill, background: cv.avatarBg,
                   border: '2px solid ' + cv.avatarBorder,
@@ -389,7 +389,7 @@
                   fontSize: theme.type.caption, fontWeight: 800, color: cv.avatarFg,
                 }}>
                   {p.ini}
-                  <div style={{
+                  <div data-qa-icon="true" style={{
                     position: 'absolute', right: -7, bottom: -7, width: cv.checkSize, height: cv.checkSize,
                     borderRadius: theme.radius.pill, background: cv.checkBg, color: cv.checkFg,
                     fontSize: theme.type.iconCheck, fontWeight: 800,

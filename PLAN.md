@@ -543,7 +543,7 @@ WebDesignAgents는 VoiceRecorder와 마찬가지로 HEAXHub(`/home/koopark/claud
 
 1. **접근성(AX) 권한 수준** — 조건부 거부권(초안) vs TD급 절대 거부권.
 2. **대비 기준 수위** — WCAG AA 4.5:1 전면 vs 대형 텍스트 3:1 완화(영상 시청 거리 감안).
-3. **편집기 연동(write-back) 필요 여부** — 필요 시 support.js dc.html 유지, 불필요 시 순수 HTML 엔트리로 단순화(현 계획 기본값).
+3. ~~편집기 연동(write-back) 필요 여부~~ → **순수 HTML 엔트리 확정**(2026-07-25). support.js dc.html 편집 레이어는 도입하지 않는다 (M0 export 는 읽기 전용 엔트리 기준). 필요 시 나중에 모듈로 승격.
 4. **서비스 간 PAT 정책** — WDA→VoiceRecorder 호출용 서비스 계정 PAT의 수명·권한 범위(HEAXHub `docs/app-base-and-pat/` 기준).
 5. **VoiceRecorder 내레이터 기본 음성** — 참조음성(3~10초 wav + 전사) 등록 필요. 누구 목소리로 할지.
 

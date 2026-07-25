@@ -1,9 +1,902 @@
-# wdmcp — FastMCP stdio 서버 진입점 (경로 A)
+# wdmcp 서버 — 경로 A FastMCP stdio 어댑터. 심의·파이프라인·렌더 툴 11종을 봉투로 노출 (LLM 무호출)
 from __future__ import annotations
+
+import importlib
+import json
+import logging
+import os
+import re
+import sys
+import uuid
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import get_args
+
+import structlog
+import yaml
+from mcp.server.fastmcp import FastMCP
+from pydantic import ValidationError
+
+from wdcore.config import get_settings
+from wdcore.errors import WebDesignAgentsError
+from wdcore.meetings import MEETING_TEMPLATES, MeetingEngine, MeetingStore
+from wdcore.models import (
+    Artifact,
+    ArtifactType,
+    Citation,
+    MeetingMeta,
+    MeetingTurn,
+    MeetingType,
+    RoundSpec,
+    SpeakerRole,
+    Stance,
+)
+from wdcore.registry.registry import Registry, load_registry
+
+from . import jobs
+from .envelope import (
+    INSTR_FRAGMENTIZED,
+    INSTR_INGESTED,
+    INSTR_STATUS,
+    briefing_instructions,
+    error_envelope,
+    meeting_closed_instructions,
+    meeting_started_instructions,
+    ok_envelope,
+    qa_instructions,
+    render_status_instructions,
+    render_submitted_instructions,
+    scenario_built_instructions,
+    turn_accepted_instructions,
+)
+from .schemas import (
+    RENDER_TARGETS,
+    BriefingCard,
+    BriefingFact,
+    BriefingOut,
+    BriefingRound,
+    BriefingSpeaker,
+    FragmentizeOut,
+    FragmentPreview,
+    MeetingCloseOut,
+    MeetingStartOut,
+    MeetingStatusOut,
+    ModuleIndexEntry,
+    ModulesDelivery,
+    NextSpeakerInfo,
+    PersonaDelivery,
+    QaGateResult,
+    QaRunOut,
+    RenderSubmitOut,
+    ReportIngestOut,
+    RoundInfo,
+    ScenarioBuildOut,
+    SceneBrief,
+    SpeakingRules,
+    SubmitTurnOut,
+    TurnGist,
+)
+from .session import MeetingLedger, get_session
+
+log = structlog.get_logger("wdmcp.server")
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+
+mcp = FastMCP(
+    name="webdesignagents",
+    instructions=(
+        "전문가 심의 기반 발표자료(영상/PPT) 자동 생성 플랫폼. 이 서버는 발언을 생성하지 않는다. "
+        "일반 흐름: report_ingest → report_fragmentize → meeting_start(참가자 명시)로 심의를 열고 → "
+        "클라이언트(당신)가 브리핑의 페르소나를 연기해 턴을 제출하며 → 폐회 후 scenario_build → "
+        "render_submit/render_status → qa_run으로 산출물을 검증한다. "
+        "각 응답의 claude_instructions를 반드시 따르라."
+    ),
+)
+
+# ── 코어 서비스 (지연 조립 + 테스트 리셋) ────────────────────────────
+
+_registry: Registry | None = None
+
+
+def get_registry() -> Registry:
+    """페르소나 레지스트리를 지연 로드해 캐시한다. 회의 상태의 진실은 파일이므로 캐시와 무관하다."""
+    global _registry
+    if _registry is None:
+        _registry = load_registry()
+    return _registry
+
+
+def reset_services() -> None:
+    """캐시된 레지스트리를 비운다 (테스트에서 WDA_* 환경 변경 후 호출)."""
+    global _registry
+    _registry = None
+
+
+def _engine() -> MeetingEngine:
+    """호출 시점 설정으로 조립하는 회의 엔진. 회의 상태의 진실은 항상 파일에 있다."""
+    return MeetingEngine(MeetingStore(get_settings().meetings_dir), get_registry())
+
+
+def modules_root() -> Path:
+    return Path(os.environ.get("WDA_MODULES_ROOT", str(REPO_ROOT / "modules")))
+
+
+def _load_module_index() -> list[ModuleIndexEntry]:
+    """modules/registry.yaml에서 모듈 축약 인덱스를 만든다 (id·용도 한 줄·props·in_scope)."""
+    path = modules_root() / "registry.yaml"
+    if not path.is_file():
+        return []
+    raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    out: list[ModuleIndexEntry] = []
+    for m in raw.get("modules", []):
+        try:
+            out.append(
+                ModuleIndexEntry(
+                    id=str(m.get("id", "")),
+                    type=str(m.get("type", "scene-template")),
+                    status=str(m.get("status", "draft")),
+                    version=str(m.get("version", "")),
+                    nat_default=m.get("nat_default"),
+                    summary=str(m.get("summary", "")),
+                    props=str(m.get("props", "")),
+                    in_scope_hint=str(m.get("in_scope_hint", "")),
+                )
+            )
+        except ValidationError:  # 인덱스 1행 오류가 브리핑 전체를 막지 않는다
+            continue
+    return out
+
+
+# ── 파이프라인 run 파일 (파일이 진실) ─────────────────────────────────
+
+
+def _run_dir(run_id: str) -> Path:
+    return get_settings().pipeline_dir / run_id
+
+
+def _new_run_id() -> str:
+    return f"run-{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex[:4]}"
+
+
+def _load_fragments(run_id: str) -> list[dict]:
+    """data/pipeline/{run_id}/fragments.json을 로드한다. 없으면 FileNotFoundError."""
+    path = _run_dir(run_id) / "fragments.json"
+    if not path.is_file():
+        raise FileNotFoundError(f"fragments.json 없음: {path}")
+    frags = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(frags, list):
+        raise ValueError(f"fragments.json 형식 오류(리스트 아님): {path}")
+    return frags
+
+
+def _lazy_import(module: str):
+    """병렬 개발 중인 모듈의 지연 import. (module | None, 오류 문자열 | None)을 반환한다."""
+    try:
+        return importlib.import_module(module), None
+    except Exception as exc:  # ImportError 포함 — 미완성/문법 오류 모두 봉투로 강등
+        return None, f"{type(exc).__name__}: {exc}"
+
+
+# ── 회의 헬퍼 ────────────────────────────────────────────────────────
+
+_TOKEN_RE = re.compile(r"[0-9A-Za-z가-힣]{2,}")
+
+
+def _score_fragment(frag_text: str, query_tokens: set[str]) -> int:
+    return len(set(_TOKEN_RE.findall(frag_text)) & query_tokens)
+
+
+def _recent_turns(turns: list[MeetingTurn], n: int = 3) -> list[TurnGist]:
+    """최근 n턴의 요지 (브리핑·현황 표시용)."""
+    out: list[TurnGist] = []
+    for t in turns[-n:]:
+        first_line = (t.content_md.strip().splitlines() or [""])[0]
+        out.append(
+            TurnGist(
+                turn_no=t.turn_no,
+                speaker=t.expert_id or t.role.value,
+                stance=t.stance,
+                gist=first_line[:150],
+            )
+        )
+    return out
+
+
+def _next_speaker_info(
+    engine: MeetingEngine, meta: MeetingMeta, turns: list[MeetingTurn]
+) -> NextSpeakerInfo | None:
+    """다음 발언자 요약. 폐회됐거나 전 라운드 종료면 None."""
+    try:
+        role, expert_id, spec, _ = engine.next_speaker(meta, turns)
+    except ValueError:
+        return None
+    return NextSpeakerInfo(
+        role=role.value, expert_id=expert_id, round_no=meta.round_index, round_name=spec.name,
+    )
+
+
+def _speaking_rules(spec: RoundSpec, round_no: int) -> SpeakingRules:
+    return SpeakingRules(
+        round_no=round_no,
+        round_name=spec.name,
+        citation_required=spec.citation_required,
+        stance_enum=list(get_args(Stance)),
+        artifact_types=[a.value for a in ArtifactType],
+        length_hint="200~1500자, 1인칭, 자기 도메인 관점 유지",
+        citation_note="citations의 ref에는 이 회의 브리핑으로 전달된 카드 ID 또는 조각(frag) ID만 쓸 수 있다.",
+    )
+
+
+_TIER_ORDER = {"core": 0, "checklist": 1, "failure_mode": 2, "deep": 3}
+
+
+def _cards_for_briefing(persona_id: str, ledger: MeetingLedger, top_k: int = 3):
+    """발언 페르소나의 지식카드 top_k — 신규는 본문 full, 기전달은 ID recall."""
+    cards = get_registry().cards_for(persona_id)
+    cards = sorted(cards, key=lambda c: (_TIER_ORDER.get(c.tier.value, 9), c.id))[:top_k]
+    new_cards = [c for c in cards if c.id not in ledger.delivered_cards]
+    already = sorted(c.id for c in cards if c.id in ledger.delivered_cards)
+    return new_cards, already
+
+
+def _facts_for_briefing(
+    ledger: MeetingLedger, query: str, top_k: int = 5
+) -> list[BriefingFact]:
+    """run 조각 중 미전달분을 단순 키워드 겹침으로 top_k 선별해 [F#] 마커로 전달한다."""
+    if not ledger.run_id:
+        return []
+    try:
+        frags = _load_fragments(ledger.run_id)
+    except (FileNotFoundError, ValueError):
+        return []
+    qtokens = set(_TOKEN_RE.findall(query))
+    fresh = [f for f in frags if str(f.get("frag_id", "")) not in ledger.delivered_fragments]
+    ranked = sorted(
+        fresh,
+        key=lambda f: (-_score_fragment(str(f.get("text", "")), qtokens), str(f.get("frag_id"))),
+    )[:top_k]
+    markers = ledger.next_fact_markers(len(ranked))
+    facts: list[BriefingFact] = []
+    for m, f in zip(markers, ranked):
+        frag_id = str(f.get("frag_id", ""))
+        src = f.get("source") or {}
+        source = (
+            f"p.{src.get('page')} {src.get('block_id', '')}".strip()
+            if isinstance(src, dict)
+            else str(src)
+        )
+        facts.append(
+            BriefingFact(
+                marker=m,
+                ref=frag_id,
+                type=str(f.get("type", "")),
+                text=str(f.get("text", "")),
+                source=source,
+                confidence=f.get("confidence"),
+            )
+        )
+    return facts
+
+
+# ── 회의 툴 5종 ───────────────────────────────────────────────────────
+
+
+@mcp.tool()
+def meeting_start(
+    topic: str, type: str, participants: list[str], run_id: str | None = None
+) -> dict:
+    """회의를 생성한다. participants(페르소나 id 배열)는 명시 필수 — 확정 순서가 곧 발언 순서다.
+
+    run_id를 주면 data/pipeline/{run_id}/fragments.json의 frag_id들이 브리핑 [F#] 근거이자
+    인용 화이트리스트(known_refs)의 원천이 된다.
+    """
+    state = get_session()
+    try:
+        mtype = MeetingType(type)
+    except ValueError:
+        return error_envelope(
+            state,
+            "INVALID_TYPE",
+            f"지원하지 않는 회의 유형: {type!r}",
+            f"type은 {'/'.join(t.value for t in MeetingType)} 중 하나다.",
+        )
+    if not participants:
+        roster = ", ".join(f"{p.id}({p.abbr})" for p in get_registry().summaries())
+        return error_envelope(
+            state,
+            "PARTICIPANTS_REQUIRED",
+            "participants가 비어 있다. 참가 페르소나를 명시해야 회의를 생성할 수 있다.",
+            f"로스터에서 5~8인을 골라 id 배열로 넘겨라. 로스터: {roster}",
+        )
+    fragments_loaded = 0
+    if run_id:
+        try:
+            fragments_loaded = len(_load_fragments(run_id))
+        except (FileNotFoundError, ValueError) as exc:
+            return error_envelope(
+                state, "RUN_NOT_FOUND", str(exc),
+                "report_ingest → report_fragmentize로 run을 먼저 만들거나 run_id를 빼고 호출하라.",
+            )
+    engine = _engine()
+    try:
+        meta = engine.create(mtype, topic, participants)
+    except WebDesignAgentsError as exc:
+        return error_envelope(state, exc.error_code.upper(), exc.message)
+    except ValueError as exc:
+        return error_envelope(state, "INVALID_PARTICIPANTS", str(exc))
+    ledger = state.ledger(meta.id)
+    ledger.run_id = run_id
+    data = MeetingStartOut(
+        meeting_id=meta.id,
+        type=meta.type.value,
+        topic=meta.topic,
+        participants=list(meta.participants),
+        run_id=run_id,
+        fragments_loaded=fragments_loaded,
+        rounds=[
+            RoundInfo(
+                round_no=i,
+                name=s.name,
+                speaker_order=s.speaker_order,
+                cycles=s.cycles,
+                citation_required=s.citation_required,
+            )
+            for i, s in enumerate(MEETING_TEMPLATES[meta.type])
+        ],
+        next_speaker=_next_speaker_info(engine, meta, []),
+    )
+    return ok_envelope(
+        state, data.model_dump(mode="json"), meeting_started_instructions(meta.type.value)
+    )
+
+
+@mcp.tool()
+def meeting_get_briefing(meeting_id: str) -> dict:
+    """다음 발언자를 결정하고 그 발언자용 브리핑을 반환한다.
+
+    브리핑 = 라운드 지시 + 페르소나 델타(최초 full → 이후 recall) + 지식카드 + 조각 [F#] +
+    모듈 축약 인덱스(회의당 최초 1회 full → 이후 ID recall) + 최근 턴 요지.
+    전달된 카드/조각 ID는 인용 화이트리스트(known_refs)에 축적된다.
+    """
+    state = get_session()
+    engine = _engine()
+    try:
+        meta, turns = engine.store.load(meeting_id)
+    except FileNotFoundError as exc:
+        return error_envelope(
+            state, "NOT_FOUND", str(exc), "meeting_start가 반환한 meeting_id를 사용하라."
+        )
+    try:
+        role, expert_id, spec, instruction = engine.next_speaker(meta, turns)
+    except ValueError as exc:
+        return error_envelope(
+            state, "NO_NEXT_SPEAKER", str(exc), "meeting_close를 호출해 회의록을 생성하라."
+        )
+
+    ledger = state.ledger(meeting_id)
+    recent = _recent_turns(turns)
+
+    # 모듈 축약 인덱스 — 회의당 최초 1회만 full, 이후 ID recall (PLAN §6.3 토큰 최소화)
+    index = _load_module_index()
+    if not ledger.modules_delivered:
+        ledger.modules_delivered = True
+        modules = ModulesDelivery(
+            delivery="full", index=index, module_ids=[m.id for m in index]
+        )
+    else:
+        modules = ModulesDelivery(
+            delivery="recall",
+            module_ids=[m.id for m in index],
+            recall="모듈 축약 인덱스는 이 회의에서 이미 전달되었다. ID로 참조하라.",
+        )
+
+    common = dict(
+        meeting_id=meeting_id,
+        topic=meta.topic,
+        meeting_type=meta.type.value,
+        round=BriefingRound(
+            round_no=meta.round_index,
+            name=spec.name,
+            instruction=instruction,
+            citation_required=spec.citation_required,
+        ),
+        modules=modules,
+        recent_turns=recent,
+        speaking_rules=_speaking_rules(spec, meta.round_index),
+    )
+
+    if role is SpeakerRole.moderator:
+        data = BriefingOut(
+            **common,
+            speaker=BriefingSpeaker(role=role.value),
+            persona=PersonaDelivery(
+                delivery="none",
+                note="모더레이터는 고정 역할이다. 참가자 발언의 요약·군집화·중재만 하고 새 기술 주장을 만들지 않는다.",
+            ),
+        )
+        return ok_envelope(
+            state,
+            data.model_dump(mode="json"),
+            briefing_instructions(
+                "moderator", None, None, meta.round_index, False,
+                meta.type.value, spec.citation_required,
+            ),
+        )
+
+    persona = get_registry().get(expert_id)
+    first_delivery = expert_id not in ledger.delivered_personas
+    ledger.delivered_personas.add(expert_id)
+
+    new_cards, already = _cards_for_briefing(expert_id, ledger)
+    cards = [
+        BriefingCard(
+            card_id=c.id, title=c.title, confidence=c.confidence.value, body_md=c.body_md
+        )
+        for c in new_cards
+    ]
+    query = " ".join([meta.topic, instruction] + [r.gist for r in recent])
+    facts = _facts_for_briefing(ledger, query)
+
+    ledger.delivered_cards.update(c.card_id for c in cards)
+    ledger.delivered_fragments.update(f.ref for f in facts)
+    ledger.known_refs.update(c.card_id for c in cards)
+    ledger.known_refs.update(f.ref for f in facts)
+
+    if first_delivery:
+        pd = PersonaDelivery(delivery="full", system_prompt=persona.persona.system_prompt)
+    else:
+        pd = PersonaDelivery(
+            delivery="recall",
+            recall=f"'{persona.name_ko}'({expert_id}) 페르소나는 이 회의에서 이미 전달되었다. 유지하라.",
+        )
+    data = BriefingOut(
+        **common,
+        speaker=BriefingSpeaker(role=role.value, expert_id=expert_id, name_ko=persona.name_ko),
+        persona=pd,
+        cards=cards,
+        already_delivered_cards=already,
+        facts=facts,
+    )
+    return ok_envelope(
+        state,
+        data.model_dump(mode="json"),
+        briefing_instructions(
+            "expert", persona.name_ko, expert_id, meta.round_index, first_delivery,
+            meta.type.value, spec.citation_required,
+        ),
+    )
+
+
+@mcp.tool()
+def meeting_submit_turn(
+    meeting_id: str,
+    round_no: int,
+    role: str,
+    content_md: str,
+    expert_id: str | None = None,
+    stance: str | None = None,
+    citations: list[dict] | None = None,
+    artifacts: list[dict] | None = None,
+) -> dict:
+    """발언 턴을 엔진 검증(차례·라운드·인용 필수·known_refs 실존)을 거쳐 기록한다.
+
+    거부되면 ok=false와 TURN_REJECTED 사유·hint를 반환한다. 통과하면 다음 발언자를 예고한다.
+    citations 원소는 {"ref","quote"}, artifacts 원소는 {"type","content","owner_expert_id"?} 형식이다.
+    """
+    state = get_session()
+    engine = _engine()
+    try:
+        meta, _ = engine.store.load(meeting_id)
+    except FileNotFoundError as exc:
+        return error_envelope(
+            state, "NOT_FOUND", str(exc), "meeting_start가 반환한 meeting_id를 사용하라."
+        )
+    try:
+        turn = MeetingTurn(
+            round_no=round_no,
+            role=SpeakerRole(role),
+            expert_id=expert_id,
+            stance=stance,
+            content_md=content_md,
+            citations=[Citation.model_validate(c) for c in citations or []],
+            artifacts=[Artifact.model_validate(a) for a in artifacts or []],
+        )
+    except (ValidationError, ValueError) as exc:
+        return error_envelope(
+            state, "INVALID_TURN", str(exc), "브리핑 speaking_rules의 필드 규약에 맞춰 다시 제출하라."
+        )
+    ledger = state.ledger(meeting_id)
+    try:
+        accepted = engine.submit_turn(meta, turn, ledger.known_refs)
+    except ValueError as exc:
+        return error_envelope(
+            state,
+            "TURN_REJECTED",
+            str(exc),
+            "거부 사유를 반영해 수정 후 재제출하라. 인용은 브리핑으로 전달된 카드/조각 ref만 쓸 수 있다. "
+            "차례가 불확실하면 meeting_get_briefing으로 현재 발언자를 다시 확인하라.",
+        )
+    _, turns = engine.store.load(meeting_id)
+    next_info = _next_speaker_info(engine, meta, turns)
+    data = SubmitTurnOut(
+        turn_no=accepted.turn_no,
+        status=meta.status.value,
+        round_no=meta.round_index,
+        next_speaker=next_info,
+    )
+    return ok_envelope(state, data.model_dump(mode="json"), turn_accepted_instructions(next_info))
+
+
+@mcp.tool()
+def meeting_status(meeting_id: str) -> dict:
+    """회의 진행 현황(라운드·턴 수·최근 논점·다음 발언자·전달 원장)을 요약한다."""
+    state = get_session()
+    engine = _engine()
+    try:
+        meta, turns = engine.store.load(meeting_id)
+    except FileNotFoundError as exc:
+        return error_envelope(
+            state, "NOT_FOUND", str(exc), "meeting_start가 반환한 meeting_id를 사용하라."
+        )
+    specs = MEETING_TEMPLATES[meta.type]
+    ledger = state.ledger(meeting_id)
+    data = MeetingStatusOut(
+        meeting_id=meta.id,
+        topic=meta.topic,
+        type=meta.type.value,
+        status=meta.status.value,
+        participants=list(meta.participants),
+        round_index=meta.round_index,
+        total_rounds=len(specs),
+        current_round=specs[meta.round_index].name if meta.round_index < len(specs) else None,
+        turns_total=len(turns),
+        recent_turns=_recent_turns(turns),
+        next_speaker=_next_speaker_info(engine, meta, turns),
+        delivered_personas=sorted(ledger.delivered_personas),
+        known_refs_count=len(ledger.known_refs),
+        modules_delivered=ledger.modules_delivered,
+    )
+    return ok_envelope(state, data.model_dump(mode="json"), INSTR_STATUS)
+
+
+@mcp.tool()
+def meeting_close(meeting_id: str) -> dict:
+    """회의를 폐회하고 회의록(minutes.md)을 생성해 경로와 요약 통계를 반환한다."""
+    state = get_session()
+    engine = _engine()
+    try:
+        meta, turns = engine.store.load(meeting_id)
+    except FileNotFoundError as exc:
+        return error_envelope(
+            state, "NOT_FOUND", str(exc), "meeting_start가 반환한 meeting_id를 사용하라."
+        )
+    try:
+        path = engine.close(meta, turns)
+    except ValueError as exc:
+        return error_envelope(state, "ALREADY_CLOSED", str(exc))
+    decisions = sum(1 for t in turns for a in t.artifacts if a.type is ArtifactType.decision)
+    data = MeetingCloseOut(
+        meeting_id=meta.id,
+        status=meta.status.value,
+        closed_at=meta.closed_at.isoformat() if meta.closed_at else None,
+        turns_total=len(turns),
+        decisions=decisions,
+        action_items=sum(
+            1 for t in turns for a in t.artifacts if a.type is ArtifactType.action_item
+        ),
+        open_issues=sum(
+            1 for t in turns for a in t.artifacts if a.type is ArtifactType.open_issue
+        ),
+        minutes_path=str(path),
+    )
+    return ok_envelope(
+        state, data.model_dump(mode="json"),
+        meeting_closed_instructions(meta.type.value, decisions),
+    )
+
+
+# ── 파이프라인 툴 4종 (wdpipeline 지연 import — 병렬 개발 계약) ────────
+
+
+@mcp.tool()
+def report_ingest(file: str, assets_dir: str | None = None, run_id: str | None = None) -> dict:
+    """ReportArchive 복붙 JSON 파일을 정규화해 data/pipeline/{run_id}/report.norm.json으로 저장한다."""
+    state = get_session()
+    mod, err = _lazy_import("wdpipeline.ingest")
+    if mod is None:
+        return error_envelope(
+            state, "PIPELINE_UNAVAILABLE",
+            f"wdpipeline.ingest를 불러올 수 없다: {err}",
+            "wdpipeline 모듈이 아직 구현 중일 수 있다. 구현 완료 후 다시 호출하라.",
+        )
+    src = Path(file)
+    if not src.is_file():
+        return error_envelope(
+            state, "FILE_NOT_FOUND", f"보고서 파일 없음: {src}",
+            "ReportArchive에서 복사한 report_archive_draft_v1 JSON 파일 경로를 넘겨라.",
+        )
+    rid = run_id or _new_run_id()
+    try:
+        norm = mod.ingest_report_file(src, Path(assets_dir) if assets_dir else None)
+    except Exception as exc:
+        return error_envelope(state, "INGEST_FAILED", f"{type(exc).__name__}: {exc}")
+    run_dir = _run_dir(rid)
+    run_dir.mkdir(parents=True, exist_ok=True)
+    norm_path = run_dir / "report.norm.json"
+    norm_path.write_text(json.dumps(norm, ensure_ascii=False, indent=2), encoding="utf-8")
+    data = ReportIngestOut(
+        run_id=rid,
+        doc_id=norm.get("doc_id"),
+        title=str(norm.get("title", "")),
+        pages=len(norm.get("pages", [])),
+        norm_path=str(norm_path),
+    )
+    return ok_envelope(state, data.model_dump(mode="json"), INSTR_INGESTED)
+
+
+@mcp.tool()
+def report_fragmentize(run_id: str) -> dict:
+    """정규화 보고서를 Claim/Evidence/Case/Metric/CTA 조각으로 분해해 fragments.json으로 저장한다.
+
+    frag_id 목록은 이후 회의(meeting_start run_id=...)의 인용 화이트리스트가 된다.
+    """
+    state = get_session()
+    mod, err = _lazy_import("wdpipeline.fragmentize")
+    if mod is None:
+        return error_envelope(
+            state, "PIPELINE_UNAVAILABLE",
+            f"wdpipeline.fragmentize를 불러올 수 없다: {err}",
+            "wdpipeline 모듈이 아직 구현 중일 수 있다. 구현 완료 후 다시 호출하라.",
+        )
+    norm_path = _run_dir(run_id) / "report.norm.json"
+    if not norm_path.is_file():
+        return error_envelope(
+            state, "RUN_NOT_FOUND", f"report.norm.json 없음: {norm_path}",
+            "report_ingest를 먼저 호출해 run을 만들어라.",
+        )
+    norm = json.loads(norm_path.read_text(encoding="utf-8"))
+    try:
+        frags = mod.fragmentize(norm)
+    except Exception as exc:
+        return error_envelope(state, "FRAGMENTIZE_FAILED", f"{type(exc).__name__}: {exc}")
+    frags_path = _run_dir(run_id) / "fragments.json"
+    frags_path.write_text(json.dumps(frags, ensure_ascii=False, indent=2), encoding="utf-8")
+    by_type: dict[str, int] = {}
+    for f in frags:
+        by_type[str(f.get("type", "?"))] = by_type.get(str(f.get("type", "?")), 0) + 1
+    data = FragmentizeOut(
+        run_id=run_id,
+        fragments_total=len(frags),
+        by_type=by_type,
+        preview=[
+            FragmentPreview(
+                frag_id=str(f.get("frag_id", "")),
+                type=str(f.get("type", "")),
+                text=str(f.get("text", ""))[:120],
+            )
+            for f in frags[:5]
+        ],
+        fragments_path=str(frags_path),
+    )
+    return ok_envelope(state, data.model_dump(mode="json"), INSTR_FRAGMENTIZED)
+
+
+@mcp.tool()
+def scenario_build(meeting_id: str, run_id: str | None = None) -> dict:
+    """회의 산출물(decision·scenario_patch)을 집계하고 규칙 기반 ScenarioDoc을 조립·검증·저장한다.
+
+    run_id 미지정 시 meeting_start에 연결했던 run을 쓴다. 산출은 data/pipeline/{run_id}/scenario.json.
+    """
+    state = get_session()
+    mod, err = _lazy_import("wdpipeline.scenario")
+    if mod is None:
+        return error_envelope(
+            state, "PIPELINE_UNAVAILABLE",
+            f"wdpipeline.scenario를 불러올 수 없다: {err}",
+            "wdpipeline 모듈이 아직 구현 중일 수 있다. 구현 완료 후 다시 호출하라.",
+        )
+    engine = _engine()
+    try:
+        meta, turns = engine.store.load(meeting_id)
+    except FileNotFoundError as exc:
+        return error_envelope(
+            state, "NOT_FOUND", str(exc), "meeting_start가 반환한 meeting_id를 사용하라."
+        )
+    rid = run_id or state.ledger(meeting_id).run_id
+    if not rid:
+        return error_envelope(
+            state, "RUN_REQUIRED",
+            "이 회의에 연결된 run이 없다. run_id를 명시하라.",
+            "report_ingest → report_fragmentize로 만든 run_id를 넘겨라.",
+        )
+    run_dir = _run_dir(rid)
+    norm_path = run_dir / "report.norm.json"
+    if not norm_path.is_file():
+        return error_envelope(
+            state, "RUN_NOT_FOUND", f"report.norm.json 없음: {norm_path}",
+            "report_ingest를 먼저 호출해 run을 만들어라.",
+        )
+    try:
+        fragments = _load_fragments(rid)
+    except (FileNotFoundError, ValueError) as exc:
+        return error_envelope(
+            state, "RUN_NOT_FOUND", str(exc), "report_fragmentize를 먼저 호출하라."
+        )
+    norm = json.loads(norm_path.read_text(encoding="utf-8"))
+
+    decisions = [
+        a.content for t in turns for a in t.artifacts if a.type is ArtifactType.decision
+    ]
+    patches = [
+        a.content for t in turns for a in t.artifacts if a.type is ArtifactType.scenario_patch
+    ]
+    try:
+        doc = mod.assemble_demo_scenario(norm, fragments)
+        doc = doc.model_copy(
+            update={"meta": doc.meta.model_copy(update={"meeting_id": meeting_id})}
+        )
+        errors = mod.validate_scenario(doc, modules_root())
+    except Exception as exc:
+        return error_envelope(state, "SCENARIO_FAILED", f"{type(exc).__name__}: {exc}")
+    scenario_path = run_dir / "scenario.json"
+    scenario_path.write_text(doc.model_dump_json(indent=2), encoding="utf-8")
+    data = ScenarioBuildOut(
+        meeting_id=meeting_id,
+        run_id=rid,
+        scenario_path=str(scenario_path),
+        core_message=doc.meta.core_message,
+        duration_sec=doc.meta.duration_sec,
+        scene_count=len(doc.scenes),
+        scenes=[SceneBrief(name=s.name, dur=s.dur, tpl=s.tpl) for s in doc.scenes],
+        validation_errors=list(errors),
+        meeting_decisions=decisions,
+        scenario_patches=len(patches),
+    )
+    return ok_envelope(state, data.model_dump(mode="json"), scenario_built_instructions(list(errors)))
+
+
+# ── 렌더 툴 2종 ───────────────────────────────────────────────────────
+
+
+@mcp.tool()
+def render_submit(
+    scenario_path: str | None = None,
+    targets: list[str] | None = None,
+    build_dir: str | None = None,
+    entry: str | None = None,
+    fps: int | None = None,
+) -> dict:
+    """렌더 잡을 등록한다 — 백그라운드 스레드가 (필요 시) 빌드 후 mp4/PPTX를 export 한다.
+
+    scenario_path(ScenarioDoc JSON) 또는 build_dir(기성 렌더 패키지 + entry) 중 하나를 넘겨라.
+    targets 기본 ["video"], 허용 값 video/pptx. 상태는 data/render_jobs/{job_id}.json에 기록되며
+    render_status로 폴링한다.
+    """
+    state = get_session()
+    targets = targets or ["video"]
+    bad = [t for t in targets if t not in RENDER_TARGETS]
+    if bad:
+        return error_envelope(
+            state, "INVALID_TARGETS", f"지원하지 않는 target: {bad}",
+            f"targets는 {list(RENDER_TARGETS)}의 부분집합이다.",
+        )
+    if bool(scenario_path) == bool(build_dir):
+        return error_envelope(
+            state, "INVALID_INPUT",
+            "scenario_path와 build_dir 중 정확히 하나를 지정해야 한다.",
+            "시나리오에서 빌드하려면 scenario_path, 기성 빌드를 렌더하려면 build_dir+entry.",
+        )
+    if scenario_path:
+        sp = Path(scenario_path)
+        if not sp.is_file():
+            return error_envelope(
+                state, "FILE_NOT_FOUND", f"scenario 파일 없음: {sp}",
+                "scenario_build가 반환한 scenario_path를 사용하라.",
+            )
+        # 잡 실패를 미루지 않는다 — 빌더 가용성과 문서 유효성을 접수 시점에 검사
+        mod, err = _lazy_import("wdpipeline.build")
+        if mod is None:
+            return error_envelope(
+                state, "PIPELINE_UNAVAILABLE",
+                f"wdpipeline.build를 불러올 수 없다: {err}",
+                "wdpipeline 모듈이 아직 구현 중일 수 있다. build_dir 경로로는 렌더가 가능하다.",
+            )
+        from wdcore.models.scenario import ScenarioDoc
+
+        try:
+            ScenarioDoc.model_validate_json(sp.read_text(encoding="utf-8"))
+        except ValidationError as exc:
+            return error_envelope(
+                state, "INVALID_SCENARIO", str(exc), "scenario_build로 유효한 문서를 다시 만들어라."
+            )
+    else:
+        bd = Path(build_dir)
+        if not bd.is_dir():
+            return error_envelope(state, "BUILD_DIR_NOT_FOUND", f"빌드 디렉터리 없음: {bd}")
+        if entry is None:
+            candidates = sorted(bd.glob("*.dc.html")) or [bd / "index.html"]
+            if not candidates[0].is_file():
+                return error_envelope(
+                    state, "ENTRY_NOT_FOUND",
+                    f"엔트리 HTML을 찾지 못했다: {bd}",
+                    "entry에 빌드 디렉터리 기준 엔트리 파일명을 명시하라.",
+                )
+            entry = candidates[0].name
+        elif not (bd / entry).is_file():
+            return error_envelope(state, "ENTRY_NOT_FOUND", f"엔트리 없음: {bd / entry}")
+    job = jobs.submit_render_job(
+        targets=targets, scenario_path=scenario_path, build_dir=build_dir, entry=entry, fps=fps,
+    )
+    data = RenderSubmitOut(
+        job_id=job.job_id,
+        status=job.status,
+        targets=job.targets,
+        job_path=str(jobs.job_path(job.job_id)),
+    )
+    return ok_envelope(state, data.model_dump(mode="json"), render_submitted_instructions(job.job_id))
+
+
+@mcp.tool()
+def render_status(job_id: str) -> dict:
+    """렌더 잡 상태·산출물 경로를 조회한다 (data/render_jobs/{job_id}.json이 진실)."""
+    state = get_session()
+    job = jobs.read_job(job_id)
+    if job is None:
+        return error_envelope(
+            state, "NOT_FOUND", f"렌더 잡 없음: {job_id}",
+            "render_submit이 반환한 job_id를 사용하라.",
+        )
+    return ok_envelope(state, job.model_dump(mode="json"), render_status_instructions(job.status))
+
+
+# ── QA 툴 1종 (wdqa 지연 import — 병렬 개발 계약) ─────────────────────
+
+
+@mcp.tool()
+def qa_run(build_path: str, gates: list[str] | None = None, scenario_path: str | None = None) -> dict:
+    """빌드 디렉터리에 품질 게이트를 실행해 리포트를 반환한다.
+
+    리포트는 지식카드로 등록되어 다음 심의의 인용 근거가 된다 (PLAN §7).
+    """
+    state = get_session()
+    mod, err = _lazy_import("wdqa.gates")
+    if mod is None:
+        return error_envelope(
+            state, "QA_UNAVAILABLE",
+            f"wdqa.gates를 불러올 수 없다: {err}",
+            "wdqa 모듈이 아직 구현 중일 수 있다. 구현 완료 후 다시 호출하라.",
+        )
+    bd = Path(build_path)
+    if not bd.is_dir():
+        return error_envelope(state, "BUILD_DIR_NOT_FOUND", f"빌드 디렉터리 없음: {bd}")
+    scenario: dict | None = None
+    if scenario_path:
+        sp = Path(scenario_path)
+        if not sp.is_file():
+            return error_envelope(state, "FILE_NOT_FOUND", f"scenario 파일 없음: {sp}")
+        scenario = json.loads(sp.read_text(encoding="utf-8"))
+    try:
+        report = mod.run_gates(bd, scenario=scenario, gates=gates)
+    except Exception as exc:
+        return error_envelope(state, "QA_FAILED", f"{type(exc).__name__}: {exc}")
+    data = QaRunOut(
+        build_path=str(bd),
+        gates=gates,
+        passed=bool(report.get("passed")),
+        results=[QaGateResult.model_validate(r) for r in report.get("results", [])],
+    )
+    return ok_envelope(state, data.model_dump(mode="json"), qa_instructions(data.passed))
+
+
+# ── 엔트리 ───────────────────────────────────────────────────────────
 
 
 def main() -> None:
-    raise SystemExit("wdmcp 서버는 M1 구현 중입니다")
+    """wdmcp 콘솔 엔트리 — stdio 트랜스포트로 기동한다 (stdout은 프로토콜 전용, 로그는 stderr)."""
+    logging.basicConfig(stream=sys.stderr, level=get_settings().log_level)
+    structlog.configure(logger_factory=structlog.PrintLoggerFactory(file=sys.stderr))
+    log.info("wdmcp_server_start", transport="stdio")
+    mcp.run(transport="stdio")
 
 
 if __name__ == "__main__":
