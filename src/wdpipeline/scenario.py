@@ -204,8 +204,13 @@ def _collect_x_read(data: Any, schema: dict) -> list[str]:
     return out
 
 
-def narration_from_x_read(data: dict, schema: dict) -> str:
-    """x-read 문자열을 문장으로 이어 TTS 내레이션 대본을 만든다."""
+def narration_from_x_read(data: dict, schema: dict, dur: float | None = None, rate: float = 5.5) -> str:
+    """x-read 문자열을 문장으로 이어 TTS 내레이션 대본을 만든다.
+
+    dur 가 주어지면 낭독 예산(dur × rate 자, 공백 제외)을 넘지 않도록 문장 단위로
+    앞에서부터 채운다 — 게이트 2(narration-rate)와 같은 기준. 첫 문장은 예산을
+    넘어도 남긴다(빈 내레이션 방지, 게이트가 dur 재조정을 제안하게 둔다).
+    """
     parts = _collect_x_read(data, schema)
     sents = []
     for p in parts:
@@ -215,7 +220,18 @@ def narration_from_x_read(data: dict, schema: dict) -> str:
         if p[-1] not in ".!?…":
             p += "."
         sents.append(p)
-    return " ".join(sents)
+    if dur is None:
+        return " ".join(sents)
+    budget = int(dur * rate)
+    picked: list[str] = []
+    used = 0
+    for s in sents:
+        n = len(s.replace(" ", ""))
+        if picked and used + n > budget:
+            break
+        picked.append(s)
+        used += n
+    return " ".join(picked)
 
 
 # ── 씬별 데이터 조립 휴리스틱 (규칙 기반 — LLM 무호출) ───────────────────
@@ -505,7 +521,7 @@ def assemble_demo_scenario(norm: dict, fragments: list[dict]) -> ScenarioDoc:
                 # 마지막 요소 페이드 도중을 캡처했다: QA 게이트 3 실측). 하한은 dur 절반.
                 "stills": [round(max(dur - 1.0, dur * 0.5), 2)],
                 "data_ref": f"content.{name}",
-                "narration": narration_from_x_read(data, schema),
+                "narration": narration_from_x_read(data, schema, dur=dur),
                 "transition": "cut",
             }
         )

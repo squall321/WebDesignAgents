@@ -100,3 +100,16 @@ PLAN.md §16의 6건 — TTS 엔진, vLLM GPU 자원, AX 권한 수준, 대비 �
 - ReportArchive 실연동(REST/MCP)은 후순위(M3+). 1차 입력은 **복붙 모드** — report_archive_draft_v1 JSON 파일을 `wda ingest --file`로 받는다. 접속 정보·인증 불필요.
 - 포맷 픽스처 examples/reportarchive/report_sample.json (ReportArchive 루트의 report_578_platform_guide.json 사본, 5페이지 실물).
 - 복붙 모드엔 search_text/ai_summary가 없음 → 정규화기가 위젯 텍스트 평탄화로 search_text 자체 생성.
+
+## 2026-07-25 — 2차 빌드 + 교차 리뷰 라운드 완료
+
+### 2차 빌드 (워크플로우 4 빌드 + 2 리뷰)
+- wdmcp(툴 11종+봉투+known_refs/delivered_modules 원장), wdpipeline(P0~P4+CLI), wdllm(GLM 5원칙 클라이언트+무인 오케스트레이터), wdqa(게이트 7종) 완성.
+- E2E 실증 — report_sample.json → 심의 없이 규칙 조립 → mp4 90.000s + PPTX 7장(발표자 노트=narration).
+- 적대적 리뷰 결론: 빌드 에이전트 허위 보고 0건. 경계 공격(빈 보고서·씬51·dur0/301·16KB) 방어 확인.
+
+### 리뷰 지적 수정 (이 라운드에서 전부 처리)
+- major 5건 — ① render_submit out_dir slug 정합 ② gate2 x-read 서브트리 합산 ③ wdllm fragments 배관(에이전트 수행, frag_id 초기 known_refs) ④ 테마 faint #8A92A8→#667085(4.5:1+) ⑤ QA 단락 기본값 해제(skip_on_phase_failure=False).
+- minor — gate1 wdaChildren 변수 해석, modules_root env 존중, cli 검증오류 정제, ingest 빈 입력 거부, _truncate 어절 경계, process 픽스처 압축(193→130자), FakeLLM 모더레이터 인용.
+- 게이트 실전 가동으로 발견된 템플릿 결함 추가 수정 — stills 기본값 dur-1.0(페이드 중 캡처 방지), DotGrid/아바타 data-qa-clip-ok, 체크 글리프 data-qa-icon, 네트워크 라벨 폭 확장, 히어로 lineHeight 1.15, 내레이션 낭독 예산 절단(dur×5.5자), gate3 미선언-통과 조합 info 강등.
+- 최종 상태: pytest 165 passed/4 skipped, QA 게이트 passed=True(경고 0, info 1), E2E mp4 90.000s+PPTX 7장 재현.

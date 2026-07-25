@@ -97,3 +97,65 @@ def verify_seek_determinism(
         h2 = hashlib.sha256(sess.capture()).hexdigest()
         results.append({"time": t, "hash1": h1, "hash2": h2, "match": h1 == h2})
     return results
+
+
+def _frame_max_channel_diff_ratio(png_a: Path, png_b: Path, channel_tol: int) -> float:
+    """두 PNG 의 픽셀별 최대 채널 차이가 channel_tol 을 넘는 픽셀 비율(0~1)."""
+    from PIL import Image
+    import numpy as np
+
+    a = np.asarray(Image.open(png_a).convert("RGB"), dtype=np.int16)
+    b = np.asarray(Image.open(png_b).convert("RGB"), dtype=np.int16)
+    if a.shape != b.shape:
+        return 1.0
+    diff = np.abs(a - b).max(axis=2)
+    return float((diff > channel_tol).mean())
+
+
+def verify_render_determinism(
+    root_dir: str | Path,
+    page_relpath: str | Path,
+    *,
+    config: RenderConfig | None = None,
+    resources: dict[str, str] | None = None,
+    channel_tol: int = 0,
+    log: Callable[[str], None] = print,
+) -> dict:
+    """동일 입력을 **두 번 독립 렌더**(별도 세션·별도 PNG 시퀀스)해 결정성을 잰다.
+
+    checklist M0 의 "동일 입력 2회 렌더 해시 일치 + perceptual diff 임계값 실측"을 충족한다.
+    반환: {frames, hash_identical(bool), hash_mismatch(int), max_diff_ratio(float),
+           mean_diff_ratio(float), mismatches:[{frame, sha_a, sha_b, diff_ratio}]}
+    """
+    cfg = config or load_config()
+    d1 = Path(tempfile.mkdtemp(prefix="wdr_det_a_"))
+    d2 = Path(tempfile.mkdtemp(prefix="wdr_det_b_"))
+    try:
+        r1 = export_video(root_dir, page_relpath, d1 / "a.mp4", config=cfg,
+                          resources=resources, frames_dir=d1 / "frames", keep_frames=True, log=log)
+        r2 = export_video(root_dir, page_relpath, d2 / "b.mp4", config=cfg,
+                          resources=resources, frames_dir=d2 / "frames", keep_frames=True, log=log)
+        n = min(r1["frames"], r2["frames"])
+        mismatches, ratios, hash_mismatch = [], [], 0
+        for i in range(n):
+            pa, pb = d1 / "frames" / f"f_{i:06d}.png", d2 / "frames" / f"f_{i:06d}.png"
+            ha = hashlib.sha256(pa.read_bytes()).hexdigest()
+            hb = hashlib.sha256(pb.read_bytes()).hexdigest()
+            if ha != hb:
+                hash_mismatch += 1
+                ratio = _frame_max_channel_diff_ratio(pa, pb, channel_tol)
+                ratios.append(ratio)
+                if len(mismatches) < 20:
+                    mismatches.append({"frame": i, "sha_a": ha[:12], "sha_b": hb[:12], "diff_ratio": ratio})
+        return {
+            "frames": n,
+            "frame_count_match": r1["frames"] == r2["frames"],
+            "hash_identical": hash_mismatch == 0,
+            "hash_mismatch": hash_mismatch,
+            "max_diff_ratio": max(ratios) if ratios else 0.0,
+            "mean_diff_ratio": (sum(ratios) / len(ratios)) if ratios else 0.0,
+            "mismatches": mismatches,
+        }
+    finally:
+        shutil.rmtree(d1, ignore_errors=True)
+        shutil.rmtree(d2, ignore_errors=True)

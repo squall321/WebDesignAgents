@@ -200,8 +200,11 @@ def run_runtime_scan(
             key = ("undeclared", scene, *pair_key)
             if key not in seen:
                 seen.add(key)
+                # 대비 자체가 기준을 통과하면 정보성(선언 누락 안내), 미달이면 경고 —
+                # 애니메이션 중간 합성색 등 선언 불가능한 통과 조합의 노이즈를 줄인다
+                sev = "info" if ratio + 1e-9 >= threshold else "warning"
                 results.append(
-                    row(GATE, "undeclared-pair", "warning",
+                    row(GATE, "undeclared-pair", sev,
                         f"미선언 색 조합 fg {pair_key[0]} / bg {pair_key[1]} "
                         f"(대비 {ratio:.2f}:1, 예: {it['text'][:20]!r}) — contrastPairs 에 없다",
                         scene=scene)

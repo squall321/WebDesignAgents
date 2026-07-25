@@ -13,6 +13,8 @@ _RUNTIME_SRC = _REPO_ROOT / "web" / "runtime"
 _TEMPLATES_SRC = _REPO_ROOT / "web" / "templates"
 _TOKENS_SRC = _REPO_ROOT / "web" / "tokens"
 _VENDOR_SRC = _REPO_ROOT / "web" / "vendor"
+_FONTS_SRC = _REPO_ROOT / "web" / "fonts"
+_FONT_FILE = "PretendardVariable.woff2"
 
 _VENDOR_FILES = ("react.production.min.js", "react-dom.production.min.js", "babel.min.js")
 
@@ -27,9 +29,12 @@ _LOAD_ORDER = (
     "./scenes.jsx",
 )
 
-_PRETENDARD_CSS = (
-    "https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9"
-    "/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
+# 폰트는 로컬 사본을 @font-face 로 인라인한다 — CDN(jsdelivr) 의존을 끊어 렌더를 결정적으로
+# 만들고 M3 egress-0(오프라인 SIF) 전제를 지킨다. woff2 는 build 시 out_dir/fonts/ 로 복사된다.
+_PRETENDARD_FACE = (
+    "@font-face{font-family:'Pretendard Variable';"
+    "font-weight:45 920;font-style:normal;font-display:swap;"
+    f"src:url('./fonts/{_FONT_FILE}') format('woff2-variations');}}"
 )
 
 
@@ -65,7 +70,7 @@ def _render_index_html(doc: ScenarioDoc, theme_raw: str, bg: str) -> str:
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{title}</title>
-<link rel="stylesheet" href="{_PRETENDARD_CSS}">
+<style>{_PRETENDARD_FACE}</style>
 <style>html, body {{ margin: 0; padding: 0; height: 100%; background: {bg}; }}</style>
 <script>window.OM_SCENES = {om_scenes};</script>
 <script>window.OM_PLAYBACK = {om_playback};</script>
@@ -168,6 +173,9 @@ def build_render_package(doc: ScenarioDoc, out_dir: Path) -> Path:
     (out_dir / "vendor").mkdir(exist_ok=True)
     for f in _VENDOR_FILES:
         shutil.copy2(_VENDOR_SRC / f, out_dir / "vendor" / f)
+    # 폰트 로컬 사본 — @font-face 가 ./fonts/ 로 참조하므로 함께 복사 (CDN 의존 제거)
+    (out_dir / "fonts").mkdir(exist_ok=True)
+    shutil.copy2(_FONTS_SRC / _FONT_FILE, out_dir / "fonts" / _FONT_FILE)
 
     # 씬 데이터 + 바인딩 + 엔트리
     (out_dir / "scene-data.json").write_text(

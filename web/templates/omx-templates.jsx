@@ -98,12 +98,13 @@
           </div>
           <div style={Object.assign({
             fontSize: theme.type.hero, fontWeight: 800, letterSpacing: '-0.03em',
-            lineHeight: 1.1, textAlign: 'center',
+            lineHeight: 1.15, textAlign: 'center',
           }, rise(theme, t, p.title.at, p.title.dur, 34))}>
             <AccentText data={d.title} accentColor={theme.color.blue} />
           </div>
           <div style={Object.assign({
             fontSize: theme.type.subtitle, color: theme.color.sub, fontWeight: 500,
+            lineHeight: 1.45, paddingBottom: 4,
           }, rise(theme, t, p.subtitle.at))}>{d.subtitle}</div>
           <div style={{ position: 'relative', width: 620, height: 40, marginTop: 12 }}>
             <div style={{ position: 'absolute', left: (620 - lineW) / 2, top: 19, width: lineW, height: 2, background: theme.color.blueBorder }}></div>

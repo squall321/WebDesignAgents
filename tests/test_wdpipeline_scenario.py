@@ -48,13 +48,18 @@ def test_scene_data_passes_template_schemas(doc: ScenarioDoc):
 
 
 def test_narration_links_x_read(doc: ScenarioDoc):
-    """narration 은 x-read 필드 연결 — 오프닝 낭독에 badge/title/subtitle 이 들어가야 한다."""
+    """narration 은 x-read 연결 + 낭독 예산(dur×5.5자) 절단 — 첫 필드는 반드시 포함."""
     op = next(s for s in doc.scenes if s.tpl.startswith("opening@"))
     data = doc.content["opening"]
     assert data["badge"] in op.narration
-    assert data["subtitle"].rstrip("…") in op.narration or data["subtitle"] in op.narration
     for s in doc.scenes:
         assert s.narration.strip(), f"씬 {s.name} narration 이 비었다"
+        n = len(s.narration.replace(" ", ""))
+        budget = int(s.dur * 5.5)
+        # 예산 이내이거나, 첫 문장 하나가 예산을 넘는 경우(빈 내레이션 방지 규칙)만 허용
+        assert n <= budget or "." not in s.narration.rstrip(".!?…"), (
+            f"씬 {s.name} narration {n}자 > 예산 {budget}자"
+        )
 
 
 def test_validate_passes(doc: ScenarioDoc):

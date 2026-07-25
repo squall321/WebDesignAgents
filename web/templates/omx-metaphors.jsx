@@ -214,7 +214,11 @@
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: theme.type.caseTitle, fontWeight: 800, color: net.nodeFg,
               }}>{p.ini}</div>
-              <div style={{ marginTop: 10, fontSize: theme.type.caption, fontWeight: 600, color: net.nameFg, whiteSpace: 'nowrap' }}>{p.name}</div>
+              <div style={{
+                marginTop: 10, fontSize: theme.type.caption, fontWeight: 600, color: net.nameFg,
+                whiteSpace: 'nowrap', textAlign: 'center',
+                width: net.nodeSize + 92, marginLeft: -(92 / 2),
+              }}>{p.name}</div>
             </div>
           );
         })}
