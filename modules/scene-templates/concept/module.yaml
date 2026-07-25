@@ -1,0 +1,36 @@
+# tpl.concept — 씬 템플릿 모듈 SSOT (개념 — 방사형 네트워크 + 라운드 목록)
+id: tpl.concept
+type: scene-template
+name: "개념 — 방사형 네트워크 + 라운드 목록"
+status: draft
+version: 1.0.0
+engine_compat: "animations-v2"
+origin: "examples/hwax_intro/hwax-scenes.jsx#S3Approach"
+nat_default: 11
+scene_name_default: "개념"
+entry:
+  template: "web/templates/omx-templates.jsx#ConceptScene"
+  schema: schema.json
+  fixtures:
+    - fixtures/min.json
+    - fixtures/typical.json
+    - fixtures/max.json
+  preview: preview.html
+  snapshots: fixtures/snapshots/
+metaphors:
+  - frame-chrome
+  - dot-grid
+  - radial-network
+theme_default: hwax-blue
+summary: "중앙 질문에서 전문가 노드로 뻗는 방사형 네트워크와 라운드 목록으로 접근 방식을 설명하는 개념 씬"
+in_scope:
+  - "중앙 개념 → 4~8개 노드 방사형 네트워크"
+  - "우측 라운드/단계 목록 2~4개 + 결정 박스(outcome)"
+  - "노드는 이니셜 1~2자 + 짧은 이름"
+out_of_scope:
+  - "노드 9개 이상 또는 노드 간 상호 연결(그래프)"
+  - "계층형 트리 다이어그램"
+  - "노드에 이미지/아이콘이 필요한 경우"
+quality:
+  gates_passed: []
+  reviews: []

@@ -1,0 +1,35 @@
+# tpl.proof — 씬 템플릿 모듈 SSOT (실증 — 3열 사례 카드 + 배지)
+id: tpl.proof
+type: scene-template
+name: "실증 — 3열 사례 카드 + 배지"
+status: draft
+version: 1.0.0
+engine_compat: "animations-v2"
+origin: "examples/hwax_intro/hwax-scenes.jsx#S6Cases"
+nat_default: 15
+scene_name_default: "실증"
+entry:
+  template: "web/templates/omx-templates.jsx#ProofScene"
+  schema: schema.json
+  fixtures:
+    - fixtures/min.json
+    - fixtures/typical.json
+    - fixtures/max.json
+  preview: preview.html
+  snapshots: fixtures/snapshots/
+metaphors:
+  - frame-chrome
+  - dot-grid
+theme_default: hwax-blue
+summary: "구체 식별자(보고서 번호 등)가 담긴 사례 카드 2~3장이 순차 등장하며 신뢰를 쌓는 실증 씬"
+in_scope:
+  - "실증 사례 2~3건 카드 나열 (식별자 + 메타 + 제목 + 설명 + 배지)"
+  - "배지 톤: success(그린)/info(블루)"
+  - "카드 제목의 \n 줄바꿈 (pre-line)"
+out_of_scope:
+  - "사례 4건 이상"
+  - "스크린샷·차트 등 이미지 증거 삽입"
+  - "타임라인형 사례 연혁"
+quality:
+  gates_passed: []
+  reviews: []

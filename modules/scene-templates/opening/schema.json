@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "wda:tpl.opening/schema@1.0.0",
+  "title": "tpl.opening 데이터 스키마",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "badge",
+    "title",
+    "subtitle"
+  ],
+  "properties": {
+    "badge": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 30,
+      "x-read": true,
+      "description": "상단 필 배지 문구"
+    },
+    "title": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "pre": {
+          "type": "string",
+          "maxLength": 14
+        },
+        "accent": {
+          "type": "string",
+          "maxLength": 12
+        },
+        "post": {
+          "type": "string",
+          "maxLength": 14
+        }
+      },
+      "x-read": true,
+      "description": "대형 타이틀 (accent 부분 강조)"
+    },
+    "subtitle": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 40,
+      "x-read": true
+    },
+    "footnote": {
+      "type": "string",
+      "maxLength": 30
+    },
+    "dotCount": {
+      "type": "integer",
+      "minimum": 3,
+      "maximum": 8,
+      "default": 6,
+      "description": "장식 도트 개수"
+    }
+  }
+}

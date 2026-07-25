@@ -1,0 +1,36 @@
+# tpl.process — 씬 템플릿 모듈 SSOT (절차 — 순차 점등 스텝 카드 그리드)
+id: tpl.process
+type: scene-template
+name: "절차 — 순차 점등 스텝 카드 그리드"
+status: draft
+version: 1.0.0
+engine_compat: "animations-v2"
+origin: "examples/hwax_intro/hwax-scenes.jsx#S4Process"
+nat_default: 18
+scene_name_default: "절차"
+entry:
+  template: "web/templates/omx-templates.jsx#ProcessScene"
+  schema: schema.json
+  fixtures:
+    - fixtures/min.json
+    - fixtures/typical.json
+    - fixtures/max.json
+  preview: preview.html
+  snapshots: fixtures/snapshots/
+metaphors:
+  - frame-chrome
+  - dot-grid
+  - step-card-grid
+theme_default: hwax-blue
+summary: "진행 레일과 함께 3~6개 스텝 카드가 순차 점등되며 절차를 설명하는 씬"
+in_scope:
+  - "3~6단계 절차/파이프라인의 순서 설명 (점등 순서 = 절차 순서)"
+  - "단계별 번호 + 이름 + 한 줄 설명"
+  - "하단 풋노트 한 줄(pre/strong/post 강조)"
+out_of_scope:
+  - "7단계 이상(카드 축소·페이지 분할 필요)"
+  - "분기/병렬이 있는 플로차트"
+  - "단계 간 화살표·의존 관계 표현"
+quality:
+  gates_passed: []
+  reviews: []

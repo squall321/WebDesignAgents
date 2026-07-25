@@ -1,0 +1,18 @@
+{
+  "kicker": "문제",
+  "title": "문제 제목",
+  "chat": {
+    "windowLabel": "창 라벨",
+    "question": "질문?"
+  },
+  "claim": {
+    "lead": "주장 리드",
+    "strong": {
+      "accent": "강조"
+    }
+  },
+  "failures": [
+    "실패 하나",
+    "실패 둘"
+  ]
+}

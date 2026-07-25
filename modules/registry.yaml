@@ -1,0 +1,142 @@
+# 모듈 레지스트리 인덱스 — 전 모듈(id·타입·경로·상태·요약). 상세 SSOT 는 각 module.yaml.
+version: 1
+updated: "2026-07-25"
+load_order_contract:
+  - web/runtime/animations-v2.jsx
+  - web/tokens/loader.jsx
+  - web/templates/omx-metaphors.jsx
+  - web/templates/omx-templates.jsx
+  - "<project scenes.jsx>"
+modules:
+  - id: tpl.opening
+    type: scene-template
+    path: modules/scene-templates/opening
+    status: draft
+    version: 1.0.0
+    nat_default: 8
+    summary: "배지·대형 타이틀·서브타이틀·도트 라인이 순차 등장하는 오프닝 각인 씬"
+    props: "엔진 props({localTime, progress, dur, index, count, scene}) + data(schema.json) + theme(토큰 트리)"
+    in_scope_hint: "제품/플랫폼 소개 영상의 오프닝 각인 (배지 + 타이틀 + 서브타이틀)"
+  - id: tpl.problem
+    type: scene-template
+    path: modules/scene-templates/problem
+    status: draft
+    version: 1.0.0
+    nat_default: 13
+    summary: "챗봇 목업(스켈레톤 답변)과 ✕ 실패 목록으로 기존 방식의 한계를 보여주는 문제 인식 씬"
+    props: "엔진 props({localTime, progress, dur, index, count, scene}) + data(schema.json) + theme(토큰 트리)"
+    in_scope_hint: "단일 도구/기존 방식의 한계 제시 (좌: 목업, 우: 주장 + ✕ 목록)"
+  - id: tpl.concept
+    type: scene-template
+    path: modules/scene-templates/concept
+    status: draft
+    version: 1.0.0
+    nat_default: 11
+    summary: "중앙 질문에서 전문가 노드로 뻗는 방사형 네트워크와 라운드 목록으로 접근 방식을 설명하는 개념 씬"
+    props: "엔진 props({localTime, progress, dur, index, count, scene}) + data(schema.json) + theme(토큰 트리)"
+    in_scope_hint: "중앙 개념 → 4~8개 노드 방사형 네트워크"
+  - id: tpl.process
+    type: scene-template
+    path: modules/scene-templates/process
+    status: draft
+    version: 1.0.0
+    nat_default: 18
+    summary: "진행 레일과 함께 3~6개 스텝 카드가 순차 점등되며 절차를 설명하는 씬"
+    props: "엔진 props({localTime, progress, dur, index, count, scene}) + data(schema.json) + theme(토큰 트리)"
+    in_scope_hint: "3~6단계 절차/파이프라인의 순서 설명 (점등 순서 = 절차 순서)"
+  - id: tpl.differentiator
+    type: scene-template
+    path: modules/scene-templates/differentiator
+    status: draft
+    version: 1.0.0
+    nat_default: 13
+    summary: "R1→R2 반박 카드 흐름이 체크마크 수렴 카드로 착지하며 자체 교정을 보여주는 차별점 씬"
+    props: "엔진 props({localTime, progress, dur, index, count, scene}) + data(schema.json) + theme(토큰 트리)"
+    in_scope_hint: "오류 → 반박 → 수렴의 인과를 등장 순서로 연출 (flow 1~2장 + 수렴 1장)"
+  - id: tpl.proof
+    type: scene-template
+    path: modules/scene-templates/proof
+    status: draft
+    version: 1.0.0
+    nat_default: 15
+    summary: "구체 식별자(보고서 번호 등)가 담긴 사례 카드 2~3장이 순차 등장하며 신뢰를 쌓는 실증 씬"
+    props: "엔진 props({localTime, progress, dur, index, count, scene}) + data(schema.json) + theme(토큰 트리)"
+    in_scope_hint: "실증 사례 2~3건 카드 나열 (식별자 + 메타 + 제목 + 설명 + 배지)"
+  - id: tpl.closing
+    type: scene-template
+    path: modules/scene-templates/closing
+    status: draft
+    version: 1.0.0
+    nat_default: 12
+    summary: "통계 트리오가 페이드아웃한 뒤 타이틀과 CTA 필로 행동을 유도하는 2페이즈 클로징 씬"
+    props: "엔진 props({localTime, progress, dur, index, count, scene}) + data(schema.json) + theme(토큰 트리)"
+    in_scope_hint: "가치 통계 2~3개 → 타이틀 → CTA 1~3개의 2페이즈 마무리"
+  - id: mtp.frame-chrome
+    type: metaphor
+    path: "web/templates/omx-metaphors.jsx#FrameChrome"
+    export: "window.OMX.metaphors['frame-chrome']"
+    status: draft
+    version: 1.0.0
+    summary: "씬 공통 크롬 — 킥커/타이틀/푸터/도트 그리드 셸"
+  - id: mtp.dot-grid
+    type: metaphor
+    path: "web/templates/omx-metaphors.jsx#DotGrid"
+    export: "window.OMX.metaphors['dot-grid']"
+    status: draft
+    version: 1.0.0
+    summary: "움직이는 점 텍스처 배경"
+  - id: mtp.chatbot-mockup
+    type: metaphor
+    path: "web/templates/omx-metaphors.jsx#ChatbotMockup"
+    export: "window.OMX.metaphors['chatbot-mockup']"
+    status: draft
+    version: 1.0.0
+    summary: "챗봇 목업 + 스켈레톤 답변 + 판정 필"
+  - id: mtp.radial-network
+    type: metaphor
+    path: "web/templates/omx-metaphors.jsx#RadialNetwork"
+    export: "window.OMX.metaphors['radial-network']"
+    status: draft
+    version: 1.0.0
+    summary: "중앙 개념 → 방사형 노드 네트워크"
+  - id: mtp.step-card-grid
+    type: metaphor
+    path: "web/templates/omx-metaphors.jsx#StepCardGrid"
+    export: "window.OMX.metaphors['step-card-grid']"
+    status: draft
+    version: 1.0.0
+    summary: "순차 점등 스텝 카드 그리드 + 진행 레일"
+  - id: mtp.rebuttal-flow
+    type: metaphor
+    path: "web/templates/omx-metaphors.jsx#RebuttalFlow"
+    export: "window.OMX.metaphors['rebuttal-flow']"
+    status: draft
+    version: 1.0.0
+    summary: "R1→R2 반박 카드 흐름 + 화살표"
+  - id: mtp.checkmark-converge
+    type: metaphor
+    path: "web/templates/omx-metaphors.jsx#CheckmarkConverge"
+    export: "window.OMX.metaphors['checkmark-converge']"
+    status: draft
+    version: 1.0.0
+    summary: "아바타 체크마크 순차 점등 수렴 카드"
+  - id: mtp.stat-trio
+    type: metaphor
+    path: "web/templates/omx-metaphors.jsx#StatTrio"
+    export: "window.OMX.metaphors['stat-trio']"
+    status: draft
+    version: 1.0.0
+    summary: "대형 통계 가로 나열 (+선택적 퇴장)"
+  - id: mtp.cta-pill
+    type: metaphor
+    path: "web/templates/omx-metaphors.jsx#CtaPill"
+    export: "window.OMX.metaphors['cta-pill']"
+    status: draft
+    version: 1.0.0
+    summary: "행동유도 필 (정적 — 모션은 부모 소관)"
+  - id: theme.hwax-blue
+    type: theme
+    path: web/tokens/hwax-blue.json
+    status: draft
+    version: 1.0.0
+    summary: "HWAX Blue 기본 테마 — raw 16색/폰트/그림자, 시맨틱 타입·좌표·모션·contrastPairs, 컴포넌트 별칭"

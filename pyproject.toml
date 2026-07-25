@@ -1,0 +1,33 @@
+[project]
+name = "webdesignagents"
+version = "0.1.0"
+description = "전문가 심의 기반 발표자료(영상/PPT) 자동 생성 플랫폼"
+requires-python = ">=3.12"
+dependencies = [
+    "pydantic>=2.7",
+    "pydantic-settings",
+    "structlog",
+    "PyYAML",
+    "typer",
+    "httpx",
+]
+
+[project.optional-dependencies]
+mcp = ["mcp>=1.0"]
+llm = ["openai>=1.0"]
+render = ["playwright", "python-pptx", "pillow"]
+dev = ["pytest", "pytest-asyncio"]
+
+[project.scripts]
+wdmcp = "wdmcp.server:main"
+wda = "wdpipeline.cli:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/wdcore", "src/wdmcp", "src/wdllm", "src/wdpipeline", "src/wdrender"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,0 +1,36 @@
+# tpl.problem — 씬 템플릿 모듈 SSOT (문제 — 챗봇 목업 + ✕ 실패 목록)
+id: tpl.problem
+type: scene-template
+name: "문제 — 챗봇 목업 + ✕ 실패 목록"
+status: draft
+version: 1.0.0
+engine_compat: "animations-v2"
+origin: "examples/hwax_intro/hwax-scenes.jsx#S2Problem"
+nat_default: 13
+scene_name_default: "문제"
+entry:
+  template: "web/templates/omx-templates.jsx#ProblemScene"
+  schema: schema.json
+  fixtures:
+    - fixtures/min.json
+    - fixtures/typical.json
+    - fixtures/max.json
+  preview: preview.html
+  snapshots: fixtures/snapshots/
+metaphors:
+  - frame-chrome
+  - dot-grid
+  - chatbot-mockup
+theme_default: hwax-blue
+summary: "챗봇 목업(스켈레톤 답변)과 ✕ 실패 목록으로 기존 방식의 한계를 보여주는 문제 인식 씬"
+in_scope:
+  - "단일 도구/기존 방식의 한계 제시 (좌: 목업, 우: 주장 + ✕ 목록)"
+  - "실패 항목 2~4개"
+  - "스켈레톤 바 폭은 고정 배열(barWidths) — 난수 없음"
+out_of_scope:
+  - "챗봇이 아닌 다른 목업(대시보드·문서 등)"
+  - "실패 목록 5개 이상"
+  - "수치 비교 중심의 문제 제기(신규 은유 필요)"
+quality:
+  gates_passed: []
+  reviews: []

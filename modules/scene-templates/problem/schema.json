@@ -1,0 +1,145 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "wda:tpl.problem/schema@1.0.0",
+  "title": "tpl.problem 데이터 스키마",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "kicker",
+    "title",
+    "chat",
+    "claim",
+    "failures"
+  ],
+  "properties": {
+    "kicker": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16,
+      "x-read": true
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 30,
+      "x-read": true
+    },
+    "chat": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "windowLabel",
+        "question"
+      ],
+      "properties": {
+        "windowLabel": {
+          "type": "string",
+          "maxLength": 24
+        },
+        "question": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40,
+          "x-read": true
+        },
+        "barWidths": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 5,
+          "items": {
+            "type": "integer",
+            "minimum": 120,
+            "maximum": 620
+          },
+          "default": [
+            500,
+            560,
+            460,
+            320
+          ],
+          "description": "스켈레톤 바 폭 고정 배열 (px) — 난수 금지 계약"
+        },
+        "verdict": {
+          "type": "string",
+          "maxLength": 40,
+          "x-read": true
+        }
+      }
+    },
+    "claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lead",
+        "strong"
+      ],
+      "properties": {
+        "lead": {
+          "type": "string",
+          "maxLength": 30,
+          "x-read": true
+        },
+        "strong": {
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "properties": {
+            "pre": {
+              "type": "string",
+              "maxLength": 20
+            },
+            "accent": {
+              "type": "string",
+              "maxLength": 8
+            },
+            "post": {
+              "type": "string",
+              "maxLength": 12
+            }
+          },
+          "x-read": true
+        },
+        "tail": {
+          "type": "string",
+          "maxLength": 14,
+          "x-read": true
+        }
+      }
+    },
+    "failures": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 4,
+      "x-read": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 20
+      }
+    },
+    "conclusion": {
+      "type": "string",
+      "maxLength": 40,
+      "x-read": true
+    },
+    "frame": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "프레임 푸터 메타 — 없으면 푸터 숨김",
+      "properties": {
+        "brand": {
+          "type": "string",
+          "maxLength": 24
+        },
+        "idx": {
+          "type": "string",
+          "maxLength": 4
+        },
+        "total": {
+          "type": "string",
+          "maxLength": 4
+        }
+      }
+    }
+  }
+}

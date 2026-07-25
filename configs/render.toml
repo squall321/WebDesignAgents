@@ -1,0 +1,17 @@
+# 렌더/export 파이프라인 기본 설정 (src/wdrender/config.py 가 로드)
+
+[video]
+fps = 24
+width = 1920
+height = 1080
+viewport_margin = 60   # 스테이지 크기 대비 뷰포트 여유(px) — 자동 축소(scale<1) 방지
+
+[ffmpeg]
+# 프레임 PNG 시퀀스 → mp4 조립 시 -framerate/-i 뒤에 붙는 출력 인자
+args = ["-c:v", "libx264", "-pix_fmt", "yuv420p"]
+
+[pptx]
+default_still_progress = 0.9   # stills 미지정 씬의 기본 캡처 시점 (씬 progress 비율)
+
+[vendor]
+dir = "web/vendor"   # window.__resources 폴백 주입에 쓸 React/Babel 로컬 사본 (repo 루트 기준)

@@ -1,0 +1,37 @@
+# tpl.differentiator — 씬 템플릿 모듈 SSOT (차별점 — 반박 흐름 + 체크마크 수렴)
+id: tpl.differentiator
+type: scene-template
+name: "차별점 — 반박 흐름 + 체크마크 수렴"
+status: draft
+version: 1.0.0
+engine_compat: "animations-v2"
+origin: "examples/hwax_intro/hwax-scenes.jsx#S5SelfCorrect"
+nat_default: 13
+scene_name_default: "차별점"
+entry:
+  template: "web/templates/omx-templates.jsx#DifferentiatorScene"
+  schema: schema.json
+  fixtures:
+    - fixtures/min.json
+    - fixtures/typical.json
+    - fixtures/max.json
+  preview: preview.html
+  snapshots: fixtures/snapshots/
+metaphors:
+  - frame-chrome
+  - dot-grid
+  - rebuttal-flow
+  - checkmark-converge
+theme_default: hwax-blue
+summary: "R1→R2 반박 카드 흐름이 체크마크 수렴 카드로 착지하며 자체 교정을 보여주는 차별점 씬"
+in_scope:
+  - "오류 → 반박 → 수렴의 인과를 등장 순서로 연출 (flow 1~2장 + 수렴 1장)"
+  - "태그 톤: error(빨강)/accept(파랑)/info"
+  - "수렴 카드 아바타 3~8명 체크마크 순차 점등"
+out_of_scope:
+  - "flow 카드 3장 이상(3열 레이아웃 초과)"
+  - "수렴 없이 반박만 있는 구성"
+  - "표/수치 비교 중심의 차별점(stat 계열 은유 필요)"
+quality:
+  gates_passed: []
+  reviews: []

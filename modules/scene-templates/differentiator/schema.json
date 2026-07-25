@@ -1,0 +1,153 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "wda:tpl.differentiator/schema@1.0.0",
+  "title": "tpl.differentiator 데이터 스키마",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "kicker",
+    "title",
+    "flow",
+    "converge"
+  ],
+  "properties": {
+    "kicker": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16,
+      "x-read": true
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 40,
+      "x-read": true
+    },
+    "flow": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 2,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "chip",
+          "label",
+          "quote"
+        ],
+        "properties": {
+          "chip": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16
+          },
+          "quote": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40,
+            "x-read": true
+          },
+          "tag": {
+            "type": "string",
+            "maxLength": 24
+          },
+          "tagTone": {
+            "enum": [
+              "error",
+              "accept",
+              "info"
+            ]
+          }
+        }
+      }
+    },
+    "converge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "chip",
+        "label",
+        "members"
+      ],
+      "properties": {
+        "chip": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 12
+        },
+        "members": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 8,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "ini"
+            ],
+            "properties": {
+              "ini": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2
+              }
+            }
+          }
+        },
+        "verdict": {
+          "type": "string",
+          "maxLength": 30,
+          "x-read": true
+        }
+      }
+    },
+    "footnote": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "pre": {
+          "type": "string",
+          "maxLength": 30
+        },
+        "strong": {
+          "type": "string",
+          "maxLength": 20
+        },
+        "post": {
+          "type": "string",
+          "maxLength": 40
+        }
+      }
+    },
+    "frame": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "프레임 푸터 메타 — 없으면 푸터 숨김",
+      "properties": {
+        "brand": {
+          "type": "string",
+          "maxLength": 24
+        },
+        "idx": {
+          "type": "string",
+          "maxLength": 4
+        },
+        "total": {
+          "type": "string",
+          "maxLength": 4
+        }
+      }
+    }
+  }
+}

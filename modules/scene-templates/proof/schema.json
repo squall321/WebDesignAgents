@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "wda:tpl.proof/schema@1.0.0",
+  "title": "tpl.proof 데이터 스키마",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "kicker",
+    "title",
+    "cases"
+  ],
+  "properties": {
+    "kicker": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16,
+      "x-read": true
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 40,
+      "x-read": true
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "rpt",
+          "title",
+          "desc",
+          "badge"
+        ],
+        "properties": {
+          "rpt": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 12
+          },
+          "meta": {
+            "type": "string",
+            "maxLength": 16
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 24,
+            "x-read": true,
+            "description": "\\n 줄바꿈 허용 (pre-line)"
+          },
+          "desc": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 70,
+            "x-read": true
+          },
+          "badge": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 24
+          },
+          "badgeTone": {
+            "enum": [
+              "success",
+              "info"
+            ]
+          }
+        }
+      }
+    },
+    "footnote": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "pre": {
+          "type": "string",
+          "maxLength": 30
+        },
+        "strong": {
+          "type": "string",
+          "maxLength": 20
+        },
+        "post": {
+          "type": "string",
+          "maxLength": 40
+        }
+      }
+    },
+    "frame": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "프레임 푸터 메타 — 없으면 푸터 숨김",
+      "properties": {
+        "brand": {
+          "type": "string",
+          "maxLength": 24
+        },
+        "idx": {
+          "type": "string",
+          "maxLength": 4
+        },
+        "total": {
+          "type": "string",
+          "maxLength": 4
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "wda:tpl.closing/schema@1.0.0",
+  "title": "tpl.closing 데이터 스키마",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "stats",
+    "title",
+    "subtitle",
+    "ctas"
+  ],
+  "properties": {
+    "stats": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 3,
+      "x-read": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "v",
+          "d"
+        ],
+        "properties": {
+          "v": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 14
+          },
+          "d": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 24
+          }
+        }
+      }
+    },
+    "title": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "pre": {
+          "type": "string",
+          "maxLength": 14
+        },
+        "accent": {
+          "type": "string",
+          "maxLength": 12
+        },
+        "post": {
+          "type": "string",
+          "maxLength": 14
+        }
+      },
+      "x-read": true
+    },
+    "subtitle": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 30,
+      "x-read": true
+    },
+    "ctas": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 3,
+      "x-read": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "text"
+        ],
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 18
+          },
+          "accent": {
+            "type": "string",
+            "maxLength": 10
+          }
+        }
+      }
+    },
+    "footnote": {
+      "type": "string",
+      "maxLength": 40
+    }
+  }
+}

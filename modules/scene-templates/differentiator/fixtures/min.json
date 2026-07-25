@@ -1,0 +1,26 @@
+{
+  "kicker": "차별점",
+  "title": "차별점 제목",
+  "flow": [
+    {
+      "chip": "R1",
+      "label": "라벨 일",
+      "quote": "인용 일"
+    }
+  ],
+  "converge": {
+    "chip": "R2",
+    "label": "수렴",
+    "members": [
+      {
+        "ini": "일"
+      },
+      {
+        "ini": "이"
+      },
+      {
+        "ini": "삼"
+      }
+    ]
+  }
+}

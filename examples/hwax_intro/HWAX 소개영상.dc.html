@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>
+html, body { margin: 0; padding: 0; height: 100%; background: #E9EBF1; }
+a { color: #1428A0; } a:hover { color: #0F1E78; }
+</style>
+<script>window.OM_SCENES = '[{"name":"오프닝","dur":8},{"name":"문제","dur":13},{"name":"심의란","dur":11},{"name":"절차","dur":18},{"name":"자체교정","dur":13},{"name":"실증사례","dur":15},{"name":"클로징","dur":12}]';</script>
+<script>window.OM_PLAYBACK = '{"mode":"loop"}';</script>
+</helmet>
+<x-import component-from-global-scope="HwaxIntroVideo" from="./animations-v2.jsx ./hwax-scenes.jsx" style="position:fixed;inset:0" hint-size="100%,100%"></x-import>
+</x-dc>
+</body>
+</html>

@@ -1,0 +1,18 @@
+# vLLM(GLM-5-2) 접속·호출 규약 — docs/analysis/glm-client-rules.md 의 5원칙 반영
+[server]
+# 운영(cae00): base_url = "http://10.198.143.137:10000/v1", model = "GLM-5-2" (env-kits 상속이 .env 로 주입)
+# dev: 로컬 vLLM (docs/start-dev-vllm.sh, Qwen2.5-7B-AWQ)
+base_url_env = "LLM_BASE_URL"
+model_env = "LLM_MODEL"
+api_key_env = "LLM_API_KEY"
+
+[call]
+disable_streaming = true      # GLM-5-2 + vLLM 0.23.0 스트리밍 tool_calls 유실 결함
+max_tokens = 0                # 0 = 미전송 (8192 미만 지정 금지 — thinking 토큰과 겹쳐 JSON 절단)
+timeout_sec = 300
+reasoning_effort = "medium"   # extra_body.chat_template_kwargs.reasoning_effort 로만 전달
+
+[structured_output]
+mode = "json_object"          # json_object 까지만 신뢰. guided_json 은 M2 raw curl 검증 후 승격
+fallback_on_400 = true        # 400 시 response_format 제거 후 재시도
+parse_retries = 2

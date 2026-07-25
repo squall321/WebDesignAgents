@@ -1,0 +1,37 @@
+# tpl.closing — 씬 템플릿 모듈 SSOT (클로징 — 통계 트리오 → 타이틀 + CTA 필)
+id: tpl.closing
+type: scene-template
+name: "클로징 — 통계 트리오 → 타이틀 + CTA 필"
+status: draft
+version: 1.0.0
+engine_compat: "animations-v2"
+origin: "examples/hwax_intro/hwax-scenes.jsx#S7Closing"
+nat_default: 12
+scene_name_default: "클로징"
+entry:
+  template: "web/templates/omx-templates.jsx#ClosingScene"
+  schema: schema.json
+  fixtures:
+    - fixtures/min.json
+    - fixtures/typical.json
+    - fixtures/max.json
+  preview: preview.html
+  snapshots: fixtures/snapshots/
+metaphors:
+  - frame-chrome
+  - dot-grid
+  - stat-trio
+  - cta-pill
+theme_default: hwax-blue
+summary: "통계 트리오가 페이드아웃한 뒤 타이틀과 CTA 필로 행동을 유도하는 2페이즈 클로징 씬"
+in_scope:
+  - "가치 통계 2~3개 → 타이틀 → CTA 1~3개의 2페이즈 마무리"
+  - "CTA 필 텍스트 + 강조부(accent) 분리"
+  - "씬 내부 다단 페이즈(stats 퇴장) — stills 는 schedule 의 exit 이후로 산출"
+out_of_scope:
+  - "폼/QR 등 실제 입력 UI"
+  - "통계 4개 이상(밀도 초과)"
+  - "연락처 목록 나열형 클로징"
+quality:
+  gates_passed: []
+  reviews: []

@@ -1,0 +1,131 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "wda:tpl.concept/schema@1.0.0",
+  "title": "tpl.concept 데이터 스키마",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "kicker",
+    "title",
+    "center",
+    "nodes",
+    "rounds"
+  ],
+  "properties": {
+    "kicker": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16,
+      "x-read": true
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 40,
+      "x-read": true
+    },
+    "center": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 6,
+      "description": "중앙 박스 문구"
+    },
+    "nodes": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 8,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "ini",
+          "name"
+        ],
+        "properties": {
+          "ini": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 12
+          }
+        }
+      }
+    },
+    "rounds": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "chip",
+          "name",
+          "desc"
+        ],
+        "properties": {
+          "chip": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 14,
+            "x-read": true
+          },
+          "desc": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40,
+            "x-read": true
+          }
+        }
+      }
+    },
+    "outcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "title"
+      ],
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 14,
+          "x-read": true
+        },
+        "desc": {
+          "type": "string",
+          "maxLength": 40,
+          "x-read": true
+        }
+      }
+    },
+    "frame": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "프레임 푸터 메타 — 없으면 푸터 숨김",
+      "properties": {
+        "brand": {
+          "type": "string",
+          "maxLength": 24
+        },
+        "idx": {
+          "type": "string",
+          "maxLength": 4
+        },
+        "total": {
+          "type": "string",
+          "maxLength": 4
+        }
+      }
+    }
+  }
+}

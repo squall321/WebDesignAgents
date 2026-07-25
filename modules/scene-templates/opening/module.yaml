@@ -1,0 +1,35 @@
+# tpl.opening — 씬 템플릿 모듈 SSOT (오프닝 — 배지 + 대형 타이틀 각인)
+id: tpl.opening
+type: scene-template
+name: "오프닝 — 배지 + 대형 타이틀 각인"
+status: draft
+version: 1.0.0
+engine_compat: "animations-v2"
+origin: "examples/hwax_intro/hwax-scenes.jsx#S1Opening"
+nat_default: 8
+scene_name_default: "오프닝"
+entry:
+  template: "web/templates/omx-templates.jsx#OpeningScene"
+  schema: schema.json
+  fixtures:
+    - fixtures/min.json
+    - fixtures/typical.json
+    - fixtures/max.json
+  preview: preview.html
+  snapshots: fixtures/snapshots/
+metaphors:
+  - frame-chrome
+  - dot-grid
+theme_default: hwax-blue
+summary: "배지·대형 타이틀·서브타이틀·도트 라인이 순차 등장하는 오프닝 각인 씬"
+in_scope:
+  - "제품/플랫폼 소개 영상의 오프닝 각인 (배지 + 타이틀 + 서브타이틀)"
+  - "타이틀 일부 강조(accent) — pre/accent/post 3분할"
+  - "3~8개 도트 라인 장식"
+out_of_scope:
+  - "로고 이미지·영상 인서트가 필요한 오프닝"
+  - "2줄 초과 타이틀(hero 112px 기준 오버플로)"
+  - "통계·근거를 담는 오프닝(tpl.closing 의 stat-trio 사용)"
+quality:
+  gates_passed: []
+  reviews: []

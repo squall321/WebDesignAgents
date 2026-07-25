@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "wda:tpl.process/schema@1.0.0",
+  "title": "tpl.process 데이터 스키마",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "kicker",
+    "title",
+    "steps"
+  ],
+  "properties": {
+    "kicker": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16,
+      "x-read": true
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 40,
+      "x-read": true
+    },
+    "steps": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 6,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "n",
+          "name",
+          "desc"
+        ],
+        "properties": {
+          "n": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 12,
+            "x-read": true
+          },
+          "desc": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40,
+            "x-read": true
+          }
+        }
+      }
+    },
+    "footnote": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "pre": {
+          "type": "string",
+          "maxLength": 30
+        },
+        "strong": {
+          "type": "string",
+          "maxLength": 20
+        },
+        "post": {
+          "type": "string",
+          "maxLength": 40
+        }
+      }
+    },
+    "frame": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "프레임 푸터 메타 — 없으면 푸터 숨김",
+      "properties": {
+        "brand": {
+          "type": "string",
+          "maxLength": 24
+        },
+        "idx": {
+          "type": "string",
+          "maxLength": 4
+        },
+        "total": {
+          "type": "string",
+          "maxLength": 4
+        }
+      }
+    }
+  }
+}

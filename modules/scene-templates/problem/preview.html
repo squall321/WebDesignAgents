@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<!-- tpl.problem 단독 구동 프리뷰 — fixture typical 주입. 로드 순서: 엔진 → 토큰 로더 → 은유 → 템플릿 → 씬 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>tpl.problem preview — typical</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>html, body { margin: 0; padding: 0; height: 100%; background: #E9EBF1; }</style>
+<script>window.OM_SCENES = '[{"name":"문제","dur":13}]';</script>
+<script>window.OM_PLAYBACK = '{"mode":"loop"}';</script>
+<script src="../../../web/vendor/react.production.min.js"></script>
+<script src="../../../web/vendor/react-dom.production.min.js"></script>
+<script src="../../../web/vendor/babel.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="react" src="../../../web/runtime/animations-v2.jsx"></script>
+<script type="text/babel" data-presets="react" src="../../../web/tokens/loader.jsx"></script>
+<script type="text/babel" data-presets="react" src="../../../web/templates/omx-metaphors.jsx"></script>
+<script type="text/babel" data-presets="react" src="../../../web/templates/omx-templates.jsx"></script>
+<script type="text/babel" data-presets="react">
+// 프로젝트별 scenes — tpl.problem 에 fixture typical 을 바인딩해 단독 구동
+// (babel 전역 스크립트라 엔진 최상위 선언과 충돌하지 않도록 비충돌 이름으로 참조)
+const SceneRoot = window.SceneStage;
+const theme = window.OMX.themes.loadUrl('../../../web/tokens/hwax-blue.json');
+const data = window.OMX.io.loadJson('./fixtures/typical.json');
+const Tpl = window.OMX.templateIndex['tpl.problem'];
+function BoundScene(props) { return <Tpl {...props} data={data} theme={theme} />; }
+function TplPreview() {
+  return (
+    <div style={{ position: 'relative', width: '100vw', height: '100vh', overflow: 'hidden' }}>
+      <SceneRoot width={1920} height={1080} bg={theme.color.bg} scenes={window.OM_SCENES} playback={window.OM_PLAYBACK}>
+        {{ '문제': BoundScene }}
+      </SceneRoot>
+    </div>
+  );
+}
+window.TplPreview = TplPreview;
+window.__OMX_PREVIEW__ = {
+  tpl: 'tpl.problem',
+  nat: Tpl.nat,
+  still: window.OMX.scheduleUtil.stillOf(Tpl.schedule(data), Tpl.nat),
+};
+ReactDOM.createRoot(document.getElementById('root')).render(<TplPreview />);
+</script>
+</body>
+</html>
