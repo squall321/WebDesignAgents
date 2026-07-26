@@ -223,6 +223,22 @@ wheels = [
 ]
 
 [[package]]
+name = "fastapi"
+version = "0.140.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "annotated-doc" },
+    { name = "pydantic" },
+    { name = "starlette" },
+    { name = "typing-extensions" },
+    { name = "typing-inspection" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/0d/fb/fd7671137d9fa3df1d93a2f5111eb982709201724b29f211e4beb2d58688/fastapi-0.140.0.tar.gz", hash = "sha256:f338951b82fd74ca8f843163aec43ea1a1ce84d515415a50fa98fa25572a5544", size = 420968, upload-time = "2026-07-24T21:16:41.187Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/eb/76/6d9e25ad88da9d3ff744bcdbec4736e38c2288611d43f673a5d9bfa27c07/fastapi-0.140.0-py3-none-any.whl", hash = "sha256:e951c0a0d9540bf5d9a2a9e078fd415da2ab7e312d435139e7d9e2e7fe9f0b23", size = 130863, upload-time = "2026-07-24T21:16:42.89Z" },
+]
+
+[[package]]
 name = "greenlet"
 version = "3.5.4"
 source = { registry = "https://pypi.org/simple" }
@@ -1295,9 +1311,15 @@ render = [
     { name = "playwright" },
     { name = "python-pptx" },
 ]
+web = [
+    { name = "fastapi" },
+    { name = "python-multipart" },
+    { name = "uvicorn" },
+]
 
 [package.metadata]
 requires-dist = [
+    { name = "fastapi", marker = "extra == 'web'", specifier = ">=0.110" },
     { name = "httpx" },
     { name = "jsonschema" },
     { name = "mcp", marker = "extra == 'mcp'", specifier = ">=1.0" },
@@ -1309,12 +1331,14 @@ requires-dist = [
     { name = "pydantic-settings" },
     { name = "pytest", marker = "extra == 'dev'" },
     { name = "pytest-asyncio", marker = "extra == 'dev'" },
+    { name = "python-multipart", marker = "extra == 'web'" },
     { name = "python-pptx", marker = "extra == 'render'" },
     { name = "pyyaml" },
     { name = "structlog" },
     { name = "typer" },
+    { name = "uvicorn", marker = "extra == 'web'", specifier = ">=0.30" },
 ]
-provides-extras = ["mcp", "llm", "render", "dev"]
+provides-extras = ["mcp", "llm", "render", "web", "dev"]
 
 [[package]]
 name = "xlsxwriter"
