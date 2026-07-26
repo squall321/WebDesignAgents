@@ -229,6 +229,83 @@ main { padding: 24px 28px 60px; max-width: 1280px; margin: 0 auto; }
 }
 .frame-box iframe { width: 100%; height: 100%; border: none; display: block; }
 
+/* ── 대화형 제작 패널 (프리뷰 우측) ──────────────────────── */
+.preview-split {
+  display: grid;
+  grid-template-columns: minmax(0, 7fr) minmax(280px, 5fr);
+  gap: 16px;
+  align-items: stretch;
+}
+@media (max-width: 980px) { .preview-split { grid-template-columns: 1fr; } }
+.chat-panel {
+  display: flex;
+  flex-direction: column;
+  background: var(--c-card);
+  border: 1px solid var(--c-line);
+  border-radius: 12px;
+  padding: 12px 14px;
+  box-shadow: var(--shadow-soft);
+}
+.chat-panel h3 { margin: 4px 0 10px; font-size: 14px; }
+.chat-messages {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+  min-height: 220px;
+  max-height: 430px;
+  padding: 4px 2px;
+}
+.chat-msg {
+  max-width: 92%;
+  border-radius: 12px;
+  padding: 8px 12px;
+  font-size: 13.5px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.chat-msg.user {
+  align-self: flex-end;
+  background: var(--c-blue);
+  color: #fff;
+  border-bottom-right-radius: 4px;
+}
+.chat-msg.assistant {
+  align-self: flex-start;
+  background: var(--c-bg);
+  border: 1px solid var(--c-line);
+  border-bottom-left-radius: 4px;
+}
+.chat-actions {
+  align-self: flex-start;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: -4px;
+}
+.chat-badge {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--c-blue);
+  background: var(--c-blue-soft);
+  border: 1px solid var(--c-blue-border);
+  border-radius: 999px;
+  padding: 2px 9px;
+}
+.chat-empty { color: var(--c-faint); font-size: 13px; padding: 8px 4px; }
+.chat-input-row { display: flex; gap: 8px; margin-top: 10px; }
+#chat-input {
+  flex: 1;
+  font: inherit;
+  padding: 8px 12px;
+  border: 1px solid var(--c-line);
+  border-radius: 9px;
+  background: var(--c-bg);
+  color: var(--c-ink);
+}
+#chat-input:focus { outline: 2px solid var(--c-blue-border); }
+
 /* ── 이력 · 회의 목록 ────────────────────────────────────── */
 .list { display: flex; flex-direction: column; gap: 10px; }
 .list-item {

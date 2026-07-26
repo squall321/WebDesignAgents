@@ -68,8 +68,21 @@
         <div class="qa-result" id="qa-result" hidden></div>
 
         <div class="preview-wrap" id="preview-wrap" hidden>
-          <h3>프리뷰</h3>
-          <div class="frame-box"><iframe id="preview-frame" title="렌더 프리뷰"></iframe></div>
+          <div class="preview-split">
+            <div class="preview-left">
+              <h3>프리뷰</h3>
+              <div class="frame-box"><iframe id="preview-frame" title="렌더 프리뷰"></iframe></div>
+            </div>
+            <div class="chat-panel" id="chat-panel">
+              <h3>대화형 제작</h3>
+              <div class="chat-messages" id="chat-messages"></div>
+              <div class="chat-input-row">
+                <input type="text" id="chat-input" placeholder='예: "절차 씬 길이를 14초로 줄여줘"'>
+                <button class="btn primary" id="chat-send">전송</button>
+              </div>
+              <div class="form-error" id="chat-error"></div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

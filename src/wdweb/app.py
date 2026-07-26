@@ -200,6 +200,32 @@ def qa_run(run_id: str, body: dict | None = Body(default=None)) -> dict:
     return envelope(result, message="QA 게이트 실행 완료")
 
 
+# ── 대화형 제작 (chat) ───────────────────────────────────────────────────────
+
+
+@app.post("/api/runs/{run_id}/chat")
+def chat_run(run_id: str, body: dict | None = Body(default=None)) -> dict:
+    """대화 1턴 — LLM 이 제안한 액션을 시나리오에 적용·검증·재빌드한다. body: {message}.
+
+    동기 def — LLM 호출·재빌드가 블로킹이므로 FastAPI 스레드풀에서 돌린다.
+    """
+    run = _run_or_404(run_id)
+    message = (body or {}).get("message")
+    if not isinstance(message, str) or not message.strip():
+        raise HTTPException(status_code=400, detail="message 는 비어있지 않은 문자열이어야 합니다")
+    from . import chat as chatops
+
+    data = chatops.handle_chat(run, message.strip())
+    return envelope(data, message="대화 처리 완료")
+
+
+@app.get("/api/runs/{run_id}/chat")
+def chat_history(run_id: str) -> dict:
+    """대화 이력 반환 — run 재방문 시 프런트가 복원한다."""
+    run = _run_or_404(run_id)
+    return envelope({"chat": run.get("chat") or []})
+
+
 @app.get("/api/runs/{run_id}/artifacts")
 def run_artifacts(run_id: str) -> dict:
     run = _run_or_404(run_id)

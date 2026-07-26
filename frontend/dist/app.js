@@ -139,6 +139,7 @@ function openRun(runId) {
   document.getElementById('qa-result').hidden = true;
   document.getElementById('preview-wrap').hidden = true;
   document.getElementById('preview-frame').removeAttribute('src');
+  loadChat(runId); // 대화 이력 복원 (run 재방문 대응)
   switchTab('create');
   if (pollTimer) clearInterval(pollTimer);
   refreshRun();
@@ -275,6 +276,96 @@ document.getElementById('qa-btn').addEventListener('click', async () => {
   } finally {
     btn.disabled = false;
   }
+});
+
+// ── 대화형 제작 패널 (프리뷰 우측) ──────────────────────────────────────────
+
+let chatRunId = null;
+
+function chatBadgesHtml(msg) {
+  const badges = (msg.actions || []).slice();
+  if (msg.rebuilt) badges.push('재빌드됨');
+  if (!badges.length) return '';
+  return '<div class="chat-actions">'
+    + badges.map((b) => `<span class="chat-badge">${esc(b)}</span>`).join('')
+    + '</div>';
+}
+
+function appendChatMsg(msg) {
+  const box = document.getElementById('chat-messages');
+  const div = document.createElement('div');
+  div.className = 'chat-msg ' + (msg.role === 'user' ? 'user' : 'assistant');
+  div.textContent = msg.content;
+  box.appendChild(div);
+  if (msg.role !== 'user') box.insertAdjacentHTML('beforeend', chatBadgesHtml(msg));
+  box.scrollTop = box.scrollHeight;
+  return div;
+}
+
+function chatEmptyHint() {
+  document.getElementById('chat-messages').innerHTML =
+    '<div class="chat-empty">완성본을 보며 수정을 지시하세요. 예: "절차 씬 길이를 14초로 줄여줘"</div>';
+}
+
+async function loadChat(runId) {
+  chatRunId = runId;
+  const box = document.getElementById('chat-messages');
+  box.innerHTML = '';
+  document.getElementById('chat-error').textContent = '';
+  try {
+    const data = await api('api/runs/' + encodeURIComponent(runId) + '/chat');
+    const items = data.chat || [];
+    if (!items.length) { chatEmptyHint(); return; }
+    for (const m of items) appendChatMsg(m);
+  } catch (_) { chatEmptyHint(); /* 이력은 부가 정보 */ }
+}
+
+function reloadPreview() {
+  // 재빌드 반영 — 캐시 무효화 쿼리스트링으로 iframe 강제 새로고침
+  const frame = document.getElementById('preview-frame');
+  const src = frame.getAttribute('src');
+  if (!src) return;
+  frame.src = src.split('?')[0] + '?v=' + Date.now();
+}
+
+async function sendChat() {
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if (!text || !chatRunId) return;
+  const btn = document.getElementById('chat-send');
+  const errBox = document.getElementById('chat-error');
+  errBox.textContent = '';
+  const empty = document.querySelector('#chat-messages .chat-empty');
+  if (empty) empty.remove();
+  appendChatMsg({ role: 'user', content: text });
+  const pending = appendChatMsg({ role: 'assistant', content: '생각 중…' });
+  input.value = '';
+  input.disabled = true; btn.disabled = true;
+  try {
+    const data = await api('api/runs/' + encodeURIComponent(chatRunId) + '/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: text }),
+    });
+    pending.remove();
+    appendChatMsg({
+      role: 'assistant',
+      content: data.reply || '(응답 없음)',
+      actions: data.applied || [],
+      rebuilt: !!data.rebuilt,
+    });
+    if (data.rebuilt) reloadPreview();
+  } catch (e) {
+    pending.remove();
+    errBox.textContent = '대화 실패: ' + e.message;
+  } finally {
+    input.disabled = false; btn.disabled = false; input.focus();
+  }
+}
+
+document.getElementById('chat-send').addEventListener('click', sendChat);
+document.getElementById('chat-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.isComposing) sendChat();
 });
 
 // ── ② 실행 이력 탭 ──────────────────────────────────────────────────────────
