@@ -1,0 +1,45 @@
+# tpl.timeline — 씬 템플릿 모듈 SSOT (시간 축 로드맵 — 채워진 레일 + 상하 교차 이정표 카드)
+id: tpl.timeline
+type: scene-template
+name: "시간 축 로드맵 — 채워진 레일 + 상하 교차 이정표 카드"
+status: draft
+version: 1.0.0
+engine_compat: "animations-v2"
+origin: "창작 모드 2026-07-26 — 외부 샘플 없음"
+nat_default: 14
+scene_name_default: "로드맵"
+entry:
+  template: "web/templates/omx-templates-ext.jsx#TimelineScene"
+  schema: schema.json
+  fixtures:
+    - fixtures/min.json
+    - fixtures/typical.json
+    - fixtures/max.json
+  preview: preview.html
+  snapshots: fixtures/snapshots/
+metaphors:
+  - frame-chrome
+  - dot-grid
+theme_default: hwax-blue
+summary: "좌→우 시간 레일 위 마일스톤이 순차 점등되고 완료 구간이 채워지며 현재선이 꽂히는 로드맵 씬 (과거 실적→현재→계획 서사)"
+composition: "수평 레일 + 상/하 교차 이정표 카드(상태 칩·시점·이름·설명) + 현재 지점 세로 점선 마커 — 은유: 이정표의 길(걸어온 길은 채워지고 남은 길은 점선)"
+in_scope:
+  - "마일스톤 3~6개 (배열 순서 = 시간 순서, current 정확히 1개)"
+  - "완료/진행 중/예정 3태 시각 구분 (채움·실선·점선)"
+  - "현재 시점 세로 마커 + 상단 칩"
+out_of_scope:
+  - "날짜 간격 비례 배치 (등간격 고정)"
+  - "다중 트랙·간트 차트"
+  - "마일스톤 7개 이상"
+quality:
+  gates_passed: []  # 게이트 클린 2회(20260726-094827-0be8f1, 20260726-094859-6216ec)였으나 max 픽스처가 스키마 상한 미검증 — 조건 해소 후 기록
+  reviews:
+    - meeting: module_review 836475ff (2026-07-26)
+      verdict: Conditional-Go
+      minutes: data/meetings/20260726-144349_module_review_tpl-timeline-module-promotion-review_8364/minutes.md
+      note: "draft 유지. footnote 스키마 상한(90자) 시 2행 랩으로 푸터 룰 41px 침범(LG 실측 계산) — 조건 해소·재검증 후 QA 검수 승인으로 승격(재심의 불요)"
+maintenance:
+  notes:
+    - "[action] schema footnote pre/strong/post maxLength 30/20/40 → 16/10/26 축소 (담당 mot-motion-director)"
+    - "[action] max 픽스처 footnote 를 새 상한까지 채워 재작성 + 게이트 5 재실행 + 스냅샷 재생성 (담당 mot-motion-director)"
+    - "[action] 마일스톤 간격 1.55s 를 theme stagger 토큰(stagger.milestone) 등록 또는 MO-C-001 대역 개정 (담당 mot-motion-director)"

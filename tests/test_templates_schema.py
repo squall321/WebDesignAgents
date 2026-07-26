@@ -46,7 +46,8 @@ def walk_strings_have_maxlength(node, path="") -> list:
 
 def test_seven_templates_present():
     names = sorted(p.name for p in TPL_DIR.iterdir() if p.is_dir())
-    assert names == EXPECTED
+    # 확장 템플릿(tpl.dataviz 등) 추가를 허용 — 1차 7종은 전부 존재해야 한다
+    assert set(EXPECTED) <= set(names)
 
 
 @pytest.mark.parametrize("name", EXPECTED)

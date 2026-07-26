@@ -1,0 +1,47 @@
+{
+  "kicker": "로드맵",
+  "title": "기록에서 자산으로 — 도입 로드맵",
+  "milestones": [
+    {
+      "date": "2025 Q4",
+      "name": "파일럿 도입",
+      "desc": "설계 1팀 12명 초안 작성 검증",
+      "status": "done"
+    },
+    {
+      "date": "2026 Q1",
+      "name": "팀 게시판 전환",
+      "desc": "주간보고 게시·승인 일원화",
+      "status": "done"
+    },
+    {
+      "date": "2026 Q2",
+      "name": "종합보고 자동화",
+      "desc": "부서 초안을 종합보고로 집계",
+      "status": "done"
+    },
+    {
+      "date": "2026 Q3",
+      "name": "전사 확산",
+      "desc": "3개 본부 41팀 순차 적용",
+      "status": "current"
+    },
+    {
+      "date": "2026 Q4",
+      "name": "감사 대응 연동",
+      "desc": "전 버전 이력을 감사 자료화",
+      "status": "planned"
+    }
+  ],
+  "nowLabel": "현재",
+  "footnote": {
+    "pre": "완료 3단계 동안 보고서 ",
+    "strong": "1,284건",
+    "post": "이 이미 아카이브에 쌓였습니다"
+  },
+  "frame": {
+    "brand": "ReportArchive",
+    "idx": "05",
+    "total": "07"
+  }
+}

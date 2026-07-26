@@ -1,0 +1,46 @@
+# tpl.compare — 씬 템플릿 모듈 SSOT (A/B 대비 — 좌우 대칭 2패널 행 짝 비교 + 결론 배지)
+id: tpl.compare
+type: scene-template
+name: "A/B 대비 — 좌우 대칭 2패널 행 짝 비교 + 결론 배지"
+status: draft
+version: 1.0.0
+engine_compat: "animations-v2"
+origin: "창작 모드 2026-07-26 — 외부 샘플 없음"
+nat_default: 13
+scene_name_default: "대비"
+entry:
+  template: "web/templates/omx-templates-ext.jsx#CompareScene"
+  schema: schema.json
+  fixtures:
+    - fixtures/min.json
+    - fixtures/typical.json
+    - fixtures/max.json
+  preview: preview.html
+  snapshots: fixtures/snapshots/
+metaphors:
+  - frame-chrome
+  - dot-grid
+theme_default: hwax-blue
+summary: "AS-IS/TO-BE 를 행 단위로 짝지어 순차 대비하고 하단 결론 배지로 수렴하는 좌우 대칭 씬"
+composition: "좌(A 패널)·우(B 패널) 대칭 카드 + 중앙 축(쟁점 칩·넘겨주기 화살표) + 하단 결론 배지 — 은유: 거울 대면(행마다 좌의 한계가 우의 응답과 짝 대결)"
+in_scope:
+  - "행 2~4개 짝 비교 (aspect 쟁점 칩 + A/B 셀)"
+  - "AS-IS/TO-BE·경쟁 대비 등 2자 구도"
+  - "하단 결론 배지 1개로 수렴"
+out_of_scope:
+  - "3자 이상 비교 (패널 3개+)"
+  - "행별 수치 차트 삽입"
+  - "행 5개 이상"
+quality:
+  gates_passed: []  # 게이트 2차 클린(20260726-094901-4d119e, 1차 3782f8 의 '→' warning 수정)이었으나 배지·스케줄 결함 조건 해소 후 기록
+  reviews:
+    - meeting: module_review 45e38c29 (2026-07-26)
+      verdict: Conditional-Go
+      minutes: data/meetings/20260726-144349_module_review_tpl-compare-module-promotion-review-a-b_45e3/minutes.md
+      note: "draft 유지. 결론 배지 하단 ≈972 가 푸터 룰 ≈973 과 1px 미만·그림자 관통(LG 스냅샷 실측) + schedule-렌더 chips.dur 0.05s 편차(TD) — 조건 해소·재검증 후 QA 검수 승인으로 승격(재심의 불요)"
+maintenance:
+  notes:
+    - "[action] comparePlan.chips.dur 0.5 → 0.45 동기화 (또는 popIn 에 dur 명시 전달) (담당 mot-motion-director)"
+    - "[action] badgeTop 912 → 898 조정 후 스냅샷·게이트 재실행 (담당 mot-motion-director)"
+    - "[action] 행 피치 2.0 → 2.3 반영 — 행간 호흡 0.4s, max 4행 배지 착지 12.0s < nat 13 예산 검증 완료 (담당 mot-motion-director)"
+    - "[action] max 픽스처 행 텍스트를 상한 44자 근접으로 재작성 (담당 qa-consistency)"

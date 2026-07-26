@@ -1,0 +1,167 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "wda:tpl.dataviz/schema@1.0.0",
+  "title": "tpl.dataviz 데이터 스키마",
+  "description": "수치 왜곡 방지 강제: 축 하한 필드 없음(additionalProperties:false — 0 기준선 고정), value 는 minimum:0, 강조 막대는 contains 로 정확히 1개. 막대 폭은 value/axisMax 비례 사상.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "kicker",
+    "title",
+    "bars",
+    "headline",
+    "claim"
+  ],
+  "properties": {
+    "kicker": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 40,
+      "x-read": true
+    },
+    "unit": {
+      "type": "string",
+      "maxLength": 8,
+      "description": "패널 우상단 범례 '단위 · {unit}'"
+    },
+    "axisMax": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "description": "축 상한(선택). 데이터 최댓값보다 작으면 렌더러가 최댓값으로 승격 — 막대 절단 불가"
+    },
+    "bars": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 5,
+      "contains": {
+        "type": "object",
+        "required": [
+          "emphasis"
+        ],
+        "properties": {
+          "emphasis": {
+            "const": true
+          }
+        }
+      },
+      "minContains": 1,
+      "maxContains": 1,
+      "description": "강조 막대 정확히 1개 — 마지막에 등장해 주장을 서사한다",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "label",
+          "value",
+          "display"
+        ],
+        "properties": {
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 9,
+            "description": "라벨 칼럼 230px ÷ 25px ≈ 9자 (실측 역산)"
+          },
+          "value": {
+            "type": "number",
+            "minimum": 0,
+            "description": "0 기준선 강제 — 음수 금지"
+          },
+          "display": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 7,
+            "description": "값 라벨 여백 140px — 숫자+단위 7자 (실측 역산)"
+          },
+          "emphasis": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "headline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "value",
+        "desc"
+      ],
+      "properties": {
+        "value": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 5,
+          "description": "판독 칼럼 480px ÷ 92px ≈ 5자 (실측 역산)"
+        },
+        "desc": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16,
+          "x-read": true,
+          "description": "480px ÷ 27px ≈ 16자 1행 (실측 역산)"
+        }
+      }
+    },
+    "insights": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "text"
+        ],
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 26,
+            "x-read": true,
+            "description": "454px ÷ 25px ≈ 18자/행 × 1.5행 (실측 역산)"
+          }
+        }
+      }
+    },
+    "claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "text"
+      ],
+      "properties": {
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 28,
+          "x-read": true,
+          "description": "결론 상자 내폭 428px ÷ 30px ≈ 14자/행 × 2행 (실측 역산)"
+        }
+      }
+    },
+    "frame": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "프레임 푸터 메타 — 없으면 푸터 숨김",
+      "properties": {
+        "brand": {
+          "type": "string",
+          "maxLength": 24
+        },
+        "idx": {
+          "type": "string",
+          "maxLength": 4
+        },
+        "total": {
+          "type": "string",
+          "maxLength": 4
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "kicker": "수치 근거",
+  "title": "주간 종합보고 1건, 취합에 걸리는 시간",
+  "unit": "시간",
+  "axisMax": 10,
+  "bars": [
+    {
+      "label": "이메일 취합",
+      "value": 9.5,
+      "display": "9.5시간"
+    },
+    {
+      "label": "공유 폴더",
+      "value": 7.2,
+      "display": "7.2시간"
+    },
+    {
+      "label": "사내 위키",
+      "value": 5.8,
+      "display": "5.8시간"
+    },
+    {
+      "label": "아카이브",
+      "value": 1.5,
+      "display": "1.5시간",
+      "emphasis": true
+    }
+  ],
+  "headline": {
+    "value": "84%",
+    "desc": "취합 시간 절감"
+  },
+  "insights": [
+    {
+      "text": "블록 템플릿으로 초안 양식 통일"
+    },
+    {
+      "text": "게시와 종합보고가 한 흐름"
+    }
+  ],
+  "claim": {
+    "text": "보고 취합은 자동화가 답입니다"
+  },
+  "frame": {
+    "brand": "ReportArchive",
+    "idx": "03",
+    "total": "07"
+  }
+}

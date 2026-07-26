@@ -1,0 +1,24 @@
+{
+  "kicker": "수치",
+  "title": "수치 제목",
+  "bars": [
+    {
+      "label": "기존",
+      "value": 8,
+      "display": "8시간"
+    },
+    {
+      "label": "도입 후",
+      "value": 1.5,
+      "display": "1.5시간",
+      "emphasis": true
+    }
+  ],
+  "headline": {
+    "value": "81%",
+    "desc": "절감"
+  },
+  "claim": {
+    "text": "결론 문장"
+  }
+}

@@ -1,0 +1,129 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "wda:tpl.timeline/schema@1.0.0",
+  "title": "tpl.timeline 데이터 스키마",
+  "description": "좌→우 시간 레일 로드맵. status 는 done/current/planned 3태, current 는 contains 로 정확히 1개 강제. 마일스톤 배열 순서 = 시간 순서(왼쪽이 과거).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "kicker",
+    "title",
+    "milestones"
+  ],
+  "properties": {
+    "kicker": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 40,
+      "x-read": true
+    },
+    "milestones": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 6,
+      "contains": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "const": "current"
+          }
+        }
+      },
+      "minContains": 1,
+      "maxContains": 1,
+      "description": "현재 시점 마일스톤 정확히 1개 — 레일 채움이 여기서 멈추고 현재선이 꽂힌다",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "date",
+          "name",
+          "status"
+        ],
+        "properties": {
+          "date": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 10,
+            "description": "카드 칩 행 잔여폭 (실측 역산)"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 14,
+            "description": "6개 배치 시 카드 내폭 442px ÷ 27px ≈ 14자 1행 (실측 역산)"
+          },
+          "desc": {
+            "type": "string",
+            "maxLength": 34,
+            "description": "카드 내폭 442px ÷ 24px ≈ 18자/행 × 2행 (실측 역산)"
+          },
+          "status": {
+            "enum": [
+              "done",
+              "current",
+              "planned"
+            ]
+          },
+          "tag": {
+            "type": "string",
+            "maxLength": 6,
+            "description": "상태 칩 라벨 재정의 (기본: 완료/진행 중/예정)"
+          }
+        }
+      }
+    },
+    "nowLabel": {
+      "type": "string",
+      "maxLength": 6,
+      "description": "현재선 상단 칩 텍스트 (기본 '현재')"
+    },
+    "footnote": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "x-read": true,
+      "properties": {
+        "pre": {
+          "type": "string",
+          "maxLength": 30
+        },
+        "strong": {
+          "type": "string",
+          "maxLength": 20
+        },
+        "post": {
+          "type": "string",
+          "maxLength": 40
+        }
+      }
+    },
+    "frame": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "프레임 푸터 메타 — 없으면 푸터 숨김",
+      "properties": {
+        "brand": {
+          "type": "string",
+          "maxLength": 24
+        },
+        "idx": {
+          "type": "string",
+          "maxLength": 4
+        },
+        "total": {
+          "type": "string",
+          "maxLength": 4
+        }
+      }
+    }
+  }
+}

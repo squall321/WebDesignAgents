@@ -1,0 +1,21 @@
+{
+  "kicker": "로드맵",
+  "title": "로드맵 제목",
+  "milestones": [
+    {
+      "date": "1월",
+      "name": "준비",
+      "status": "done"
+    },
+    {
+      "date": "2월",
+      "name": "전환",
+      "status": "current"
+    },
+    {
+      "date": "3월",
+      "name": "확산",
+      "status": "planned"
+    }
+  ]
+}

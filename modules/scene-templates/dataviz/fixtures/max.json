@@ -1,0 +1,57 @@
+{
+  "kicker": "수치 근거 상한 확인",
+  "title": "부서 유형별 월간 보고 취합 공수 전수 비교",
+  "unit": "인시",
+  "axisMax": 120,
+  "bars": [
+    {
+      "label": "설계 1본부",
+      "value": 118,
+      "display": "118인시"
+    },
+    {
+      "label": "설계 2본부",
+      "value": 96,
+      "display": "96인시"
+    },
+    {
+      "label": "해석 센터",
+      "value": 74.5,
+      "display": "74.5인시"
+    },
+    {
+      "label": "품질 보증",
+      "value": 51,
+      "display": "51인시"
+    },
+    {
+      "label": "아카이브",
+      "value": 12,
+      "display": "12인시",
+      "emphasis": true
+    }
+  ],
+  "headline": {
+    "value": "9.8배",
+    "desc": "최대 공수 격차 실측"
+  },
+  "insights": [
+    {
+      "text": "첨부 회람 대신 게시판 집계로 전환"
+    },
+    {
+      "text": "종합보고 초안이 자동으로 조립됨"
+    },
+    {
+      "text": "버전 유실 재작성 공수가 사라짐"
+    }
+  ],
+  "claim": {
+    "text": "취합 공수는 도구 선택이 만드는 격차입니다"
+  },
+  "frame": {
+    "brand": "ReportArchive 운영협의회",
+    "idx": "03",
+    "total": "07"
+  }
+}

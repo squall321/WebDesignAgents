@@ -1,0 +1,41 @@
+# tpl.dataviz — 씬 템플릿 모듈 SSOT (수치 논증 — 0 기준선 가로 막대 + 판독 칼럼)
+id: tpl.dataviz
+type: scene-template
+name: "수치 논증 — 0 기준선 가로 막대 + 판독 칼럼"
+status: pilot
+version: 1.0.0
+engine_compat: "animations-v2"
+origin: "창작 모드 2026-07-26 — 외부 샘플 없음"
+nat_default: 13
+scene_name_default: "수치"
+entry:
+  template: "web/templates/omx-templates-ext.jsx#DatavizScene"
+  schema: schema.json
+  fixtures:
+    - fixtures/min.json
+    - fixtures/typical.json
+    - fixtures/max.json
+  preview: preview.html
+  snapshots: fixtures/snapshots/
+metaphors:
+  - frame-chrome
+  - dot-grid
+theme_default: hwax-blue
+summary: "축→비교군→강조 막대→결론의 등장 순서로 수치 주장을 서사하는 가로 막대 논증 씬 (0 기준선·비례 정확을 스키마로 강제)"
+composition: "좌측 차트 패널(축·그리드·막대 성장) + 우측 판독 칼럼(헤드라인 수치·근거·결론 상자) — 은유: 증거의 저울"
+in_scope:
+  - "항목 2~5개 가로 막대 비교 (강조 막대 정확히 1개, 마지막 등장)"
+  - "0 기준선 고정·축 상한 자동 승격 — 막대 절단 불가"
+  - "헤드라인 수치 + 근거 1~3줄 + 결론 상자"
+out_of_scope:
+  - "세로 막대·파이·꺾은선 등 다른 차트형"
+  - "음수 값·이중 축·로그 축"
+  - "항목 6개 이상"
+quality:
+  gates_passed:
+    - "20260726-094856-44c8bd"  # 7게이트 클린 (1차 20260726-094825-2389df 의 gate5 warning '84%' 수정 후 재실행)
+  reviews:
+    - meeting: module_review 7a7db54e (2026-07-26)
+      verdict: Go
+      minutes: reviews/20260726-module_review-minutes.md
+      note: "draft→pilot 승격. 비차단 액션 3건 — max 픽스처 display 7자 상한 재작성+게이트 5 재실행(DV), labels.stagger 0.12→micro 0.16 정렬(MO), 값 라벨 존 정비(LG)"

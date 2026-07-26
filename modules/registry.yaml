@@ -6,6 +6,7 @@ load_order_contract:
   - web/tokens/loader.jsx
   - web/templates/omx-metaphors.jsx
   - web/templates/omx-templates.jsx
+  - web/templates/omx-templates-ext.jsx
   - "<project scenes.jsx>"
 modules:
   - id: tpl.opening
@@ -71,6 +72,33 @@ modules:
     summary: "통계 트리오가 페이드아웃한 뒤 타이틀과 CTA 필로 행동을 유도하는 2페이즈 클로징 씬"
     props: "엔진 props({localTime, progress, dur, index, count, scene}) + data(schema.json) + theme(토큰 트리)"
     in_scope_hint: "가치 통계 2~3개 → 타이틀 → CTA 1~3개의 2페이즈 마무리"
+  - id: tpl.dataviz
+    type: scene-template
+    path: modules/scene-templates/dataviz
+    status: draft
+    version: 1.0.0
+    nat_default: 13
+    summary: "축→비교군→강조 막대→결론의 등장 순서로 수치 주장을 서사하는 가로 막대 논증 씬 (0 기준선·비례 정확을 스키마로 강제)"
+    props: "엔진 props({localTime, progress, dur, index, count, scene}) + data(schema.json) + theme(토큰 트리)"
+    in_scope_hint: "항목 2~5개 가로 막대 수치 논증 (강조 막대 1개 + 헤드라인 수치 + 결론 상자)"
+  - id: tpl.timeline
+    type: scene-template
+    path: modules/scene-templates/timeline
+    status: draft
+    version: 1.0.0
+    nat_default: 14
+    summary: "좌→우 시간 레일 위 마일스톤이 순차 점등되고 완료 구간이 채워지며 현재선이 꽂히는 로드맵 씬 (과거 실적→현재→계획 서사)"
+    props: "엔진 props({localTime, progress, dur, index, count, scene}) + data(schema.json) + theme(토큰 트리)"
+    in_scope_hint: "마일스톤 3~6개 로드맵 (완료/진행 중/예정 3태, current 정확히 1개)"
+  - id: tpl.compare
+    type: scene-template
+    path: modules/scene-templates/compare
+    status: draft
+    version: 1.0.0
+    nat_default: 13
+    summary: "AS-IS/TO-BE 를 행 단위로 짝지어 순차 대비하고 하단 결론 배지로 수렴하는 좌우 대칭 씬"
+    props: "엔진 props({localTime, progress, dur, index, count, scene}) + data(schema.json) + theme(토큰 트리)"
+    in_scope_hint: "좌우 2패널 행 2~4개 짝 비교 (쟁점 칩 + A/B 셀 + 결론 배지)"
   - id: mtp.frame-chrome
     type: metaphor
     path: "web/templates/omx-metaphors.jsx#FrameChrome"

@@ -1,0 +1,137 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "wda:tpl.compare/schema@1.0.0",
+  "title": "tpl.compare 데이터 스키마",
+  "description": "좌우 2패널 대칭 A/B 대비. 행 단위로 a(AS-IS)·b(TO-BE)를 짝지어 순차 등장, 하단 결론 배지로 수렴.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "kicker",
+    "title",
+    "panels",
+    "rows",
+    "conclusion"
+  ],
+  "properties": {
+    "kicker": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 40,
+      "x-read": true
+    },
+    "panels": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "a",
+        "b"
+      ],
+      "properties": {
+        "a": {
+          "$ref": "#/$defs/panelMeta"
+        },
+        "b": {
+          "$ref": "#/$defs/panelMeta"
+        }
+      }
+    },
+    "rows": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "aspect",
+          "a",
+          "b"
+        ],
+        "properties": {
+          "aspect": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4,
+            "description": "중앙 축 칩 — 갭 140px 내 4자×24px+패딩 (실측 역산)"
+          },
+          "a": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 44,
+            "description": "셀 내폭 638px ÷ 25px ≈ 25자/행 × 2행 (실측 역산)"
+          },
+          "b": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 44,
+            "description": "셀 내폭 638px ÷ 25px ≈ 25자/행 × 2행 (실측 역산)"
+          }
+        }
+      }
+    },
+    "conclusion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "text"
+      ],
+      "properties": {
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 26,
+          "x-read": true,
+          "description": "하단 배지 — 26자×27px+패딩 ≈ 800px 중앙 배치 (실측 역산)"
+        }
+      }
+    },
+    "frame": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "프레임 푸터 메타 — 없으면 푸터 숨김",
+      "properties": {
+        "brand": {
+          "type": "string",
+          "maxLength": 24
+        },
+        "idx": {
+          "type": "string",
+          "maxLength": 4
+        },
+        "total": {
+          "type": "string",
+          "maxLength": 4
+        }
+      }
+    }
+  },
+  "$defs": {
+    "panelMeta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tag",
+        "label"
+      ],
+      "properties": {
+        "tag": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 8,
+          "description": "패널 헤더 칩 (AS-IS/TO-BE 등)"
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 20,
+          "description": "패널 제목 — 내폭 690px ÷ 31px ≈ 20자 1행 (실측 역산)"
+        }
+      }
+    }
+  }
+}
