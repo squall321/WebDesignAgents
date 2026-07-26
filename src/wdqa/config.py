@@ -49,9 +49,12 @@ class QAConfig:
     determinism_fractions: tuple[float, ...] = (0.2, 0.5, 0.8)  # duration 비율 표본 3개
 
     # 게이트 7 — frame-match
+    # 임계값 실측 근거 (2026-07-25, demo_sample 2160프레임/90초 2회 독립 렌더, verify_render_determinism):
+    #   2146/2160 프레임 비트 동일, 14프레임만 서브픽셀 차. max_diff_ratio=0.000002(200만 픽셀 중 최대 4개).
+    #   → 0.02(2%)는 실측 대비 1만 배 여유. 안전한 보수값으로 확정. 상세는 context-notes.md.
     fps: int | None = None               # None이면 configs/render.toml 의 fps
     frame_diff_channel_tol: int = 8      # 채널 diff가 이 값 초과면 '변한 픽셀'
-    frame_match_max_ratio: float = 0.02  # 변한 픽셀 비율 임계
+    frame_match_max_ratio: float = 0.02  # 변한 픽셀 비율 임계 (실측 0.000002 ≪ 0.02)
 
     # 단계 게이팅 — PLAN §7: S→D→R→V, 앞 단계 실패(error) 시 뒤 생략
     # 기본 False — 앞 단계(정적) 실패 1건이 나머지 게이트 전체를 가리는 단락을 막는다.

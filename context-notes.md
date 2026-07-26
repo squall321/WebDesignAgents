@@ -113,3 +113,18 @@ PLAN.md §16의 6건 — TTS 엔진, vLLM GPU 자원, AX 권한 수준, 대비 �
 - minor — gate1 wdaChildren 변수 해석, modules_root env 존중, cli 검증오류 정제, ingest 빈 입력 거부, _truncate 어절 경계, process 픽스처 압축(193→130자), FakeLLM 모더레이터 인용.
 - 게이트 실전 가동으로 발견된 템플릿 결함 추가 수정 — stills 기본값 dur-1.0(페이드 중 캡처 방지), DotGrid/아바타 data-qa-clip-ok, 체크 글리프 data-qa-icon, 네트워크 라벨 폭 확장, 히어로 lineHeight 1.15, 내레이션 낭독 예산 절단(dur×5.5자), gate3 미선언-통과 조합 info 강등.
 - 최종 상태: pytest 165 passed/4 skipped, QA 게이트 passed=True(경고 0, info 1), E2E mp4 90.000s+PPTX 7장 재현.
+
+## M0 결정성 실측 (2026-07-25)
+
+**하네스**: `wdrender.exporter_video.verify_render_determinism` — 동일 입력을 두 번 독립
+렌더(별도 세션·별도 PNG 시퀀스)해 프레임별 SHA 비교 + perceptual diff(max 채널차 > tol 픽셀 비율).
+기존 `verify_seek_determinism`(한 세션 내 재-seek)이 못 잡던 "독립 2회 렌더 일치"를 커버.
+
+**실측 (demo_sample, 24fps × 90s = 2160프레임)**:
+- 프레임수 일치 True, 2146/2160 프레임 비트(SHA) 동일 — **14프레임만** 차이.
+- 차이도 극미: max_diff_ratio 0.000002 (1920×1080 ≈ 200만 픽셀 중 최대 4개), mean 0.000001.
+- 원인은 서브픽셀 안티에일리어싱(완전 비트 결정성은 아님). perceptual 기준 사실상 결정적.
+
+**결론**: `QAConfig.frame_match_max_ratio=0.02`(2%)는 실측(0.000002)보다 1만 배 보수적 → 확정.
+Pretendard 폰트를 CDN → 로컬 @font-face(`web/fonts/PretendardVariable.woff2`)로 전환해
+네트워크 비결정 요인도 제거(M3 egress-0 전제와도 일치).

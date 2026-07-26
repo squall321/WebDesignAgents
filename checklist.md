@@ -20,9 +20,9 @@ PLAN.md의 마일스톤을 실행 단위로 분해. 완료 시 체크하고, 검
 - [x] `exporter_video.py` — 3단계 대기 → sync seek 루프 → PNG → ffmpeg (길이=Σdur±0.1s 검증은 test_wdrender_smoke)
 - [x] `exporter_pptx.py` ①안 — stills seek 캡처 → 16:9 풀블리드 (슬라이드수=씬수 검증 포함)
 - [x] narration 발표자 노트 삽입 (cli 가 scene-data narration→notes 연결)
-- [ ] **결정성 검증 — 동일 입력 2회 렌더 해시 일치 하네스 + perceptual diff 임계값 실측 확정** ← M0 유일 잔여
+- [x] **결정성 검증** — verify_render_determinism 하네스 + 실측(2160프레임 중 14만 서브픽셀 차, max_diff_ratio 0.000002 ≪ 0.02) 확정
 - [x] frame-match 씬 경계 픽셀 diff 확인 (gate7 + data/renders 경계 PNG 실산출)
-- [ ] Pretendard 폰트 로컬화 — 현재 build.py 가 CDN 로드(결정성·egress-0 위배), web/fonts 로컬 사본 + @font-face 전환
+- [x] Pretendard 폰트 로컬화 — web/fonts/PretendardVariable.woff2(2MB) + build.py @font-face 로컬 인라인, out_dir/fonts 복사. CDN 의존 제거(결정성·egress-0)
 
 ## M1 — MCP 심의 경로 + 반자동 생성
 
@@ -57,6 +57,12 @@ PLAN.md의 마일스톤을 실행 단위로 분해. 완료 시 체크하고, 검
 - [ ] VLM 도입 여부 결정 (경로 B 시각 심의 채널)
 - [ ] RAG(Qdrant+BGE-M3) 도입 판단 (그 전엔 WDA_FAKE_EMBEDDER)
 - [ ] WDA_LOCAL_ONLY 플래그 (민감 보고서 경로 B 강제)
+
+## 웹 콘솔 (HEAXHub 등록의 전제)
+
+- [ ] wdweb 백엔드 — FastAPI, HEAXHub 3계약(127.0.0.1:$PORT·--root-path·/api/health), 파이프라인 잡 실행 API
+- [ ] frontend/dist SPA — 보고서 붙여넣기→진행 표시→프리뷰 재생→렌더/QA→다운로드 + 이력·모듈 갤러리·회의록
+- [ ] Playwright 실브라우저 검증 + 경로 탈출·오입력 공격 방어
 
 ## M3 — 완전 자동 + 고급화
 

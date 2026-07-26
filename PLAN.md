@@ -414,7 +414,10 @@ WebDesignAgents/
 │  ├─ wdmcp/                     # 경로 A — FastMCP stdio 어댑터
 │  ├─ wdllm/                     # 경로 B — vLLM 오케스트레이터
 │  ├─ wdpipeline/                # P0~P3 (ingest/fragmentize/scenario/prompts)
-│  └─ wdrender/                  # P4~P5 (entry_generator/exporter_video/exporter_pptx/tts/server)
+│  ├─ wdrender/                  # P4~P5 (entry_generator/exporter_video/exporter_pptx/tts/server)
+│  ├─ wdqa/                      # 품질 게이트 7종 (정적+런타임, Playwright 하네스)
+│  └─ wdweb/                     # 웹 콘솔 백엔드 — FastAPI, HEAXHub 3계약 준수
+├─ frontend/dist/                # 웹 콘솔 SPA (무번들러 정적 — fastapi_react 스택 규약)
 ├─ personas/                     # {persona_id}/persona.yaml SSOT + cards/*.md
 ├─ modules/                      # §8 모듈 레지스트리
 ├─ web/
@@ -466,7 +469,8 @@ wda   = "wdpipeline.cli:app"
 
 WebDesignAgents는 VoiceRecorder와 마찬가지로 HEAXHub(`/home/koopark/claude/HEAXHub`, Caddy :4180 + FastAPI :4040) 산하에서 관리한다.
 
-- **등록** — `HEAXHub/integrations/web_design_agents/.portal/manifest.yaml` 1파일(schema v2)로 끝. `build.stack: fastapi_react`(웹 UI 포함 시) 또는 `fastapi`, `launch.mode: service`, `health_check.path: /api/health`, `source: {type: git, url: <WebDesignAgents 저장소>, ref: main}`. 스캐너가 5분 주기로 자동 발견 → SIF 빌드 → `/apps/web_design_agents/` 서브경로 서빙. 단축 경로는 `scripts/register-repo.sh web_design_agents <git-url> fastapi_react`.
+- **등록** — `HEAXHub/integrations/web_design_agents/.portal/manifest.yaml` 1파일(schema v2)로 끝. `build.stack: fastapi_react`(웹 콘솔 `wdweb` + `frontend/dist` 가 이 규약의 실체), `launch.mode: service`, `health_check.path: /api/health`, `source: {type: git, url: https://github.com/squall321/WebDesignAgents, ref: main}`. 스캐너가 5분 주기로 자동 발견 → SIF 빌드 → `/apps/web_design_agents/` 서브경로 서빙. 단축 경로는 `scripts/register-repo.sh web_design_agents <git-url> fastapi_react`.
+- **웹 콘솔(wdweb)** — 보고서 JSON 붙여넣기 → 파이프라인 단계 실행·진행 표시 → 브라우저 프리뷰(영상 엔트리 iframe 재생) → 렌더/QA 실행 → mp4·PPTX 다운로드 + 실행 이력·모듈 갤러리·회의록 뷰어. API 는 `{success, data, message}` 봉투, 프런트는 상대경로 fetch(서브패스 프록시 대응).
 - **런타임 3계약** — ① `127.0.0.1:$PORT`로만 listen(0.0.0.0 금지 — 인증 게이트 우회 차단) ② `uvicorn --root-path $ROOT_PATH`(=/apps/web_design_agents) ③ 쓰기 데이터는 `$HEAX_DATA_DIR`(/data) 아래에만(SIF rootfs는 읽기 전용) — `data/` 산출물 경로를 `WDA_DATA_DIR=$HEAX_DATA_DIR` 로 매핑.
 - **MCP 노출 = Claude 연동** — manifest에 `mcp: {expose: true, path: /mcp, transport: streamable_http}` 선언 + status beta 이상이면 HWAX MCP Gateway(:9110)가 자동 흡수 → 포탈 챗과 개인 Claude에서 즉시 사용. 즉 **wdmcp는 이중 노출**이다 — ① 로컬 개발용 stdio(.mcp.json, Claude Code 직결) ② HEAXHub 연방용 streamable-http(`/mcp` 경로, 게이트웨이 경유).
 - **서비스 간 호출** — WDA→VoiceRecorder는 Caddy 경유 `/apps/voice_recorder/api/*` + PAT Bearer(pat_service)가 정석. PAT 발급·수명 정책은 HEAXHub `docs/app-base-and-pat/` 기준으로 확정 필요.

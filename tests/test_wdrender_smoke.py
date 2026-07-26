@@ -144,3 +144,18 @@ def test_seek_determinism_smoke(build_dir: Path, cfg: RenderConfig):
             assert sess.sync_seek, "엔진이 data-om-sync-seek 를 광고해야 함"
             results = verify_seek_determinism(sess, [0.5, 2.5])
             assert all(r["match"] for r in results), results
+
+
+def test_render_determinism_two_full_renders(build_dir: Path, cfg: RenderConfig):
+    """M0 결정성 — 동일 입력을 두 번 독립 렌더해 프레임 diff 가 QA 임계값 이내인지.
+    실측(demo_sample 2160프레임)은 max_diff_ratio 0.000002 였다. 스모크(32프레임)로 회귀 고정."""
+    from wdrender.exporter_video import verify_render_determinism
+
+    r = verify_render_determinism(
+        build_dir, "smoke.dc.html",
+        config=cfg, resources=vendor_resources("/vendor"),
+        channel_tol=8, log=lambda m: None,
+    )
+    assert r["frame_count_match"], r
+    # QAConfig.frame_match_max_ratio=0.02 이내 (실측상 사실상 0)
+    assert r["max_diff_ratio"] <= 0.02, r
