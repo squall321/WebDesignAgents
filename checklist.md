@@ -60,18 +60,27 @@ PLAN.md의 마일스톤을 실행 단위로 분해. 완료 시 체크하고, 검
 
 ## 웹 콘솔 (HEAXHub 등록의 전제)
 
-- [ ] wdweb 백엔드 — FastAPI, HEAXHub 3계약(127.0.0.1:$PORT·--root-path·/api/health), 파이프라인 잡 실행 API
-- [ ] frontend/dist SPA — 보고서 붙여넣기→진행 표시→프리뷰 재생→렌더/QA→다운로드 + 이력·모듈 갤러리·회의록
-- [ ] Playwright 실브라우저 검증 + 경로 탈출·오입력 공격 방어
+- [x] wdweb 백엔드 — FastAPI, HEAXHub 3계약(127.0.0.1:$PORT·--root-path·/api/health), 파이프라인 잡 실행 API
+- [x] frontend/dist SPA — 보고서 붙여넣기→진행 표시→프리뷰 재생→렌더/QA→다운로드 + 이력·모듈 갤러리·회의록
+- [x] Playwright 실브라우저 검증 + 경로 탈출·오입력 공격 방어
+
+## 조합 라운드 (2026-07-26 완료분)
+
+- [x] 창작 모드 실증 — 신규 템플릿 3종(dataviz/timeline/compare) + module_review 심의 승격
+- [x] 대화형 제작 패널 — 대화→액션→검증→재빌드→프리뷰 갱신 (로컬 vLLM 실호출)
+- [x] P6 아카이브 역기록 — 제작기록 보고서 생성 + 왕복 무결성 실증
+- [x] docs/UI_PRINCIPLES.md — 인터페이스 품질 7항 상시 원칙
+- [ ] 재심의 v2 최종본 — 신규 템플릿 채택 + TTS 실측 반영(90→78초) + 음성 먹싱
+- [ ] 콘솔 UI 심의 라운드 — design_review 판정 + 개보수
 
 ## M3 — 완전 자동 + 고급화
 
 - [ ] `wda run <report>` 단일 명령 무개입 완주 (신규 보고서 3편)
 - [ ] P0 ingest 모드 2 — ReportArchive REST/MCP 실연동 (JWT + X-Workspace-Slug, file_id 자산 캐시, .env 접속 정보 확정)
 - [ ] 파이프라인 단계 재시도·재개 (실패 주입 테스트)
-- [ ] tts_client — VoiceRecorder 프로젝트 생성→합성→fit-timecode→duration_sec 수신→mp3+SRT (±15% nat 스트레치 판단, 사용 후 프로젝트 삭제)
+- [x] tts_client — VoiceRecorder 프로젝트 생성→합성→fit-timecode→duration_sec 수신→mp3+SRT (±15% nat 스트레치 판단, 사용 후 프로젝트 삭제)
 - [ ] 내레이터 참조음성 등록 (POST /api/voices → voice_id)
-- [ ] HEAXHub 등록 — `integrations/web_design_agents/.portal/manifest.yaml` (mcp: expose 포함) + 런타임 3계약($PORT/$ROOT_PATH/$HEAX_DATA_DIR) 준수 + status beta 승격
+- [x] HEAXHub 등록 — `integrations/web_design_agents/.portal/manifest.yaml` (mcp: expose 포함) + 런타임 3계약($PORT/$ROOT_PATH/$HEAX_DATA_DIR) 준수 + status beta 승격
 - [ ] VoiceRecorder manifest status draft → beta 승격 (HEAXHub 쪽)
 - [ ] 하이브리드 PPTX ③ 승격 — data-pptx-role + bbox 추출 + 폰트 대체 매핑 표 + 좌표 오차 기준
 - [ ] Apptainer SIF 렌더 노드 (chromium·ffmpeg·Pretendard·vendor 내장) — egress 0 렌더 검증

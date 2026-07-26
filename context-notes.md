@@ -136,3 +136,32 @@ Pretendard 폰트를 CDN → 로컬 @font-face(`web/fonts/PretendardVariable.wof
 - 핵심 메시지 "보고서는 한 번만 작성한다"가 전 씬 지배. 산출: scenario 검증 0오류 → mp4 90.000s + pptx 8장 → QA 게이트 error/warning 0.
 - 판정(별도 에이전트, 71필드 전수 원문 대조): 데모 조립본 복붙 43건·말줄임 28건 vs 심의본 0건·0건. 8개 기준 전부 심의본 우세. "형태 끼워맞춤" 지적 해소 판정.
 - 남은 격차 — 거부→수리 실전 데이터 없음, R1이 모더레이터 대독 형식(템플릿 개선 여지), MCP 경로 델타 전달 실전 미사용, contrastPairs 1건 미선언(info).
+
+## 2026-07-26 — 조합 라운드 (웹 콘솔·창작 모드·TTS·아카이브 순환)
+
+### 결정 16. 웹 콘솔(wdweb) — HEAXHub 등록의 전제이자 대화형 제작의 무대
+- FastAPI + 무번들러 SPA. HEAXHub 3계약 준수(127.0.0.1:$PORT, --root-path, /api/health).
+- 적대적 검증이 critical 2건 적발 → 수정: QA 라우트 async→sync def(sync Playwright가 asyncio 루프와 충돌해 QA 100% 거짓 실패 + 이벤트 루프 전역 블로킹), slug에 run_id 꼬리 부착(같은 slug 두 실행이 build/renders 공유해 산출물 오염).
+- HEAXHub manifest 등록 완료(HEAXHub 저장소 2966a69) — mcp:{expose:true} 포함.
+
+### 결정 17. 창작 모드 실증 — 외부 샘플 0개로 신규 템플릿 3종
+- tpl.dataviz(증거의 저울)·tpl.timeline(이정표의 길)·tpl.compare(거울 대면). 엔진 원자+토큰+방법론만으로 저작, hex 하드코딩 0, 게이트 1~7 error 0.
+- module_review 실심의 45턴 — dataviz Go(→pilot), timeline·compare Conditional-Go. 게이트가 통과시킨 것을 회의체가 실측으로 추가 적발(footnote 상한 시 푸터 룰 41px 침범 계산, 결론 배지 룰 걸침, schedule-렌더 0.05s 편차).
+- 결론: 새 포맷은 샘플 투입 없이 자가 창작 가능. 샘플은 필수가 아니라 가속기(취향 골든·역설계 대상).
+
+### 결정 18. TTS는 VoiceRecorder 실연동 — 실측이 심의의 입력이 된다
+- PR #1 머지 확인(bb15c15). 프로젝트 플로우로 delib_v1 실합성 → delib_v1_voiced.mp4(90.000s, h264+aac+mov_text).
+- 전 씬 drift -3.4~-6.7s(내레이션이 슬롯보다 짧아 무음 패드) → 이 실측이 v2 심의의 dur 재조정 근거가 됨(90s→78s 압축, dataviz 채택).
+
+### 결정 19. P6 아카이브 역기록 — 순환 완성
+- build_archive_draft: 실행 산출물(정규화 보고서·회의록·씬 구성·QA)을 report_archive_draft_v1 4페이지로. 위젯은 실물 샘플 타입만.
+- **왕복 무결성 실증** — 생성 초안을 자체 P0 ingest→P1 fragmentize로 재소비(4페이지 13블록→47조각). "보고서→발표자료→제작기록 보고서" 순환이 코드로 닫힘.
+- submit_draft는 WDA_RA_* 자격증명 투입 시 켜지는 선택 업로드(실호출 미검증 — 운영 DB 무접촉).
+
+### 결정 20. 대화형 제작 — Claude 없이 폐쇄망 LLM만으로 왕복
+- POST /api/runs/{id}/chat — 씬 요약+레지스트리 인덱스+허용 액션 8종 스키마로 {reply, actions} 강제. 액션은 사본 검증 후 원자 적용/전체 취소.
+- 로컬 vLLM(qwen2.5-7b) 실호출 3턴 액션 파싱 3/3 성공. 프리뷰 자동 갱신까지 왕복 확인.
+
+### 결정 21. UI 품질을 제도로 (사용자 상시 지시)
+- docs/UI_PRINCIPLES.md 7항 — "구두수선공의 아이들부터 신긴다": 화면 구성을 심의하는 플랫폼의 콘솔이 평범하면 설득력이 죽는다.
+- UI 변경 라운드마다 페르소나 design_review 심의로 스크린샷 심사 → Conditional 이하면 반영 후 재심사. 산출물과 동일 규율.
