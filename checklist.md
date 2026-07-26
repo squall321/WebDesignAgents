@@ -26,33 +26,33 @@ PLAN.md의 마일스톤을 실행 단위로 분해. 완료 시 체크하고, 검
 
 ## M1 — MCP 심의 경로 + 반자동 생성
 
-- [ ] wdcore 이식 (engine/templates/minutes/store/models) + artifact enum 확장(scene_draft/scenario_patch/module_candidate) + 마이그레이션
-- [ ] 카테고리 8종 교체 + `scenario_build`/`module_review` 템플릿 추가
-- [ ] 페르소나 14인 persona.yaml 작성 → `wda validate` 통과
-- [ ] 모션 문법·디자인 원칙 지식카드 작성 (창작 모드의 인용 근거)
-- [ ] ScenarioDoc 모델·검증기 (ssParse/ppParse 제약 이식, stills 기본값 = schedule 마지막 등장 + 0.8s)
-- [ ] wdmcp 서버 — 봉투 + claude_instructions + 툴 11종 (pydantic 입출력 스키마 부록 확정)
-- [ ] delivered_modules 원장 (모듈 축약 인덱스 브리핑, full/recall 델타 — 토큰 최소화)
-- [ ] P0 ingest 모드 1 — 복붙 JSON 파일(`report_archive_draft_v1`) 파서 + 블록 구조 보존 정규화 + search_text 자체 생성 (픽스처: examples/reportarchive/report_sample.json)
-- [ ] P1 fragmentize — 위젯 타입별 매핑 + known_refs 연결
-- [ ] P4 entry_generator — 순수 HTML 엔트리 + 주입 축약형(16KB 규칙)
-- [ ] 씬 템플릿 7종 시딩 (tpl.opening~closing, schedule(data)·fixtures 3종·preview 포함)
-- [ ] 시각 은유 9종 추출 (window.OMX.metaphors.*)
-- [ ] 디자인 토큰 3층 + OM_THEME 주입 채널
-- [ ] 품질 게이트 1~6 (`tools/omx-qa` Node 격리 + Python 런타임 게이트)
-- [ ] `wda revise` — 사람 편집 왕복 루프
-- [ ] 회의 3유형 완주 + known_refs 위반 거부 테스트 + resume 테스트
-- [ ] **E2E — 복붙 보고서 JSON 1편(모드 1) → 심의 → scenario.json → mp4 + PPTX**
+- [x] wdcore 이식 (engine/templates/minutes/store/models) + artifact enum 확장(scene_draft/scenario_patch/module_candidate) + 마이그레이션
+- [x] 카테고리 8종 교체 + `scenario_build`/`module_review` 템플릿 추가
+- [x] 페르소나 14인 persona.yaml 작성 → `wda validate` 통과
+- [x] 모션 문법·디자인 원칙 지식카드 작성 (창작 모드의 인용 근거)
+- [x] ScenarioDoc 모델·검증기 (ssParse/ppParse 제약 이식, stills 기본값 = schedule 마지막 등장 + 0.8s)
+- [x] wdmcp 서버 — 봉투 + claude_instructions + 툴 11종 (pydantic 입출력 스키마 부록 확정)
+- [x] delivered_modules 원장 (모듈 축약 인덱스 브리핑, full/recall 델타 — 토큰 최소화)
+- [x] P0 ingest 모드 1 — 복붙 JSON 파일(`report_archive_draft_v1`) 파서 + 블록 구조 보존 정규화 + search_text 자체 생성 (픽스처: examples/reportarchive/report_sample.json)
+- [x] P1 fragmentize — 위젯 타입별 매핑 + known_refs 연결
+- [x] P4 entry_generator — 순수 HTML 엔트리 + 주입 축약형(16KB 규칙)
+- [x] 씬 템플릿 7종 시딩 (tpl.opening~closing, schedule(data)·fixtures 3종·preview 포함)
+- [x] 시각 은유 9종 추출 (window.OMX.metaphors.*)
+- [x] 디자인 토큰 3층 + OM_THEME 주입 채널
+- [x] 품질 게이트 1~7 (Python 구현 — 정적+런타임). Node omx-qa AST 린트는 미착수(선택)
+- [x] 사람 편집 왕복 루프 — 웹 콘솔 대화 패널로 구현(CLI revise 대신, 상위 호환)
+- [x] 회의 3유형 완주 + known_refs 위반 거부 테스트 + resume 테스트
+- [x] **E2E — 복붙 보고서 JSON 1편(모드 1) → 심의 → scenario.json → mp4 + PPTX**
 
 ## M2 — vLLM 무인 심의 경로 (GLM-5-2)
 
 - [ ] env-kits 상속 — `HWAXPortal/infra/env-kits/webdesignagents.env` 킷 작성 + apply-envs.sh MAP 추가
-- [ ] wdllm/client.py — ReportArchive `backend/app/ai/llm.py` copy-adapt (json_object 폴백·reasoning_content 파싱·비스트리밍)
+- [x] wdllm/client.py — ReportArchive `backend/app/ai/llm.py` copy-adapt (json_object 폴백·reasoning_content 파싱·비스트리밍)
 - [ ] GLM-5-2 guided_json/json_schema 서버 지원 raw curl 실검증 (미지원 시 프롬프트 JSON 계약 + 파서 재시도)
-- [ ] wdllm 오케스트레이터 — 턴 루프 + 구조화 출력 + repair 1회 + 페르소나 격리
+- [x] wdllm 오케스트레이터 — 턴 루프 + 구조화 출력 + repair 1회 + 페르소나 격리
 - [ ] 하이브리드 라운드 라우팅 훅 (발산=vLLM, 판정=Claude 옵션)
 - [ ] 품질 루브릭 계측 — 인용 정확도·반박 해소율·판정 재현율·페르소나 일관성 (경로 A 기준선 대비)
-- [ ] 무인 완주율 8/10 달성
+- [~] 무인 완주율 — FakeLLM 완주 검증 완료, 실 GLM-5-2 완주율 측정은 cae00 필요
 - [ ] 회의당 토큰·시간 상한 계측 (~40만 토큰/회의 예산 검증)
 - [ ] VLM 도입 여부 결정 (경로 B 시각 심의 채널)
 - [ ] RAG(Qdrant+BGE-M3) 도입 판단 (그 전엔 WDA_FAKE_EMBEDDER)
