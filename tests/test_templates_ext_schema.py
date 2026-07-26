@@ -89,7 +89,8 @@ def test_module_yaml_contract(name):
     doc = yaml.safe_load((TPL_DIR / name / "module.yaml").read_text(encoding="utf-8"))
     assert doc["id"] == f"tpl.{name}"
     assert doc["type"] == "scene-template"
-    assert doc["status"] == "draft"
+    # status 는 수명주기 필드 — module_review 심의가 승격시킨다 (dataviz 는 Go → pilot)
+    assert doc["status"] in ("draft", "pilot", "active")
     assert SEMVER.match(str(doc["version"]))
     assert doc["engine_compat"] == "animations-v2"
     assert doc["origin"] == "창작 모드 2026-07-26 — 외부 샘플 없음"
