@@ -19,7 +19,9 @@ STAGES = ("ingest", "fragmentize", "scenario", "build")
 RENDER_TARGETS = ("video", "pptx")
 
 _SLUG_RE = re.compile(r"[^a-zA-Z0-9._-]+")
-_lock = threading.Lock()
+# RLock — 파일 I/O(write_run/read_run)와 그것을 품는 read-modify-write(update_*)가
+# 같은 잠금을 중첩 획득한다. 파이프라인·렌더·QA 스레드의 갱신 유실 방지.
+_lock = threading.RLock()
 
 
 def _now_iso() -> str:
@@ -74,35 +76,38 @@ def read_run(run_id: str) -> dict | None:
 
 
 def update_run(run_id: str, **updates) -> dict:
-    run = read_run(run_id)
-    assert run is not None, f"실행 원장 유실: {run_id}"
-    run.update(updates)
-    run["updated_at"] = _now_iso()
-    write_run(run)
-    return run
+    with _lock:
+        run = read_run(run_id)
+        assert run is not None, f"실행 원장 유실: {run_id}"
+        run.update(updates)
+        run["updated_at"] = _now_iso()
+        write_run(run)
+        return run
 
 
 def _update_stage(run_id: str, stage: str, **fields) -> dict:
-    run = read_run(run_id)
-    assert run is not None, f"실행 원장 유실: {run_id}"
-    for row in run["stages"]:
-        if row["stage"] == stage:
-            row.update(fields)
-            break
-    run["updated_at"] = _now_iso()
-    write_run(run)
-    return run
+    with _lock:
+        run = read_run(run_id)
+        assert run is not None, f"실행 원장 유실: {run_id}"
+        for row in run["stages"]:
+            if row["stage"] == stage:
+                row.update(fields)
+                break
+        run["updated_at"] = _now_iso()
+        write_run(run)
+        return run
 
 
 def _update_render(run_id: str, **fields) -> dict:
-    run = read_run(run_id)
-    assert run is not None, f"실행 원장 유실: {run_id}"
-    render = run.get("render") or {}
-    render.update(fields)
-    run["render"] = render
-    run["updated_at"] = _now_iso()
-    write_run(run)
-    return run
+    with _lock:
+        run = read_run(run_id)
+        assert run is not None, f"실행 원장 유실: {run_id}"
+        render = run.get("render") or {}
+        render.update(fields)
+        run["render"] = render
+        run["updated_at"] = _now_iso()
+        write_run(run)
+        return run
 
 
 def list_runs() -> list[dict]:
@@ -122,7 +127,10 @@ def list_runs() -> list[dict]:
 def submit_run(report: dict, slug: str | None = None) -> dict:
     """보고서 JSON을 임시 저장하고 백그라운드 스레드로 ingest→fragmentize→scenario→build 를 돌린다."""
     run_id = new_run_id()
-    slug_s = sanitize_slug(slug) or run_id
+    # slug 는 표시용 이름일 뿐 디렉터리 키가 아니다 — 같은 slug 두 실행이 build/renders
+    # 를 공유해 서로 덮어쓰는 사고를 막기 위해 run_id 꼬리를 붙여 항상 유일하게 만든다.
+    base = sanitize_slug(slug)
+    slug_s = f"{base}-{run_id[-4:]}" if base else run_id
     droot = data_dir()
 
     pipe_dir = droot / "pipeline" / run_id

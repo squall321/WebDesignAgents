@@ -151,7 +151,11 @@ async function refreshRun() {
   try {
     run = await api('api/runs/' + encodeURIComponent(currentRunId));
   } catch (e) {
+    // 조회 실패(유령 id 등) — 이전 실행의 잔상을 지우고 폴링을 멈춘다
     document.getElementById('run-error').textContent = e.message;
+    document.getElementById('run-status').textContent = '조회 실패';
+    document.getElementById('run-downloads').innerHTML = '';
+    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
     return;
   }
   renderRunDetail(run);

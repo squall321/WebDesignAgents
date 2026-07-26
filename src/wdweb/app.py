@@ -7,7 +7,9 @@ import os
 from pathlib import Path
 
 import yaml
-from fastapi import FastAPI, HTTPException, Request, status
+from fastapi import Body, FastAPI, HTTPException, Request, status
+from fastapi.responses import PlainTextResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -33,6 +35,17 @@ _FRONTEND_DIST = REPO_ROOT / "frontend" / "dist"
 
 def envelope(data=None, message: str = "", success: bool = True) -> dict:
     return {"success": success, "data": data, "message": message}
+
+
+@app.exception_handler(StarletteHTTPException)
+async def _route_miss_handler(request: Request, exc: StarletteHTTPException):
+    # 라우트 매칭 실패(404 등)도 /api/* 는 봉투로 — 프런트가 사유를 표시할 수 있게
+    if request.url.path.startswith("/api/"):
+        return JSONResponse(
+            status_code=exc.status_code,
+            content=envelope(None, message=str(exc.detail), success=False),
+        )
+    return PlainTextResponse(str(exc.detail), status_code=exc.status_code)
 
 
 @app.exception_handler(HTTPException)
@@ -168,18 +181,16 @@ async def render_run(run_id: str, request: Request) -> JSONResponse:
 
 
 @app.post("/api/runs/{run_id}/qa")
-async def qa_run(run_id: str, request: Request) -> dict:
-    """wdqa.gates.run_gates 를 동기 실행하고 리포트를 저장·반환한다. body: {gates?}."""
+def qa_run(run_id: str, body: dict | None = Body(default=None)) -> dict:
+    """wdqa.gates.run_gates 를 실행하고 리포트를 저장·반환한다. body: {gates?}.
+
+    동기 def — FastAPI 가 스레드풀에서 돌리므로 sync Playwright 하네스가
+    이벤트 루프와 충돌하지 않고, QA 가 도는 동안 다른 요청도 막히지 않는다.
+    """
     run = _run_or_404(run_id)
     if not run.get("build_dir"):
         raise HTTPException(status_code=409, detail="빌드가 완료된 실행만 QA 할 수 있습니다")
-    body: dict = {}
-    if (await request.body()):
-        try:
-            body = await request.json()
-        except ValueError as exc:
-            raise HTTPException(status_code=400, detail=f"본문이 JSON 이 아닙니다: {exc}") from exc
-    gates = body.get("gates")
+    gates = (body or {}).get("gates")
     if gates is not None and not isinstance(gates, list):
         raise HTTPException(status_code=400, detail="gates 는 문자열 목록이어야 합니다")
     try:

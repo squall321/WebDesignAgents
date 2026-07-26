@@ -82,7 +82,7 @@ def test_run_pipeline_end_to_end(client: TestClient, web_env: Path) -> None:
     body = res.json()
     assert body["success"] is True
     run_id = body["data"]["run_id"]
-    assert body["data"]["slug"] == "wdweb-e2e"
+    assert body["data"]["slug"].startswith("wdweb-e2e-")  # run_id 꼬리로 유일화
 
     run = _poll_run(client, run_id)
     assert run["status"] == "done", f"파이프라인 실패: {run.get('error')}"
@@ -149,7 +149,7 @@ def test_run_multipart_upload(client: TestClient) -> None:
     run_id = res.json()["data"]["run_id"]
     run = _poll_run(client, run_id)
     assert run["status"] == "done", f"파이프라인 실패: {run.get('error')}"
-    assert run["slug"] == "wdweb-multipart"
+    assert run["slug"].startswith("wdweb-multipart-")  # run_id 꼬리로 유일화
 
 
 def test_run_bad_body(client: TestClient) -> None:
