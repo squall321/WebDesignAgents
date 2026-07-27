@@ -327,6 +327,44 @@ modules/
 └─ themes/{id}/{module.yaml, theme.json}
 ```
 
+### 8.0 성장의 두 층위 — 템플릿과 포맷 (사용자 확정 2026-07-26)
+
+축적은 **씬 템플릿(화면 구성)** 과 **포맷(장르)** 두 층위에서 각각 일어난다. 템플릿만 쌓이면 매번 장르를 처음부터 설계해야 하므로, **한 번 겪어본 포맷은 노하우째로 템플릿화되어 다음번엔 선택만으로 재현**되어야 한다.
+
+| 층위 | 자산 | 축적되는 것 |
+| --- | --- | --- |
+| 씬 템플릿 | `modules/scene-templates/{id}/` | 화면 구성 1개(배치·모션·데이터 스키마) |
+| **포맷** | `formats/{id}/` | 장르 1개(무대·길이·골격·산출 + **제작 노하우**) |
+
+**포맷이 담는 노하우 (format.yaml 확장 필드).** 무대·길이·골격·산출은 기본이고, 그 위에 한 번의 제작 경험에서 얻은 것을 싣는다.
+
+```yaml
+status: draft | pilot | active          # 템플릿과 같은 수명주기
+origin: { meeting_id: "...", created: 2026-07-26 }   # 어느 심의에서 나왔나
+usage_count: 0                          # 실제 산출물 수 (자동 집계)
+presets:
+  deliberation:                         # 이 장르를 심의할 때의 회의 프리셋
+    type: scenario_build
+    participants: [ST, CP, AU, MO, NR]  # 이 장르에 필요한 페르소나
+    agenda: ["청중·주의지속", "역할별 조각 배치", "세로 카피 자수", "낭독 예산"]
+  copy_guide: { hook: 18, stack_item: 24, metric_label: 12 }   # 실측된 자수 상한
+  dur_plan: { hook: 4, problem: 12, solution: 16, proof: 14, cta: 8 }
+  narration: { rate: 5.5, max_silence: 2.0 }   # 실측으로 검증된 값
+golden: { run_id: short_v1, artifacts: [...], qa_report: "..." }  # 검증된 레퍼런스
+lessons: ["세로는 좌우 마진 72px 안에서 3줄 이상 금지 — 엄지 가림"]  # 심의가 남긴 교훈
+```
+
+**승격 루프 (템플릿과 동형).**
+
+| 전이 | 정량 조건 | 정성 조건 |
+| --- | --- | --- |
+| 등록(draft) | format.yaml 검증 통과, template_pool 이 실재 | 불필요 |
+| draft → pilot | 그 포맷으로 산출물 1건 완주 + 게이트 error 0 | 제작 심의 Go/Conditional-Go |
+| pilot → active | 산출물 2건 이상 + 골든 스냅샷 등록 | `format_review` 심의 Go |
+| active → deprecated | 2분기 미사용 또는 대체 포맷 active | 정기 심의 |
+
+**재사용 경로.** `wda run --format short-9x16` 한 줄이면 ① 골격·길이 예산이 자동 적용되고 ② 심의 프리셋이 회의 브리핑에 실려 페르소나가 그 장르의 교훈(`lessons`)을 인용할 수 있고 ③ 카피 가이드가 조립·검증에 반영되며 ④ 골든 산출물이 회귀 기준선이 된다. **두 번째 제작부터는 장르 설계가 아니라 콘텐츠 심의만 남는다.**
+
 ### 8.2 승격 절차 (정량 + 정성 2단, 크리틱 반영해 단일화)
 
 | 전이 | 정량 조건 (`wda qa`) | 정성 조건 (회의체) |
