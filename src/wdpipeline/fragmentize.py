@@ -2,17 +2,19 @@
 from __future__ import annotations
 
 from .ingest import block_text
+from .widgets import GROUP_BY_TYPE, extract_structured, structured_summary
 
 # PLAN §4 P1 위젯 타입별 기본 매핑 표 (규칙 기반 1차 — LLM 정제는 prompts/fragmentize.md 어댑터 몫)
 #   heading/rich_text/bulleted_list        → Claim · Case
 #   table/comparison/key_value/chart 계열  → Metric · Evidence
 #   flowchart/tree/network/mind_map        → 절차/구조 Evidence
 #   milestone/raci_matrix/fmea             → Evidence
-#   image/video/cad_3d                     → 시각 자산 (텍스트 조각 없음 — 스킵)
+#   image/video/cad_3d 등 미디어군          → 시각 자산 (텍스트 조각 없음 — assets 채널)
 _CLAIM_SECTIONS = {"purpose", "background", "problem", "goal", "decision"}
 _CASE_SECTIONS = {"reference", "current_state", "analysis"}
 _CHART_TYPES = {"chart", "scatter", "progress_bar", "gauge", "histogram"}
-_VISUAL_TYPES = {"image", "video", "cad_3d"}
+# 미디어군은 텍스트 조각을 만들지 않는다 — 파일 자산은 wdpipeline.assets 가 담당한다.
+_VISUAL_TYPES = {t for t, g in GROUP_BY_TYPE.items() if g == "media"}
 
 # 조각 최대 텍스트 길이 — 씬 데이터/회의 인용에 쓰이므로 문장 단위로 짧게 유지
 _MAX_TEXT = 200
@@ -111,11 +113,29 @@ _CONFIDENCE = {
 }
 
 
+def _representative_text(btype: str, block: dict, summary: str) -> str:
+    """구조 조각의 텍스트 — 한 줄 요약 뒤에 평탄화 본문을 붙여 _MAX_TEXT 로 자른다.
+
+    구조 자체는 structured 로 온전히 실리므로 여기 텍스트는 심의 브리핑([F#] 인용)의
+    가독용 요약이다. 행 단위 중복 조각을 만들지 않아 브리핑 top_k 를 표 하나가
+    독점하던 문제(표 35행=조각 35건)를 없앤다.
+    """
+    body = block_text(btype, block.get("content"))
+    return _clip(f"{summary} — {body}" if body else summary)
+
+
 def fragmentize(norm: dict) -> list[dict]:
     """정규화 보고서 → 조각 목록 (모듈 간 계약).
 
     반환 조각: {frag_id: "RA-{doc_id}-{seq:03d}", type, text, source:{page, block_id},
-                confidence} + 보조 키 widget/section (씬 배치 휴리스틱용).
+                confidence} + 보조 키 widget/widget_type/section (씬 배치 휴리스틱용)
+                + structured(구조 payload — 있는 블록에만).
+
+    구조가 있는 위젯(표/다이어그램/수치/일정/키값군)은 **대표 조각 1건 + structured**
+    로 압축한다. 항목 단위 텍스트 조각은 structured.rows/nodes/series 의 열화 사본이라
+    같은 정보를 두 번 싣게 되고, 표 1개가 브리핑 조각 top_k 를 독점한다.
+    텍스트군(heading/rich_text/bulleted_list)은 기존대로 항목당 1조각을 유지한다.
+
     frag_id 목록은 P2 회의의 초기 known_refs 화이트리스트가 된다.
     """
     doc_id = norm["doc_id"]
@@ -128,17 +148,25 @@ def fragmentize(norm: dict) -> list[dict]:
             ftype = _classify(btype, block.get("section"))
             if ftype is None:
                 continue
-            for text in _item_texts(btype, block.get("content")):
-                frags.append(
-                    {
-                        "frag_id": f"RA-{doc_id}-{seq:03d}",
-                        "type": ftype,
-                        "text": _clip(text),
-                        "source": {"page": pname, "block_id": block.get("id")},
-                        "confidence": _CONFIDENCE.get(btype, 0.5),
-                        "widget": btype,
-                        "section": block.get("section"),
-                    }
-                )
+            payload = extract_structured(block)
+            if payload is not None:
+                summary = structured_summary(payload)
+                texts = [_representative_text(btype, block, summary)]
+            else:
+                texts = [_clip(t) for t in _item_texts(btype, block.get("content"))]
+            for text in texts:
+                frag = {
+                    "frag_id": f"RA-{doc_id}-{seq:03d}",
+                    "type": ftype,
+                    "text": text,
+                    "source": {"page": pname, "block_id": block.get("id")},
+                    "confidence": _CONFIDENCE.get(btype, 0.5),
+                    "widget": btype,        # 하위 호환 (scenario._frags 가 이 키로 필터)
+                    "widget_type": btype,
+                    "section": block.get("section"),
+                }
+                if payload is not None:
+                    frag["structured"] = payload
+                frags.append(frag)
                 seq += 1
     return frags
