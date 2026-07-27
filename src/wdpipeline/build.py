@@ -20,14 +20,47 @@ _VENDOR_FILES = ("react.production.min.js", "react-dom.production.min.js", "babe
 
 ENTRY_NAME = "index.html"
 
-# 엔진 계약 로드 순서 (브리프 P4 규약): 엔진 → 토큰 로더 → 은유 → 템플릿 → 프로젝트 scenes
-_LOAD_ORDER = (
+# 엔진 계약 로드 순서 (브리프 P4 규약): 엔진 → 토큰 로더 → 은유 → 템플릿 → 프로젝트 scenes.
+# **정본은 modules/registry.yaml 의 load_order_contract 다** — 템플릿 파일이 늘어날 때
+# (창작 모드 승격·신규 포맷) 여기를 잊어 엔트리에서 누락되는 사고를 막는다.
+# (실제 사고: omx-templates-ext.jsx 누락으로 tpl.dataviz 빌드가 재현 불능이었다 — v2 심의 TD 적발)
+_FALLBACK_LOAD_ORDER = (
     "./runtime/animations-v2.jsx",
     "./tokens/loader.jsx",
     "./templates/omx-metaphors.jsx",
     "./templates/omx-templates.jsx",
     "./scenes.jsx",
 )
+
+
+def load_order() -> tuple[str, ...]:
+    """registry.yaml 의 load_order_contract 를 빌드 상대경로로 변환한다."""
+    registry = _REPO_ROOT / "modules" / "registry.yaml"
+    if not registry.is_file():
+        return _FALLBACK_LOAD_ORDER
+    try:
+        import yaml
+
+        contract = (yaml.safe_load(registry.read_text(encoding="utf-8")) or {}).get(
+            "load_order_contract"
+        )
+    except Exception:  # noqa: BLE001 — 레지스트리가 깨져도 빌드는 폴백으로 살린다
+        return _FALLBACK_LOAD_ORDER
+    if not isinstance(contract, list) or not contract:
+        return _FALLBACK_LOAD_ORDER
+    out: list[str] = []
+    for item in contract:
+        s = str(item)
+        if s.startswith("<"):  # "<project scenes.jsx>" 자리표시자
+            out.append("./scenes.jsx")
+        elif s.startswith("web/"):
+            out.append("./" + s[len("web/") :])
+        else:
+            out.append("./" + s.lstrip("./"))
+    return tuple(out)
+
+
+_LOAD_ORDER = load_order()
 
 # 폰트는 로컬 사본을 @font-face 로 인라인한다 — CDN(jsdelivr) 의존을 끊어 렌더를 결정적으로
 # 만들고 M3 egress-0(오프라인 SIF) 전제를 지킨다. woff2 는 build 시 out_dir/fonts/ 로 복사된다.
