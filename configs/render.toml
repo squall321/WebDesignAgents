@@ -2,6 +2,8 @@
 
 [video]
 fps = 24
+# width/height 는 **포맷 미지정 시의 폴백**이다. 무대 크기의 정본은 formats/{id}/format.yaml
+# 의 stage 이며, export_video/export_pptx 에 format_id 를 주면 그 값이 여기를 덮어쓴다.
 width = 1920
 height = 1080
 viewport_margin = 60   # 스테이지 크기 대비 뷰포트 여유(px) — 자동 축소(scale<1) 방지

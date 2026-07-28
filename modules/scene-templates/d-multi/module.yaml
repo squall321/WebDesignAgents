@@ -1,0 +1,39 @@
+# tpl.d-multi — 씬 템플릿 모듈 SSOT (다계열 그룹 막대 — 계열 순차 등장 · 0 기준선 · 계열 최대치 라벨)
+id: tpl.d-multi
+type: scene-template
+name: "다계열 수치 — 그룹 막대 2~4계열 × 3~7항목"
+status: draft
+version: 1.0.0
+engine_compat: "animations-v2"
+origin: "창작 모드 위젯 수용 2026-07-27"
+formats: [wide-16x9]
+stage: { w: 1920, h: 1080 }
+nat_default: 13
+scene_name_default: "계열"
+entry:
+  template: "web/templates/omx-templates-data.jsx#MultiScene"
+  schema: schema.json
+  fixtures:
+    - fixtures/min.json
+    - fixtures/typical.json
+    - fixtures/max.json
+  preview: preview.html
+  snapshots: fixtures/snapshots/
+metaphors:
+  - frame-chrome
+  - dot-grid
+theme_default: hwax-blue
+summary: "축→항목→계열 순차 입장(범례 점등 → 막대 좌→우 스윕 → 계열 최대치 라벨)의 그룹 막대 논증 씬 — 0 기준선·비례 정확을 스키마로 강제, 값 라벨은 계열 최대치만 표기해 과밀 방지"
+composition: "전폭 차트 패널(0 기준선 + ¼ 그리드 + 그룹 막대 + 우상단 범례) + 하단 풋노트 — 은유: 겹겹의 논증"
+in_scope:
+  - "2~4계열 × 3~7항목 그룹 세로 막대 (chart 다계열 · radar 펼침 · progress_bar 다계열 · quadrant bucket)"
+  - "계열별 토큰 색(primary/secondary/positive/caution/muted), 계열 순차 등장"
+  - "0 기준선 고정·축 상한 자동 승격 — 막대 절단 불가"
+out_of_scope:
+  - "단일 계열 (tpl.dataviz 소관) · 5계열 이상"
+  - "꺾은선·산점·2D 격자(히트맵) — 격자 씬은 별도 창작 대상 (§9 #7)"
+  - "음수 값·이중 축·로그 축·누적(스택) 막대"
+quality:
+  gates_passed:
+    - "20260727-221724-df239e"  # 7게이트 클린 (error 0 · warning 0)
+  reviews: []

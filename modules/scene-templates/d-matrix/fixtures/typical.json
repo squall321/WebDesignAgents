@@ -1,0 +1,104 @@
+{
+  "kicker": "역할과 책임",
+  "title": "ReportArchive 표준 RACI",
+  "columns": [
+    { "label": "작업" },
+    { "label": "작성자" },
+    { "label": "추가 편집자" },
+    { "label": "보직장" },
+    { "label": "부서 멤버" },
+    { "label": "시스템 관리자" }
+  ],
+  "rows": [
+    {
+      "label": "보고서 본문 작성 / 저장",
+      "cells": [
+        { "v": "R/A", "chip": true, "em": true },
+        { "v": "R", "chip": true },
+        { "v": "R", "chip": true },
+        { "v": "I", "chip": true },
+        { "v": "R", "chip": true }
+      ]
+    },
+    {
+      "label": "조직 게시판에 게시 (Mount)",
+      "cells": [
+        { "v": "R/A", "chip": true, "em": true },
+        { "v": "C", "chip": true },
+        { "v": "C", "chip": true },
+        { "v": "I", "chip": true },
+        { "v": "R", "chip": true }
+      ]
+    },
+    {
+      "label": "코멘트 작성 / 의견 제시",
+      "cells": [
+        { "v": "A", "chip": true, "em": true },
+        { "v": "R", "chip": true },
+        { "v": "R", "chip": true },
+        { "v": "R", "chip": true },
+        { "v": "R", "chip": true }
+      ]
+    },
+    {
+      "label": "작성자 수정 잠금 ON/OFF",
+      "cells": [
+        { "v": "R/A", "chip": true, "em": true },
+        { "v": "I", "chip": true },
+        { "v": "I", "chip": true },
+        { "v": "I", "chip": true },
+        { "v": "I", "chip": true }
+      ]
+    },
+    {
+      "label": "잠금 강제 해제 (작성자 부재)",
+      "cells": [
+        { "v": "C", "chip": true },
+        { "v": "I", "chip": true },
+        { "v": "I", "chip": true },
+        { "v": "I", "chip": true },
+        { "v": "R/A", "chip": true, "em": true }
+      ]
+    },
+    {
+      "label": "종합보고 작성 / item 묶기",
+      "cells": [
+        { "v": "C", "chip": true },
+        { "v": "I", "chip": true },
+        { "v": "R/A", "chip": true, "em": true },
+        { "v": "I", "chip": true },
+        { "v": "R", "chip": true }
+      ]
+    },
+    {
+      "label": "워크스페이스 멤버 관리",
+      "cells": [
+        { "v": "I", "chip": true },
+        { "v": "I", "chip": true },
+        { "v": "R/A", "chip": true, "em": true },
+        { "v": "I", "chip": true },
+        { "v": "R", "chip": true }
+      ]
+    },
+    {
+      "label": "템플릿 / 위젯 / 시스템 설정",
+      "cells": [
+        { "v": "I", "chip": true },
+        { "v": "I", "chip": true },
+        { "v": "C", "chip": true },
+        { "v": "I", "chip": true },
+        { "v": "R/A", "chip": true, "em": true }
+      ]
+    }
+  ],
+  "note": {
+    "pre": "최종 책임(A)은 ",
+    "strong": "작성자·관리자",
+    "post": " 두 축에 집중된다"
+  },
+  "frame": {
+    "brand": "ReportArchive",
+    "idx": "04",
+    "total": "07"
+  }
+}

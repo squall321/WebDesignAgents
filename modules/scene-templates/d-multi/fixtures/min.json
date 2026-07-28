@@ -1,0 +1,19 @@
+{
+  "kicker": "계열",
+  "title": "계열 제목",
+  "categories": [
+    { "label": "1분기" },
+    { "label": "2분기" },
+    { "label": "3분기" }
+  ],
+  "series": [
+    {
+      "name": "기존",
+      "values": [12, 15, 14]
+    },
+    {
+      "name": "도입 후",
+      "values": [4, 3, 2]
+    }
+  ]
+}

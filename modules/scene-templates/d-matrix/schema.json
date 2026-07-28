@@ -1,0 +1,164 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "wda:tpl.d-matrix/schema@1.0.0",
+  "title": "tpl.d-matrix 데이터 스키마",
+  "description": "격자 표 씬 — 실물 규모(§8: raci_matrix 6열×8행 · table 4열 · fmea 발췌)를 담는 그릇. 용량은 스키마가 강제한다: 열 ≤8 · 행 ≤8, 초과분은 잘라 넣지 않고 omitted('외 N행')로 표기한다. 코드값 셀은 chip:true(≤4자 강제), 최소 폰트 24px(type.caption) 전제로 폭을 역산했다.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "kicker",
+    "title",
+    "columns",
+    "rows"
+  ],
+  "properties": {
+    "kicker": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 26,
+      "x-read": true,
+      "description": "타이틀 1행 — 내용 폭 1640px ÷ 56px(sectionTitle) ≈ 29자, 안전 26자"
+    },
+    "columns": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 8,
+      "description": "헤더 열(첫 열 = 행 라벨 열 포함). 8열이 상한 — fmea 12열 같은 초과분은 심의가 열을 고른다",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "label"
+        ],
+        "properties": {
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 10,
+            "description": "8열 시 열폭 (1640-48-430)/7 ≈ 166px ÷ 24px ≈ 6자/행 × 2행 — 10자 상한 (실측 역산)"
+          }
+        }
+      }
+    },
+    "rows": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 8,
+      "description": "데이터 행 ≤8 — 초과분은 omitted 로 계상 (잘라 넣기는 파이프라인 몫이 아니다)",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "label",
+          "cells"
+        ],
+        "properties": {
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 24,
+            "description": "첫 열 내폭 406px ÷ 24px ≈ 16자/행 × 2행 — 24자 상한 (실측 역산)"
+          },
+          "cells": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 7,
+            "description": "데이터 셀 — 개수는 columns-1 (첫 열은 행 라벨)",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "v"
+              ],
+              "properties": {
+                "v": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 12,
+                  "description": "텍스트 셀 — 8열 시 166px ÷ 24px ≈ 6자/행 × 2행 (overflowWrap anywhere)"
+                },
+                "chip": {
+                  "type": "boolean",
+                  "description": "R/A 같은 코드값을 칩(필)으로 — then 절이 v 를 4자로 강제한다"
+                },
+                "em": {
+                  "type": "boolean",
+                  "description": "중요 셀 강조 — 칩은 활성(블루) 톤, 텍스트는 블루 800"
+                }
+              },
+              "if": {
+                "properties": {
+                  "chip": {
+                    "const": true
+                  }
+                },
+                "required": [
+                  "chip"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "v": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 4,
+                    "description": "칩은 코드값 전용 — 열폭 166px 에서 칩 패딩 32px 제외 134px ÷ 24px ≈ 5자, nowrap 안전 4자"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "omitted": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "표시하지 못한 잔여 행 수 — 패널 아래 '…외 N행' 으로 표기 (33행 표 → 8행 + 외 25행)"
+    },
+    "note": {
+      "type": "object",
+      "additionalProperties": false,
+      "x-read": true,
+      "description": "하단 중앙 풋노트 — 표가 말하는 결론 한 줄",
+      "properties": {
+        "pre": {
+          "type": "string",
+          "maxLength": 18
+        },
+        "strong": {
+          "type": "string",
+          "maxLength": 12
+        },
+        "post": {
+          "type": "string",
+          "maxLength": 18
+        }
+      }
+    },
+    "frame": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "프레임 푸터 메타 — 없으면 푸터 숨김",
+      "properties": {
+        "brand": {
+          "type": "string",
+          "maxLength": 24
+        },
+        "idx": {
+          "type": "string",
+          "maxLength": 4
+        },
+        "total": {
+          "type": "string",
+          "maxLength": 4
+        }
+      }
+    }
+  }
+}

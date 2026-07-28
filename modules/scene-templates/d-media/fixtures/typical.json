@@ -1,0 +1,28 @@
+{
+  "kicker": "화면과 구조",
+  "title": "게시판 화면과 시스템 구조도",
+  "files": [
+    {
+      "src": "fixtures/assets/hero.png",
+      "caption": "조직 게시판 히어로 화면",
+      "alt": "ReportArchive 조직 게시판 첫 화면 — 상단 배너와 카드 목록",
+      "source": "운영 스크린샷"
+    },
+    {
+      "src": "fixtures/assets/diagram.png",
+      "caption": "모듈 구조도",
+      "alt": "백엔드-프론트엔드-DB 3계층 모듈 구조도",
+      "source": "설계 문서 v2"
+    }
+  ],
+  "note": {
+    "pre": "화면과 구조가 ",
+    "strong": "한 저장소",
+    "post": " 에서 관리된다"
+  },
+  "frame": {
+    "brand": "ReportArchive",
+    "idx": "05",
+    "total": "07"
+  }
+}

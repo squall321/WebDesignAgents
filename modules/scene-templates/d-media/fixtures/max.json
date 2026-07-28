@@ -1,0 +1,37 @@
+{
+  "kicker": "도판 근거 상한 확인용",
+  "title": "화면·구조도·집계 차트 삼면 대조",
+  "files": [
+    {
+      "src": "fixtures/assets/hero.png",
+      "caption": "조직 게시판 첫 화면 캡처본",
+      "alt": "ReportArchive 조직 게시판 첫 화면 전체 캡처 — 상단 배너, 카드 목록, 우측 위젯 패널까지 포함",
+      "source": "운영 환경 26-07",
+      "badge": "화면"
+    },
+    {
+      "src": "fixtures/assets/diagram.png",
+      "caption": "삼계층 모듈 구조 설계도",
+      "alt": "백엔드 FastAPI, 프론트엔드 React, PostgreSQL 데이터베이스 3계층 구조와 연결 관계",
+      "source": "설계 문서 2판",
+      "badge": "도면"
+    },
+    {
+      "src": "fixtures/assets/chart-shot.png",
+      "caption": "주간 게시 건수 집계 화면",
+      "alt": "부서별 주간 게시 건수 막대 차트 화면 녹화의 대표 프레임",
+      "source": "대시보드 녹화",
+      "badge": "영상"
+    }
+  ],
+  "note": {
+    "pre": "세 도판이 같은 ",
+    "strong": "게시 파이프라인",
+    "post": " 을 세 각도로 본다"
+  },
+  "frame": {
+    "brand": "ReportArchive 운영협의회",
+    "idx": "06",
+    "total": "07"
+  }
+}

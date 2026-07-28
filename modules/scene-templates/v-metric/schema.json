@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "wda:vtpl.metric/schema@1.0.0",
+  "title": "vtpl.metric 데이터 스키마 (세로 1080×1920)",
+  "description": "maxLength 는 모두 세로 무대 실측 역산 — 본문 폭 912px. value 는 글자수에 따라 폰트가 320→170px 로 단계 하향되므로 7자까지 폭 안에 수용된다. 가로 포맷 값 재사용 없음.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "label",
+    "value",
+    "evidence"
+  ],
+  "properties": {
+    "kicker": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16,
+      "description": "상단 중앙 킥커 — 32px + 자간 0.18em, 사이드 룰 제외 폭 800px → 21자 수용, 16자로 제한"
+    },
+    "title": {
+      "type": "string",
+      "maxLength": 22,
+      "description": "씬 타이틀(맥락) — 72px, 폭 912px → 1줄 12.6자·2줄 25자"
+    },
+    "label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 20,
+      "x-read": true,
+      "description": "수치가 무엇인지 — 36px + 자간 0.14em(≈41px/자), 폭 912px → 22자 수용, 20자로 제한"
+    },
+    "value": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 7,
+      "x-read": true,
+      "description": "초대형 수치 — 3자 이하 320px, 4자 280px, 5자 230px, 6자 195px, 7자 170px 로 단계 하향(폭 912px 수용 상한)"
+    },
+    "unit": {
+      "type": "string",
+      "maxLength": 2,
+      "x-read": true,
+      "description": "단위 — 수치 폰트의 32% 크기. 한글 2자(최대 204px)까지가 수치와 나란히 폭 912px 안에 드는 상한"
+    },
+    "delta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dir",
+        "text"
+      ],
+      "properties": {
+        "dir": {
+          "enum": [
+            "up",
+            "down",
+            "flat"
+          ],
+          "description": "증감 방향 글리프 — up: ▲, down: ▼, flat: ＝ (방향일 뿐 평가가 아니다)"
+        },
+        "tone": {
+          "enum": [
+            "good",
+            "bad",
+            "neutral"
+          ],
+          "default": "good",
+          "description": "평가 색 — good: 성공색, bad: 경고색, neutral: 정보색. 오류율처럼 내려가는 것이 좋은 수치를 위해 방향과 분리"
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 14,
+          "description": "증감 설명 — 46px, 글리프·패딩 제외 여유폭 644px → 14자"
+        }
+      },
+      "description": "수치 아래 증감 필 (선택)"
+    },
+    "evidence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 34,
+      "x-read": true,
+      "description": "수치를 떠받치는 근거 한 줄 — 52px, 폭 912px → 1줄 17.5자·2줄 35자"
+    },
+    "source": {
+      "type": "string",
+      "maxLength": 26,
+      "description": "출처·조건 캡션 — 32px, 폭 912px → 28.5자"
+    },
+    "frame": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "하단 진행 표시 — 없으면 푸터 숨김",
+      "properties": {
+        "brand": {
+          "type": "string",
+          "maxLength": 20
+        },
+        "idx": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9
+        },
+        "total": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9
+        }
+      }
+    }
+  }
+}

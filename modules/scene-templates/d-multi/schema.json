@@ -1,0 +1,141 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "wda:tpl.d-multi/schema@1.0.0",
+  "title": "tpl.d-multi 데이터 스키마",
+  "description": "다계열 그룹 막대 씬 — 실물 규모(§8: 다계열 수치 8종·progress_bar 7계열)를 담는 그릇. 수치 왜곡 방지 강제: 축 하한 필드 없음(additionalProperties:false — 0 기준선 고정), values 는 minimum:0, axisMax 는 데이터 최댓값 미만이면 렌더러가 승격(막대 절단 불가). 값 라벨은 계열 최대치 1개만.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "kicker",
+    "title",
+    "categories",
+    "series"
+  ],
+  "properties": {
+    "kicker": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 26,
+      "x-read": true,
+      "description": "타이틀 1행 — 내용 폭 1640px ÷ 56px(sectionTitle) ≈ 29자, 안전 26자"
+    },
+    "unit": {
+      "type": "string",
+      "maxLength": 8,
+      "description": "패널 좌상단 범례 '단위 · {unit}'"
+    },
+    "axisMax": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "description": "축 상한(선택). 데이터 최댓값보다 작으면 렌더러가 최댓값으로 승격 — 막대 절단 불가"
+    },
+    "categories": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 7,
+      "description": "x축 항목 3~7개 — 8개 이상은 씬을 나누거나 심의가 항목을 고른다",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "label"
+        ],
+        "properties": {
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 8,
+            "description": "7항목 시 항목 폭 1500/7 ≈ 214px ÷ 24px ≈ 8자 nowrap (실측 역산)"
+          }
+        }
+      }
+    },
+    "series": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 4,
+      "description": "계열 2~4개 — 계열 순차 등장(계열마다 논지 한 겹), 단일 계열은 tpl.dataviz 소관",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "values"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 10,
+            "description": "범례 이름 — 4계열 상한에서 범례 행 (240+26)px × 4 ≤ 패널 내폭 (실측 역산)"
+          },
+          "tone": {
+            "enum": [
+              "primary",
+              "secondary",
+              "positive",
+              "caution",
+              "muted"
+            ],
+            "description": "계열 토큰 색 — 생략 시 순서대로 primary/secondary/positive/caution"
+          },
+          "values": {
+            "type": "array",
+            "minItems": 3,
+            "maxItems": 7,
+            "description": "categories 와 같은 길이 — 항목별 수치",
+            "items": {
+              "type": "number",
+              "minimum": 0,
+              "description": "0 기준선 강제 — 음수 금지"
+            }
+          }
+        }
+      }
+    },
+    "note": {
+      "type": "object",
+      "additionalProperties": false,
+      "x-read": true,
+      "description": "하단 중앙 풋노트 — 차트가 말하는 결론 한 줄",
+      "properties": {
+        "pre": {
+          "type": "string",
+          "maxLength": 18
+        },
+        "strong": {
+          "type": "string",
+          "maxLength": 12
+        },
+        "post": {
+          "type": "string",
+          "maxLength": 18
+        }
+      }
+    },
+    "frame": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "프레임 푸터 메타 — 없으면 푸터 숨김",
+      "properties": {
+        "brand": {
+          "type": "string",
+          "maxLength": 24
+        },
+        "idx": {
+          "type": "string",
+          "maxLength": 4
+        },
+        "total": {
+          "type": "string",
+          "maxLength": 4
+        }
+      }
+    }
+  }
+}

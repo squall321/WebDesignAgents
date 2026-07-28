@@ -10,7 +10,7 @@ from playwright.sync_api import sync_playwright
 # 엔진(animations-v2.jsx)이 광고하는 export 계약 셀렉터
 EXPORTABLE_SVG = "svg[data-om-exportable-video-with-duration-secs]"
 
-# 편집 크롬 제거 + 스테이지 자동 축척(scale) 해제 — 원척 1920×1080 픽셀 캡처의 전제.
+# 편집 크롬 제거 + 스테이지 자동 축척(scale) 해제 — 포맷 stage 원척(width×height) 캡처의 전제.
 # 인라인 style 의 transform 은 stylesheet !important 로만 이길 수 있다.
 _EXPORT_CSS = (
     "[data-omelette-chrome]{display:none !important;}\n"

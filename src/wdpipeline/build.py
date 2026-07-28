@@ -7,6 +7,8 @@ from pathlib import Path
 
 from wdcore.models.scenario import ScenarioDoc, check_om_scenes_budget, om_scenes_json
 
+from .format import FormatSpec, load_format, resolve_modules_root, resolve_tpl_module_id
+
 # repo 루트 (src/wdpipeline/build.py → 두 단계 위)
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _RUNTIME_SRC = _REPO_ROOT / "web" / "runtime"
@@ -82,9 +84,19 @@ def _playback_json(doc: ScenarioDoc) -> str:
     return json.dumps({"mode": "loop"})
 
 
-def _tpl_id(tpl_ref: str) -> str:
-    """씬 tpl 참조("opening@1") → templateIndex 키("tpl.opening")."""
-    return "tpl." + tpl_ref.split("@", 1)[0]
+def _tpl_id(tpl_ref: str, spec: FormatSpec | None = None, modules_root: Path | None = None) -> str:
+    """씬 tpl 참조 → templateIndex 키. "opening@1"→"tpl.opening", "hook@1"→"vtpl.hook".
+
+    포맷 template_pool → modules/registry.yaml 순으로 모듈 id 를 찾고, 둘 다 실패하면
+    기존 규약("tpl.{이름}")으로 떨어진다.
+    """
+    return resolve_tpl_module_id(tpl_ref, spec=spec, modules_root=modules_root)
+
+
+def _template_files() -> tuple[str, ...]:
+    """로드 순서 계약이 요구하는 web/templates/*.jsx 파일명 (엔트리 script 와 사본의 공통 원천)."""
+    prefix = "./templates/"
+    return tuple(s[len(prefix):] for s in _LOAD_ORDER if s.startswith(prefix))
 
 
 def _render_index_html(doc: ScenarioDoc, theme_raw: str, bg: str) -> str:
@@ -120,15 +132,18 @@ def _render_index_html(doc: ScenarioDoc, theme_raw: str, bg: str) -> str:
 """
 
 
-def _render_scenes_jsx(doc: ScenarioDoc) -> str:
+def _render_scenes_jsx(
+    doc: ScenarioDoc, spec: FormatSpec, modules_root: Path | None = None
+) -> str:
     """OMX 템플릿 바인딩 scenes.jsx — 씬 코드를 생성하지 않고 레지스트리 컴포넌트를 바인딩만 한다.
 
+    무대 크기(SceneRoot width/height)는 코드 상수가 아니라 포맷 스펙 stage 에서 온다.
     babel standalone 전역 스코프 규약: 엔진 최상위 선언(Easing/Stage/SceneStage/animate 등)과
     겹치지 않는 wda* 접두 이름만 선언한다.
     """
     entries = ",\n".join(
         f"  {json.dumps(s.name, ensure_ascii=False)}: "
-        f"wdaBind({json.dumps(_tpl_id(s.tpl))}, {json.dumps(s.data_ref)})"
+        f"wdaBind({json.dumps(_tpl_id(s.tpl, spec, modules_root))}, {json.dumps(s.data_ref)})"
         for s in doc.scenes
     )
     return f"""// P4 자동 생성 씬 바인딩 — 템플릿 재사용 모드 (손편집 금지, 데이터는 scene-data.json)
@@ -162,7 +177,7 @@ const wdaChildren = {{
 function WdaEntry() {{
   return (
     <div style={{{{ position: 'relative', width: '100vw', height: '100vh', overflow: 'hidden' }}}}>
-      <SceneRoot width={{1920}} height={{1080}} bg={{wdaTheme.color.bg}}
+      <SceneRoot width={{{spec.stage.w}}} height={{{spec.stage.h}}} bg={{wdaTheme.color.bg}}
                  scenes={{window.OM_SCENES}} playback={{window.OM_PLAYBACK}}>
         {{wdaChildren}}
       </SceneRoot>
@@ -174,13 +189,25 @@ ReactDOM.createRoot(document.getElementById('root')).render(<WdaEntry />);
 """
 
 
-def build_render_package(doc: ScenarioDoc, out_dir: Path) -> Path:
+def build_render_package(
+    doc: ScenarioDoc,
+    out_dir: Path,
+    *,
+    spec: FormatSpec | None = None,
+    modules_root: Path | None = None,
+) -> Path:
     """ScenarioDoc → data/build/{slug}/ 렌더 패키지 생성, 엔트리 경로 반환 (모듈 간 계약).
+
+    무대 크기는 doc.format 의 포맷 스펙(stage)이 지배한다 — 엔트리 SceneRoot width/height 와
+    주입 테마의 layout.stageW/H 를 같은 값으로 맞춰 템플릿이 무대를 알게 한다.
 
     산출: index.html(순수 HTML 엔트리) + scenes.jsx(템플릿 바인딩) + scene-data.json
           + runtime/·templates/·tokens/·vendor/ 무수정 사본.
     """
     check_om_scenes_budget(doc)  # 16KB 주입 예산 — 빌드 전 최종 방어선
+    modules_root = Path(modules_root) if modules_root is not None else resolve_modules_root()
+    if spec is None:
+        spec = load_format(doc.format, modules_root=modules_root)
 
     theme_path = _TOKENS_SRC / f"{doc.tokens_theme}.json"
     if not theme_path.is_file():
@@ -188,6 +215,10 @@ def build_render_package(doc: ScenarioDoc, out_dir: Path) -> Path:
     theme_raw = theme_path.read_text(encoding="utf-8")
     theme_doc = json.loads(theme_raw)
     bg = theme_doc.get("raw", {}).get("palette", {}).get("bg", "#E9EBF1")
+    # 주입 테마의 무대 좌표는 포맷이 덮어쓴다 (토큰 파일 사본은 원본 그대로 둔다 — 프리뷰 공용).
+    theme_doc.setdefault("semantic", {}).setdefault("layout", {})
+    theme_doc["semantic"]["layout"]["stageW"] = spec.stage.w
+    theme_doc["semantic"]["layout"]["stageH"] = spec.stage.h
     # OM_THEME 주입은 압축 직렬화로 (ppParse 계열 64KB 상한 방어)
     theme_compact = json.dumps(theme_doc, ensure_ascii=False, separators=(",", ":"))
 
@@ -200,9 +231,17 @@ def build_render_package(doc: ScenarioDoc, out_dir: Path) -> Path:
     (out_dir / "tokens").mkdir(exist_ok=True)
     shutil.copy2(_TOKENS_SRC / "loader.jsx", out_dir / "tokens" / "loader.jsx")
     shutil.copy2(theme_path, out_dir / "tokens" / theme_path.name)
+    # 템플릿 사본은 엔트리 script 와 같은 원천(load_order)에서 뽑는다 — 참조/사본 불일치로
+    # 404 나는 빌드를 원천 차단한다 (선언만 되고 복사되지 않던 ext·vertical 사고).
     (out_dir / "templates").mkdir(exist_ok=True)
-    shutil.copy2(_TEMPLATES_SRC / "omx-metaphors.jsx", out_dir / "templates" / "omx-metaphors.jsx")
-    shutil.copy2(_TEMPLATES_SRC / "omx-templates.jsx", out_dir / "templates" / "omx-templates.jsx")
+    for name in _template_files():
+        src = _TEMPLATES_SRC / name
+        if not src.is_file():
+            raise FileNotFoundError(
+                f"템플릿 미비: {src} — modules/registry.yaml 의 load_order_contract 가 선언한 "
+                f"파일이 web/templates/ 에 없다"
+            )
+        shutil.copy2(src, out_dir / "templates" / name)
     (out_dir / "vendor").mkdir(exist_ok=True)
     for f in _VENDOR_FILES:
         shutil.copy2(_VENDOR_SRC / f, out_dir / "vendor" / f)
@@ -214,7 +253,9 @@ def build_render_package(doc: ScenarioDoc, out_dir: Path) -> Path:
     (out_dir / "scene-data.json").write_text(
         json.dumps(doc.model_dump(), ensure_ascii=False, indent=2), encoding="utf-8"
     )
-    (out_dir / "scenes.jsx").write_text(_render_scenes_jsx(doc), encoding="utf-8")
+    (out_dir / "scenes.jsx").write_text(
+        _render_scenes_jsx(doc, spec, modules_root), encoding="utf-8"
+    )
     entry = out_dir / ENTRY_NAME
     entry.write_text(_render_index_html(doc, theme_compact, bg), encoding="utf-8")
     return entry

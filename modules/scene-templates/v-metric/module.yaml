@@ -1,0 +1,38 @@
+# vtpl.metric — 세로 숏폼 씬 템플릿 모듈 SSOT (단일 수치 — 화면 절반을 차지하는 초대형 수치 + 근거 한 줄)
+id: vtpl.metric
+type: scene-template
+name: "세로 단일 수치 — 초대형 수치 + 근거 한 줄"
+status: draft
+version: 1.0.0
+engine_compat: "animations-v2"
+origin: "창작 모드 세로 포맷 2026-07-26"
+formats: [short-9x16]
+stage: { w: 1080, h: 1920 }
+nat_default: 10
+scene_name_default: "수치"
+entry:
+  template: "web/templates/omx-templates-vertical.jsx#VMetricScene"
+  schema: schema.json
+  fixtures:
+    - fixtures/min.json
+    - fixtures/typical.json
+    - fixtures/max.json
+  preview: preview.html
+  snapshots: fixtures/snapshots/
+metaphors:
+  - v-frame
+  - v-dot-column
+theme_default: hwax-blue
+summary: "화면 중앙 원판(490~1250)을 초대형 수치가 차지하고 그 아래 근거 한 줄이 받치는 모바일 가독 우선 수치 씬"
+composition: "원판(490~1250, 흰 면 + 청색 링) 안에 라벨(580)과 초대형 수치 + 단위(690~1068, 글자수 따라 320~170px 단계 하향) → 증감 필(1300) → 룰(1420) → 근거 한 줄(1480) → 출처 캡션(1650)"
+in_scope:
+  - "세로 숏폼(9:16) 근거 제시 — 수치 하나로 승부"
+  - "증감 방향 표시 (up/down/flat 필)"
+  - "출처·조건 캡션 1줄"
+out_of_scope:
+  - "가로 16:9 무대 (tpl.dataviz·tpl.closing 사용)"
+  - "수치 2개 이상 비교 — 세로 한 화면에 한 수치가 원칙"
+  - "막대·꺾은선 등 차트 표현 (tpl.dataviz 사용)"
+quality:
+  gates_passed: []
+  reviews: []

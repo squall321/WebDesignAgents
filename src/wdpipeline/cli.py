@@ -7,6 +7,7 @@ from pathlib import Path
 import typer
 
 from wdcore.config import get_settings
+from wdpipeline.format import DEFAULT_FORMAT_ID
 
 app = typer.Typer(help="WebDesignAgents 파이프라인 CLI", no_args_is_help=True)
 
@@ -83,15 +84,46 @@ def fragmentize(
 
 
 @app.command()
+def formats() -> None:
+    """사용 가능한 포맷(formats/{id}/format.yaml) 목록을 보여준다."""
+    from wdpipeline.format import FormatError, list_formats, load_format
+
+    ids = list_formats()
+    if not ids:
+        typer.echo("[formats] 등록된 포맷이 없다 — formats/{id}/format.yaml 을 작성하라", err=True)
+        raise typer.Exit(code=1)
+    for fid in ids:
+        try:
+            spec = load_format(fid)
+        except FormatError as e:
+            typer.echo(f"  {fid}: [로드 실패] {str(e).splitlines()[0]}")
+            continue
+        typer.echo(
+            f"  {fid}: {spec.name_ko} — 무대 {spec.stage.w}x{spec.stage.h} · "
+            f"{spec.duration.target}s(허용 {spec.duration.min}~{spec.duration.max}) · "
+            f"골격 {'→'.join(spec.skeleton)}"
+        )
+
+
+@app.command()
 def scenario(
     run_id: str = typer.Option(..., "--run-id", help="fragmentize 를 마친 run id"),
+    format: str = typer.Option(
+        DEFAULT_FORMAT_ID, "--format", help="포맷 id (wda formats 로 목록 확인)"
+    ),
 ) -> None:
     """P3 — 규칙 기반 데모 시나리오를 조립·검증해 scenario.json 으로 저장한다."""
+    from wdpipeline.format import FormatError
     from wdpipeline.scenario import assemble_demo_scenario, validate_scenario
 
     norm = _read_json(_run_dir(run_id) / NORM_FILE)
     frags = _read_json(_run_dir(run_id) / FRAGMENTS_FILE)
-    doc = assemble_demo_scenario(norm, frags)
+    try:
+        doc = assemble_demo_scenario(norm, frags, format=format)
+    except (FormatError, NotImplementedError) as e:
+        for line in str(e).splitlines():
+            typer.echo(f"[포맷 오류] {line}", err=True)
+        raise typer.Exit(code=1) from None
     errors = validate_scenario(doc, modules_root=_MODULES_ROOT)
     if errors:
         for e in errors:
@@ -100,7 +132,9 @@ def scenario(
     out = _run_dir(run_id) / SCENARIO_FILE
     _write_json(out, doc.model_dump())
     total = sum(s.dur for s in doc.scenes)
-    typer.echo(f"[scenario] 씬 {len(doc.scenes)}개 Σdur={total}s 검증 통과 → {out}")
+    typer.echo(
+        f"[scenario] 포맷 {doc.format} 씬 {len(doc.scenes)}개 Σdur={total}s 검증 통과 → {out}"
+    )
 
 
 @app.command()
@@ -111,6 +145,7 @@ def build(
     """P4 — scenario.json 을 렌더 패키지 data/build/{slug}/ 로 조립한다."""
     from wdcore.models.scenario import ScenarioDoc
     from wdpipeline.build import build_render_package
+    from wdpipeline.format import FormatError
     from wdpipeline.scenario import validate_scenario
 
     try:
@@ -125,8 +160,13 @@ def build(
             typer.echo(f"[검증 실패] {e}", err=True)
         raise typer.Exit(code=1)
     s = slug or run_id
-    entry = build_render_package(doc, _data_dir() / "build" / s)
-    typer.echo(f"[build] 엔트리 생성 → {entry}")
+    try:
+        entry = build_render_package(doc, _data_dir() / "build" / s, modules_root=_MODULES_ROOT)
+    except (FormatError, FileNotFoundError) as e:
+        for line in str(e).splitlines():
+            typer.echo(f"[포맷 오류] {line}", err=True)
+        raise typer.Exit(code=1) from None
+    typer.echo(f"[build] 포맷 {doc.format} 엔트리 생성 → {entry}")
 
 
 @app.command()
@@ -134,6 +174,7 @@ def render(
     slug: str = typer.Option(..., "--slug", help="build 를 마친 슬러그"),
     fps: int = typer.Option(0, "--fps", help="프레임레이트 오버라이드 (기본: configs/render.toml)"),
     skip_video: bool = typer.Option(False, "--skip-video", help="mp4 생략 (pptx 만)"),
+    format: str = typer.Option("", "--format", help="포맷 오버라이드 (기본: scene-data.json 의 format)"),
 ) -> None:
     """P5 — data/build/{slug}/ 를 mp4 + pptx 로 export 한다 (wdrender 호출)."""
     from wdrender.config import load_config
@@ -148,6 +189,8 @@ def render(
     scene_data = _read_json(build_dir / "scene-data.json")
     stills = {s["name"]: s["stills"] for s in scene_data["scenes"] if s.get("stills")}
     notes = {s["name"]: s["narration"] for s in scene_data["scenes"] if s.get("narration")}
+    # 무대·슬라이드 규격은 빌드된 시나리오의 포맷이 지배한다 (--format 은 명시 오버라이드)
+    fid = format or scene_data.get("format") or DEFAULT_FORMAT_ID
 
     cfg = load_config()
     if fps > 0:
@@ -156,14 +199,16 @@ def render(
     out_dir.mkdir(parents=True, exist_ok=True)
 
     if not skip_video:
-        info = export_video(build_dir, ENTRY_NAME, out_dir / f"{slug}.mp4", config=cfg)
+        info = export_video(
+            build_dir, ENTRY_NAME, out_dir / f"{slug}.mp4", config=cfg, format_id=fid
+        )
         typer.echo(
-            f"[render] mp4 duration={info['duration']}s fps={info['fps']} "
+            f"[render] mp4 포맷={fid} duration={info['duration']}s fps={info['fps']} "
             f"frames={info['frames']} → {info['out']}"
         )
     pinfo = export_pptx(
         build_dir, ENTRY_NAME, out_dir / f"{slug}.pptx",
-        config=cfg, stills=stills, notes=notes,
+        config=cfg, format_id=fid, stills=stills, notes=notes,
     )
     typer.echo(f"[render] pptx {pinfo['slides']}장/{pinfo['scenes']}씬 → {pinfo['out']}")
 
@@ -174,13 +219,16 @@ def run(
     slug: str = typer.Option(..., "--slug", help="run id 겸 빌드/렌더 슬러그"),
     assets_dir: Path | None = typer.Option(None, "--assets-dir"),
     fps: int = typer.Option(0, "--fps", help="프레임레이트 오버라이드"),
+    format: str = typer.Option(
+        DEFAULT_FORMAT_ID, "--format", help="포맷 id (wda formats 로 목록 확인)"
+    ),
 ) -> None:
     """P0→P1→P3→P4→P5 전 단계 일괄 실행 (규칙 기반 데모 파이프라인)."""
     ingest(file=file, run_id=slug, assets_dir=assets_dir)
     fragmentize(run_id=slug)
-    scenario(run_id=slug)
+    scenario(run_id=slug, format=format)
     build(run_id=slug, slug=slug)
-    render(slug=slug, fps=fps, skip_video=False)
+    render(slug=slug, fps=fps, skip_video=False, format="")
     typer.echo(f"[run] 완료 — data/renders/{slug}/")
 
 

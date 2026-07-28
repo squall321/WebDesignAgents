@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "wda:vtpl.stack/schema@1.0.0",
+  "title": "vtpl.stack 데이터 스키마 (세로 1080×1920)",
+  "description": "maxLength 는 모두 세로 무대 실측 역산 — 카드 폭 912px, 칩(76)·좌측 레일(12)·패딩(68)·간격(26)을 뺀 텍스트열 730px 기준. 가로 포맷 값 재사용 없음.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "cards"
+  ],
+  "properties": {
+    "kicker": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16,
+      "description": "상단 중앙 킥커 — 32px + 자간 0.18em, 사이드 룰 제외 폭 800px → 21자 수용, 16자로 제한"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 22,
+      "x-read": true,
+      "description": "씬 타이틀 — 72px, 폭 912px → 1줄 12.6자·2줄 25자. 헤더 존(182~382px) 안에서 22자가 상한"
+    },
+    "tone": {
+      "enum": [
+        "problem",
+        "solution"
+      ],
+      "default": "problem",
+      "description": "논지 성격 — problem: 적색 레일 + ✕ 마크, solution: 청색 레일 + 번호 마크"
+    },
+    "cards": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "title"
+        ],
+        "properties": {
+          "mark": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2,
+            "description": "칩 마크 — 76px 칩 안 40px 글자 → 1.9자. 미지정 시 tone 기본값(✕ 또는 순번)"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 30,
+            "x-read": true,
+            "description": "카드 논지 — 46px, 텍스트열 730px → 1줄 15.8자·2줄 31자"
+          },
+          "desc": {
+            "type": "string",
+            "maxLength": 20,
+            "description": "보조 설명 — 36px, 텍스트열 730px → 1줄 20.2자. 카드 높이(4장 기준 268px) 안에서 1줄이 상한"
+          }
+        }
+      },
+      "description": "아래에서 위로 밀려 올라오며 쌓이는 논지 카드 3~4장"
+    },
+    "conclusion": {
+      "type": "string",
+      "maxLength": 20,
+      "x-read": true,
+      "description": "적층 완료 후 하단 결론 필 — 40px, 필 내폭 824px → 20.6자"
+    },
+    "frame": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "하단 진행 표시 — 없으면 푸터 숨김",
+      "properties": {
+        "brand": {
+          "type": "string",
+          "maxLength": 20
+        },
+        "idx": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9
+        },
+        "total": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9
+        }
+      }
+    }
+  }
+}

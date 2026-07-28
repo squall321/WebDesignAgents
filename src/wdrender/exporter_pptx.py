@@ -1,4 +1,4 @@
-# 정적 슬라이드 exporter — 씬별 stills 시각으로 seek 캡처해 python-pptx 16:9 풀블리드 조립
+# 정적 슬라이드 exporter — 씬별 stills 시각으로 seek 캡처해 python-pptx 풀블리드 슬라이드로 조립
 from __future__ import annotations
 
 import io
@@ -8,13 +8,9 @@ from typing import Callable
 from pptx import Presentation
 from pptx.util import Emu
 
-from .config import RenderConfig, load_config
+from .config import RenderConfig, apply_format, load_config
 from .page_session import RenderSession
 from .server import StaticServer
-
-# PowerPoint 표준 16:9 (13.333in × 7.5in)
-_SLIDE_W_EMU = 12_192_000
-_SLIDE_H_EMU = 6_858_000
 
 
 def export_pptx(
@@ -23,27 +19,30 @@ def export_pptx(
     out_path: str | Path,
     *,
     config: RenderConfig | None = None,
+    format_id: str | None = None,
     resources: dict[str, str] | None = None,
     stills: dict[str, list[float]] | None = None,
     notes: dict[str, str] | None = None,
     log: Callable[[str], None] = print,
 ) -> dict:
-    """씬별 정지 화면을 캡처해 16:9 PPTX로 조립한다.
+    """씬별 정지 화면을 캡처해 PPTX로 조립한다.
 
+    format_id — 포맷 id. 주면 무대 크기와 슬라이드 크기(세로 포맷이면 세로 슬라이드)를
+                포맷 스펙에서 가져온다. 미지정 시 render.toml 기본(16:9).
     stills — {씬 name: [씬 로컬 시각(초), ...]} 오버라이드. 미지정 씬은
              progress = default_still_progress(기본 0.9) 시점 1장.
     notes  — {씬 name: 발표자 노트 텍스트}. 씬의 모든 슬라이드에 동일 삽입.
     반환: {slides, scenes, out} 요약 dict.
     """
-    cfg = config or load_config()
+    cfg = apply_format(config or load_config(), format_id)
     stills = stills or {}
     notes = notes or {}
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
     prs = Presentation()
-    prs.slide_width = Emu(_SLIDE_W_EMU)
-    prs.slide_height = Emu(_SLIDE_H_EMU)
+    prs.slide_width = Emu(cfg.slide_w_emu)
+    prs.slide_height = Emu(cfg.slide_h_emu)
     blank_layout = prs.slide_layouts[6]
 
     with StaticServer(root_dir) as srv:

@@ -58,6 +58,11 @@ class ScenarioDoc(StrictModel):
     """시나리오 문서 정본 (PLAN §4 P3 스키마). P3 검증·P4 빌드·P5 export가 공유한다."""
 
     version: Literal["1.0"] = "1.0"
+    format: str = Field(
+        default="wide-16x9",
+        min_length=1,
+        description="포맷 id — formats/{id}/format.yaml 이 무대 크기·씬 골격·템플릿 풀을 지배한다",
+    )
     meta: ScenarioMeta
     content: dict[str, dict] = Field(
         default_factory=dict, description="템플릿별 데이터 (opening/problem/… — 스키마 검증은 템플릿 레지스트리 몫)"

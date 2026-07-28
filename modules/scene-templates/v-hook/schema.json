@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "wda:vtpl.hook/schema@1.0.0",
+  "title": "vtpl.hook 데이터 스키마 (세로 1080×1920)",
+  "description": "maxLength 는 모두 세로 무대 실측 역산 — 본문 폭 912px(1080 - 좌우 마진 84×2), 한글 1글자 ≈ 1em 기준. 가로 포맷 값 재사용 없음.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "line",
+    "focus"
+  ],
+  "properties": {
+    "kicker": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16,
+      "description": "상단 중앙 킥커 — 32px + 자간 0.18em(≈38px/자), 사이드 룰 제외 폭 800px → 21자 수용. 라벨 성격상 16자로 제한"
+    },
+    "line": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "pre": {
+          "type": "string",
+          "maxLength": 10
+        },
+        "accent": {
+          "type": "string",
+          "maxLength": 10
+        },
+        "post": {
+          "type": "string",
+          "maxLength": 10
+        }
+      },
+      "x-read": true,
+      "description": "초대형 후킹 문구 — 96px, 폭 912px → 1줄 9.5자. 상단 존(200~548px)이 3줄까지 수용하므로 세 조각 합 27자가 상한"
+    },
+    "focus": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "word"
+      ],
+      "properties": {
+        "label": {
+          "type": "string",
+          "maxLength": 14,
+          "description": "핵심 블록 상단 라벨 — 32px + 자간 0.16em, 카드 내폭 668px → 18자 수용, 14자로 제한"
+        },
+        "word": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 8,
+          "x-read": true,
+          "description": "핵심 키워드 — 76px, 카드 내폭 668px → 8.8자"
+        },
+        "caption": {
+          "type": "string",
+          "maxLength": 22,
+          "description": "블록 아래 한 줄 보조 설명 — 40px, 폭 912px → 22.8자"
+        }
+      },
+      "description": "중앙 핵심 시각 요소 — 파문 위에 앉는 키워드 블록"
+    },
+    "hint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "text"
+      ],
+      "properties": {
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 24,
+          "description": "하단 진행 힌트 문구 — 36px, 폭 912px → 25.3자"
+        },
+        "beats": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 4,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 6,
+            "description": "구간 이름 — 32px, 4열 분할 시 열폭 216px → 6.7자"
+          },
+          "description": "남은 구간 예고 — 첫 구간만 점등된 세그먼트 레일로 표시"
+        }
+      },
+      "description": "하단 진행 힌트 (스크롤을 멈춘 시청자에게 남은 분량을 예고)"
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "kicker": "도판",
+  "title": "도판 제목",
+  "files": [
+    {
+      "src": "fixtures/assets/hero.png",
+      "caption": "히어로 이미지",
+      "alt": "제품 히어로 화면"
+    }
+  ]
+}

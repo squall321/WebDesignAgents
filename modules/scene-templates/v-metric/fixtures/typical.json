@@ -1,0 +1,19 @@
+{
+  "kicker": "실증",
+  "title": "다시 심의해 봤습니다",
+  "label": "심의 후 남은 오류율",
+  "value": "1.8",
+  "unit": "%",
+  "delta": {
+    "dir": "down",
+    "tone": "good",
+    "text": "단일 모델 대비 -62%"
+  },
+  "evidence": "보고서 1,204건을 다시 심의한 결과",
+  "source": "2026년 1분기 내부 검증",
+  "frame": {
+    "brand": "HWAX 숏폼 브리핑",
+    "idx": 4,
+    "total": 5
+  }
+}

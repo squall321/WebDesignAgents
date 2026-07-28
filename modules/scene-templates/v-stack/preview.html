@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<!-- vtpl.stack 단독 구동 프리뷰 (세로 무대 1080×1920) — fixture typical 주입. 로드 순서: 엔진 → 토큰 로더 → 세로 템플릿 → 씬 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>vtpl.stack preview — typical (1080×1920)</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>html, body { margin: 0; padding: 0; height: 100%; background: #E9EBF1; }</style>
+<script>window.OM_SCENES = '[{"name":"적층","dur":12}]';</script>
+<script>window.OM_PLAYBACK = '{"mode":"loop"}';</script>
+<script src="../../../web/vendor/react.production.min.js"></script>
+<script src="../../../web/vendor/react-dom.production.min.js"></script>
+<script src="../../../web/vendor/babel.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="react" src="../../../web/runtime/animations-v2.jsx"></script>
+<script type="text/babel" data-presets="react" src="../../../web/tokens/loader.jsx"></script>
+<script type="text/babel" data-presets="react" src="../../../web/templates/omx-templates-vertical.jsx"></script>
+<script type="text/babel" data-presets="react">
+// 세로 프리뷰 — vtpl.stack 에 fixture 를 바인딩해 1080×1920 무대에서 단독 구동
+// (babel 전역 스크립트라 엔진 최상위 선언과 충돌하지 않도록 비충돌 이름으로 참조)
+// ?fixture=min|typical|max 로 픽스처 교체 — maxLength 상한 실측 검증용 (기본 typical)
+const SceneRoot = window.SceneStage;
+const fixtureName = (new URLSearchParams(location.search).get('fixture') || 'typical').replace(/[^a-z]/g, '');
+const theme = window.OMX.themes.loadUrl('../../../web/tokens/hwax-blue.json');
+const data = window.OMX.io.loadJson('./fixtures/' + (fixtureName || 'typical') + '.json');
+const Tpl = window.OMX.templateIndex['vtpl.stack'];
+function BoundScene(props) { return <Tpl {...props} data={data} theme={theme} />; }
+function TplPreview() {
+  return (
+    <div style={{ position: 'relative', width: '100vw', height: '100vh', overflow: 'hidden' }}>
+      <SceneRoot width={1080} height={1920} bg={theme.color.bg} scenes={window.OM_SCENES} playback={window.OM_PLAYBACK}>
+        {{ '적층': BoundScene }}
+      </SceneRoot>
+    </div>
+  );
+}
+window.TplPreview = TplPreview;
+window.__OMX_PREVIEW__ = {
+  tpl: 'vtpl.stack',
+  fixture: fixtureName || 'typical',
+  format: 'short-9x16',
+  stage: window.OMX.vertical.stage,
+  nat: Tpl.nat,
+  still: window.OMX.vertical.stillOf(Tpl.schedule(data), Tpl.nat),
+};
+ReactDOM.createRoot(document.getElementById('root')).render(<TplPreview />);
+</script>
+</body>
+</html>

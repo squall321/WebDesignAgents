@@ -1,0 +1,38 @@
+# vtpl.hook — 세로 숏폼 씬 템플릿 모듈 SSOT (첫 3초 각인 — 초대형 후킹 문구 + 중앙 키워드 블록)
+id: vtpl.hook
+type: scene-template
+name: "세로 각인 — 초대형 후킹 문구 + 중앙 키워드 블록"
+status: draft
+version: 1.0.0
+engine_compat: "animations-v2"
+origin: "창작 모드 세로 포맷 2026-07-26"
+formats: [short-9x16]
+stage: { w: 1080, h: 1920 }
+nat_default: 6
+scene_name_default: "후킹"
+entry:
+  template: "web/templates/omx-templates-vertical.jsx#VHookScene"
+  schema: schema.json
+  fixtures:
+    - fixtures/min.json
+    - fixtures/typical.json
+    - fixtures/max.json
+  preview: preview.html
+  snapshots: fixtures/snapshots/
+metaphors:
+  - v-frame
+  - v-dot-column
+theme_default: hwax-blue
+summary: "상단 1/3 초대형 후킹 문구·중앙 파문 위 키워드 블록·하단 구간 예고 레일로 스크롤을 3초 안에 멈추는 세로 오프닝 씬"
+composition: "상단 존(200~548) 후킹 문구 → 중앙 존(560~1440) 파문 3겹 + 청색 키워드 블록(850~1150) → 하단 존(1420~1574) 진행 힌트 + 구간 세그먼트. 1700px 아래는 숏폼 플레이어 UI 회피로 비움"
+in_scope:
+  - "세로 숏폼(9:16) 첫 씬 — 3초 안에 주제를 각인하는 후킹"
+  - "핵심 키워드 1개를 블록으로 못박기 (accent 3분할 문구)"
+  - "남은 구간 2~4개 예고 (첫 구간 점등)"
+out_of_scope:
+  - "가로 16:9 무대 (tpl.opening 사용)"
+  - "설명이 필요한 도입 — 문구 27자·키워드 8자를 넘는 서술"
+  - "수치·근거 제시 (vtpl.metric 사용)"
+quality:
+  gates_passed: []
+  reviews: []

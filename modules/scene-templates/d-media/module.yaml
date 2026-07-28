@@ -1,0 +1,39 @@
+# tpl.d-media — 씬 템플릿 모듈 SSOT (도판 쇼케이스 — 1장 전면 · 2장 대비 · 3장 그리드)
+id: tpl.d-media
+type: scene-template
+name: "도판 쇼케이스 — 이미지 1~3장 + 캡션·출처"
+status: draft
+version: 1.0.0
+engine_compat: "animations-v2"
+origin: "창작 모드 위젯 수용 2026-07-27"
+formats: [wide-16x9]
+stage: { w: 1920, h: 1080 }
+nat_default: 10
+scene_name_default: "도판"
+entry:
+  template: "web/templates/omx-templates-data.jsx#MediaScene"
+  schema: schema.json
+  fixtures:
+    - fixtures/min.json
+    - fixtures/typical.json
+    - fixtures/max.json
+  preview: preview.html
+  snapshots: fixtures/snapshots/
+metaphors:
+  - frame-chrome
+  - dot-grid
+theme_default: hwax-blue
+summary: "이미지 카드가 스케일+페이드로 순차 등장하는 도판 씬 — 1장=전면·2장=대비·3장=그리드, 종횡비는 cover 로 보존(레터박스 금지)하고 캡션·출처를 하단 스트립에 표기"
+composition: "이미지 카드(cover 이미지 + 매체 배지 + 캡션·출처 스트립) 1~3장 + 하단 풋노트 — 은유: 전시대 조명"
+in_scope:
+  - "이미지 1~3장 배치 (image · comparison 이미지 셀 · 스크린샷)"
+  - "영상/CAD/문서는 포스터 이미지 + badge 칩으로 표기 (video · cad_3d · doc_viewer)"
+  - "캡션(≤18자)·출처(≤14자) 표기, alt 필수 (접근성 메타)"
+out_of_scope:
+  - "4장 이상 갤러리 (씬을 나눈다)"
+  - "영상 재생·3D 인터랙션 (렌더 결정성 위배 — 포스터로 대체)"
+  - "이미지 위 긴 본문 오버레이 (대비 미보장)"
+quality:
+  gates_passed:
+    - "20260727-221721-83e735"  # 7게이트 클린 (error 0 · warning 0)
+  reviews: []

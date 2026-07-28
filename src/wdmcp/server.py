@@ -76,7 +76,7 @@ from .schemas import (
     SubmitTurnOut,
     TurnGist,
 )
-from .session import MeetingLedger, get_session
+from .session import MeetingLedger, get_session, split_fact_structure
 
 log = structlog.get_logger("wdmcp.server")
 
@@ -265,14 +265,18 @@ def _facts_for_briefing(
             if isinstance(src, dict)
             else str(src)
         )
+        # 구조 조각은 요약 한 줄을 structured 로 분리한다 (text 는 요약을 뗀 본문)
+        summary, body = split_fact_structure(f)
         facts.append(
             BriefingFact(
                 marker=m,
                 ref=frag_id,
                 type=str(f.get("type", "")),
-                text=str(f.get("text", "")),
+                text=body,
                 source=source,
                 confidence=f.get("confidence"),
+                widget=str(f.get("widget") or f.get("widget_type") or ""),
+                structured=summary,
             )
         )
     return facts

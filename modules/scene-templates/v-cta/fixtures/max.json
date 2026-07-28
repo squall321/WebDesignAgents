@@ -1,0 +1,24 @@
+{
+  "kicker": "지금 시작하기",
+  "headline": {
+    "pre": "당신의 보고서를 ",
+    "accent": "60초 브리핑",
+    "post": "으로 바꿉니다"
+  },
+  "sub": "질문 하나가 의사결정문이 되기까지, 열네 명이 함께 봅니다",
+  "entries": [
+    {
+      "text": "무료 체험 신청하기",
+      "kind": "primary"
+    },
+    {
+      "text": "소개 자료 내려받기",
+      "kind": "secondary"
+    },
+    {
+      "text": "도입 상담 예약하기",
+      "kind": "secondary"
+    }
+  ],
+  "footnote": "hwax.example · 브리핑 2026"
+}

@@ -1,0 +1,37 @@
+{
+  "kicker": "구현 현황",
+  "title": "Phase 별 진척",
+  "unit": "%",
+  "axisMax": 100,
+  "categories": [
+    { "label": "P0/1" },
+    { "label": "P1.7" },
+    { "label": "P2" },
+    { "label": "P3" },
+    { "label": "P4" },
+    { "label": "P5" },
+    { "label": "P8" }
+  ],
+  "series": [
+    {
+      "name": "완료율",
+      "tone": "primary",
+      "values": [100, 100, 100, 70, 30, 20, 0]
+    },
+    {
+      "name": "잔여",
+      "tone": "muted",
+      "values": [0, 0, 0, 30, 70, 80, 100]
+    }
+  ],
+  "note": {
+    "pre": "잠금·권한 축은 끝났고 ",
+    "strong": "P4 허브",
+    "post": " 가 다음 고비다"
+  },
+  "frame": {
+    "brand": "ReportArchive",
+    "idx": "06",
+    "total": "07"
+  }
+}

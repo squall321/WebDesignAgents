@@ -1,0 +1,21 @@
+# wide-16x9 — 기존 가로 포맷의 명시화. 여기 적힌 값이 곧 현행 동작이며 회귀 방지선이다.
+id: wide-16x9
+name_ko: 가로 브리핑 영상
+stage: { w: 1920, h: 1080 }          # 렌더 무대 픽셀 (엔트리 SceneStage · 캡처 클립 원척)
+# target 90 = 씬 7종 nat_default 합(8+13+11+18+13+15+12). min/max 는 현행 무제약을
+# 보존하는 넓은 허용대 — 총길이 검증이 기존 시나리오를 되돌려 깨지 않게 한다.
+duration: { target: 90, min: 20, max: 600 }
+skeleton: [opening, problem, concept, process, differentiator, proof, closing]
+template_pool:                       # 역할 → 사용 가능한 tpl id (우선순위 순, 1번이 조립 기본)
+  opening: [tpl.opening]
+  problem: [tpl.problem]
+  concept: [tpl.concept]
+  process: [tpl.process, tpl.timeline]
+  differentiator: [tpl.differentiator, tpl.compare]
+  proof: [tpl.proof, tpl.dataviz]
+  closing: [tpl.closing]
+narration: { enabled: true, rate: 5.5 }
+outputs: [video, pptx]
+pptx: { slide_w_in: 13.333, slide_h_in: 7.5 }      # PowerPoint 표준 16:9
+constraints: { min_font: 17, safe_margin: 140 }    # type.iconCheck=17 · layout.marginX=140 서술
+theme: hwax-blue

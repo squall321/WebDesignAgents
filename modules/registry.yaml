@@ -7,6 +7,8 @@ load_order_contract:
   - web/templates/omx-metaphors.jsx
   - web/templates/omx-templates.jsx
   - web/templates/omx-templates-ext.jsx
+  - web/templates/omx-templates-data.jsx       # 창작 모드 위젯 수용 3종 (tpl.d-matrix/d-media/d-multi)
+  - web/templates/omx-templates-vertical.jsx   # 세로 포맷(short-9x16) 전용 — 가로 자산과 이름 충돌 없음
   - "<project scenes.jsx>"
 modules:
   - id: tpl.opening
@@ -99,6 +101,83 @@ modules:
     summary: "AS-IS/TO-BE 를 행 단위로 짝지어 순차 대비하고 하단 결론 배지로 수렴하는 좌우 대칭 씬"
     props: "엔진 props({localTime, progress, dur, index, count, scene}) + data(schema.json) + theme(토큰 트리)"
     in_scope_hint: "좌우 2패널 행 2~4개 짝 비교 (쟁점 칩 + A/B 셀 + 결론 배지)"
+  - id: tpl.d-matrix
+    type: scene-template
+    path: modules/scene-templates/d-matrix
+    status: draft
+    version: 1.0.0
+    formats: [wide-16x9]
+    stage: { w: 1920, h: 1080 }
+    nat_default: 12
+    summary: "헤더 행이 먼저 서고 데이터 행이 위→아래(행 안은 좌→우 스윕)로 등장하는 격자 표 씬 — 열≤8·행≤8 을 스키마가 강제하고 초과분은 '외 N행' 으로 정직하게 표기"
+    props: "엔진 props({localTime, progress, dur, index, count, scene}) + data(schema.json) + theme(토큰 트리)"
+    in_scope_hint: "3~8열 × 2~8행 격자 표 (raci_matrix·table·fmea 발췌 — 코드값은 칩, 초과분은 외 N행)"
+  - id: tpl.d-media
+    type: scene-template
+    path: modules/scene-templates/d-media
+    status: draft
+    version: 1.0.0
+    formats: [wide-16x9]
+    stage: { w: 1920, h: 1080 }
+    nat_default: 10
+    summary: "이미지 카드가 스케일+페이드로 순차 등장하는 도판 씬 — 1장=전면·2장=대비·3장=그리드, 종횡비는 cover 로 보존(레터박스 금지)하고 캡션·출처를 하단 스트립에 표기"
+    props: "엔진 props({localTime, progress, dur, index, count, scene}) + data(schema.json) + theme(토큰 트리)"
+    in_scope_hint: "이미지/포스터 1~3장 쇼케이스 (image·video·cad_3d — 캡션·출처·매체 배지)"
+  - id: tpl.d-multi
+    type: scene-template
+    path: modules/scene-templates/d-multi
+    status: draft
+    version: 1.0.0
+    formats: [wide-16x9]
+    stage: { w: 1920, h: 1080 }
+    nat_default: 13
+    summary: "축→항목→계열 순차 입장(범례 점등 → 막대 좌→우 스윕 → 계열 최대치 라벨)의 그룹 막대 논증 씬 — 0 기준선·비례 정확을 스키마로 강제, 값 라벨은 계열 최대치만 표기해 과밀 방지"
+    props: "엔진 props({localTime, progress, dur, index, count, scene}) + data(schema.json) + theme(토큰 트리)"
+    in_scope_hint: "2~4계열 × 3~7항목 그룹 막대 (chart 다계열·radar·progress_bar 다계열)"
+  - id: vtpl.hook
+    type: scene-template
+    path: modules/scene-templates/v-hook
+    status: draft
+    version: 1.0.0
+    formats: [short-9x16]
+    stage: { w: 1080, h: 1920 }
+    nat_default: 6
+    summary: "상단 1/3 초대형 후킹 문구·중앙 파문 위 키워드 블록·하단 구간 예고 레일로 스크롤을 3초 안에 멈추는 세로 오프닝 씬"
+    props: "엔진 props({localTime, progress, dur, index, count, scene}) + data(schema.json) + theme(토큰 트리)"
+    in_scope_hint: "세로 숏폼(9:16) 첫 씬 — 3초 각인 후킹 + 남은 구간 예고"
+  - id: vtpl.stack
+    type: scene-template
+    path: modules/scene-templates/v-stack
+    status: draft
+    version: 1.0.0
+    formats: [short-9x16]
+    stage: { w: 1080, h: 1920 }
+    nat_default: 12
+    summary: "새 카드가 하단으로 들어오면 앞선 카드가 그만큼 위로 밀리는 세로 스크롤 은유로 논지를 쌓는 씬 (tone 으로 문제/해법 양용)"
+    props: "엔진 props({localTime, progress, dur, index, count, scene}) + data(schema.json) + theme(토큰 트리)"
+    in_scope_hint: "세로 숏폼(9:16) 문제/해법 제시 — 논지 카드 3~4장 적층 + 결론 필"
+  - id: vtpl.metric
+    type: scene-template
+    path: modules/scene-templates/v-metric
+    status: draft
+    version: 1.0.0
+    formats: [short-9x16]
+    stage: { w: 1080, h: 1920 }
+    nat_default: 10
+    summary: "화면 중앙 절반(470~1350)을 후광과 초대형 수치가 차지하고 그 아래 근거 한 줄이 받치는 모바일 가독 우선 수치 씬"
+    props: "엔진 props({localTime, progress, dur, index, count, scene}) + data(schema.json) + theme(토큰 트리)"
+    in_scope_hint: "세로 숏폼(9:16) 근거 제시 — 수치 하나 + 근거 한 줄 (증감 필 선택)"
+  - id: vtpl.cta
+    type: scene-template
+    path: modules/scene-templates/v-cta
+    status: draft
+    version: 1.0.0
+    formats: [short-9x16]
+    stage: { w: 1080, h: 1920 }
+    nat_default: 8
+    summary: "룰→대형 문구→보조 줄 순으로 착지한 뒤 전폭 진입점 필이 엄지 도달 구역에 세로로 쌓이는 마무리 씬"
+    props: "엔진 props({localTime, progress, dur, index, count, scene}) + data(schema.json) + theme(토큰 트리)"
+    in_scope_hint: "세로 숏폼(9:16) 마지막 씬 — 대형 문구 + 진입점 필 1~3개"
   - id: mtp.frame-chrome
     type: metaphor
     path: "web/templates/omx-metaphors.jsx#FrameChrome"

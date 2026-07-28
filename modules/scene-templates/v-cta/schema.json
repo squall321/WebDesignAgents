@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "wda:vtpl.cta/schema@1.0.0",
+  "title": "vtpl.cta 데이터 스키마 (세로 1080×1920)",
+  "description": "maxLength 는 모두 세로 무대 실측 역산 — 본문 폭 912px, 진입점 필 내폭 824px 기준. 가로 포맷 값 재사용 없음.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "headline",
+    "entries"
+  ],
+  "properties": {
+    "kicker": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16,
+      "description": "상단 중앙 킥커 — 32px + 자간 0.18em, 사이드 룰 제외 폭 800px → 21자 수용, 16자로 제한"
+    },
+    "headline": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "pre": {
+          "type": "string",
+          "maxLength": 10
+        },
+        "accent": {
+          "type": "string",
+          "maxLength": 10
+        },
+        "post": {
+          "type": "string",
+          "maxLength": 10
+        }
+      },
+      "x-read": true,
+      "description": "중앙 정렬 대형 문구 — 88px, 폭 912px → 1줄 10.4자. 문구 존(540~858px)이 3줄까지 수용하므로 세 조각 합 30자가 상한"
+    },
+    "sub": {
+      "type": "string",
+      "maxLength": 38,
+      "x-read": true,
+      "description": "보조 한 줄 — 44px, 폭 912px → 1줄 20.7자·2줄 41자"
+    },
+    "entries": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "text"
+        ],
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16,
+            "description": "진입점 문구 — 46px, 필 내폭 824px → 17.9자, 16자로 제한"
+          },
+          "kind": {
+            "enum": [
+              "primary",
+              "secondary"
+            ],
+            "default": "primary",
+            "description": "primary: 채운 필, secondary: 테두리 필"
+          }
+        }
+      },
+      "description": "전폭 진입점 필 1~3개 — 엄지 도달 구역(1120~1552px)에 세로 적층"
+    },
+    "footnote": {
+      "type": "string",
+      "maxLength": 26,
+      "description": "하단 캡션 — 32px, 폭 912px → 28.5자"
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "kicker": "문제",
+  "title": "왜 AI 답변을 못 믿나",
+  "tone": "problem",
+  "cards": [
+    {
+      "title": "출처가 사라진다",
+      "desc": "근거를 되짚을 수 없다"
+    },
+    {
+      "title": "반대 의견이 없다",
+      "desc": "한 번에 한 관점뿐"
+    },
+    {
+      "title": "검증은 결국 사람 몫",
+      "desc": "확인에 더 오래 걸린다"
+    }
+  ],
+  "conclusion": "답은 빠른데 신뢰가 없다",
+  "frame": {
+    "brand": "HWAX 숏폼 브리핑",
+    "idx": 2,
+    "total": 5
+  }
+}

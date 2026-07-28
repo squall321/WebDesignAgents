@@ -69,6 +69,42 @@ class SessionState:
         )
 
 
+# ── 브리핑 [F#] fact 포맷 ────────────────────────────────────────────────
+#
+# fragmentize 는 구조 위젯(표/흐름도/진행률/일정/키값)의 대표 조각 text 를
+# `"{한 줄 요약}{_SUMMARY_JOIN}{평탄화 본문}"` 으로 만든다. 브리핑은 그 요약을
+# 별도 필드로 끌어올려 페르소나가 "표 4열×7행 / 흐름도 6노드 / 진행률 7계열" 을
+# 한눈에 보고 씬 템플릿(dataviz·timeline·process…)을 고르게 한다.
+_SUMMARY_JOIN = " — "
+
+
+def split_fact_structure(frag: dict) -> tuple[str, str]:
+    """조각 → (구조 요약 한 줄, 요약을 뗀 본문 텍스트).
+
+    조각에 `structured` payload 가 없거나 요약을 만들 수 없으면 `("", 원문)` 이다.
+    **원 데이터(rows·nodes·values)는 절대 싣지 않는다** — 브리핑 토큰 예산 때문에
+    한 줄 요약만 올리고, 구조 본체는 fragments.json 에 남아 씬 조립이 직접 읽는다.
+    """
+    text = str(frag.get("text", ""))
+    payload = frag.get("structured")
+    if not isinstance(payload, dict):
+        return "", text
+    try:
+        from wdpipeline.widgets import structured_summary
+    except ImportError:  # 파이프라인 없이도 브리핑은 텍스트만으로 동작해야 한다
+        return "", text
+    summary = structured_summary(payload)
+    if not summary:
+        return "", text
+    if not text.startswith(summary):
+        # 요약이 200자 상한에 잘렸거나 text 를 다른 경로로 만든 조각 — 원문을 그대로 둔다
+        return summary, text
+    body = text[len(summary):]
+    if body.startswith(_SUMMARY_JOIN):
+        body = body[len(_SUMMARY_JOIN):]
+    return summary, body.strip()
+
+
 _state = SessionState()
 
 

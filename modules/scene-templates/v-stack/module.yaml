@@ -1,0 +1,38 @@
+# vtpl.stack — 세로 숏폼 씬 템플릿 모듈 SSOT (세로 적층 — 아래에서 위로 밀려 올라오는 논지 카드)
+id: vtpl.stack
+type: scene-template
+name: "세로 적층 — 아래에서 위로 밀려 올라오는 논지 카드"
+status: draft
+version: 1.0.0
+engine_compat: "animations-v2"
+origin: "창작 모드 세로 포맷 2026-07-26"
+formats: [short-9x16]
+stage: { w: 1080, h: 1920 }
+nat_default: 12
+scene_name_default: "적층"
+entry:
+  template: "web/templates/omx-templates-vertical.jsx#VStackScene"
+  schema: schema.json
+  fixtures:
+    - fixtures/min.json
+    - fixtures/typical.json
+    - fixtures/max.json
+  preview: preview.html
+  snapshots: fixtures/snapshots/
+metaphors:
+  - v-frame
+  - v-dot-column
+theme_default: hwax-blue
+summary: "새 카드가 하단으로 들어오면 앞선 카드가 그만큼 위로 밀리는 세로 스크롤 은유로 논지를 쌓는 씬 (tone 으로 문제/해법 양용)"
+composition: "헤더(킥커·타이틀) → 적층 존(430~1610) 카드 3~4장(4장 pitch 290 / 3장 pitch 310, 카드 최대 높이 240) → 결론 필(1660). 카드는 좌측 tone 레일 12px + 마크 칩 76px + 논지/보조 2단"
+in_scope:
+  - "세로 숏폼(9:16) 문제 제시 — tone=problem (적색 레일 + ✕ 마크)"
+  - "세로 숏폼(9:16) 해법 제시 — tone=solution (청색 레일 + 순번 마크)"
+  - "논지 3~4개 + 결론 한 줄"
+out_of_scope:
+  - "가로 16:9 무대 (tpl.problem·tpl.process 사용)"
+  - "카드 5장 이상 — 세로 존(1180px)이 수용하지 못함"
+  - "카드별 2줄 초과 보조 설명 (4장 기준 카드 최대 높이 240px 초과)"
+quality:
+  gates_passed: []
+  reviews: []

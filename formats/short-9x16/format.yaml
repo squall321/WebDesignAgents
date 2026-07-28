@@ -1,0 +1,17 @@
+# short-9x16 — 세로 숏폼 브리핑 포맷. 무대·골격·템플릿 풀을 코드가 아닌 이 파일이 지배한다.
+id: short-9x16
+name_ko: 세로 숏폼 브리핑
+stage: { w: 1080, h: 1920 }          # 렌더 무대 픽셀
+duration: { target: 60, min: 40, max: 75 }
+skeleton: [hook, problem, solution, proof, cta]    # 씬 역할 순서(템플릿 id 아님)
+template_pool:                       # 역할 → 사용 가능한 tpl id 목록(우선순위 순)
+  hook: [vtpl.hook]
+  problem: [vtpl.stack]
+  solution: [vtpl.stack]
+  proof: [vtpl.metric]
+  cta: [vtpl.cta]
+narration: { enabled: true, rate: 5.5 }
+outputs: [video, pptx]
+pptx: { slide_w_in: 7.5, slide_h_in: 13.333 }      # 세로 슬라이드
+constraints: { min_font: 32, safe_margin: 72 }
+theme: hwax-blue

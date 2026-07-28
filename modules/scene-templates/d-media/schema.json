@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "wda:tpl.d-media/schema@1.0.0",
+  "title": "tpl.d-media 데이터 스키마",
+  "description": "이미지/영상 쇼케이스 씬 — 해결된 미디어 자산이 화면에 들어가는 첫 그릇(§9 #2). 1장=전면·2장=대비·3장=그리드. 종횡비는 object-fit: cover 로 보존(레터박스 금지), 캡션·출처는 카드 하단 스트립. src 는 빌드 산출물 기준 상대경로 전제.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "kicker",
+    "title",
+    "files"
+  ],
+  "properties": {
+    "kicker": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 26,
+      "x-read": true,
+      "description": "타이틀 1행 — 내용 폭 1640px ÷ 56px(sectionTitle) ≈ 29자, 안전 26자"
+    },
+    "files": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 3,
+      "description": "1장=전면(1640px) · 2장=대비(800px) · 3장=그리드(520px) — 4장 이상은 씬을 나눈다",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "src",
+          "caption",
+          "alt"
+        ],
+        "properties": {
+          "src": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "description": "이미지 경로 (엔트리 기준 상대) — 영상/CAD/문서는 포스터 이미지 + badge 로 표기"
+          },
+          "caption": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 18,
+            "description": "3장 그리드 카드 내폭 476px ÷ 24px(캡션 25px 근사) ≈ 19자 — nowrap 안전 18자 (실측 역산)"
+          },
+          "alt": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "description": "대체 텍스트 — 화면 미표시, img alt 로 실림"
+          },
+          "source": {
+            "type": "string",
+            "maxLength": 14,
+            "description": "출처 표기 — '출처 · {source}' 4자 접두 포함 18자 = 476px ÷ 24px (실측 역산)"
+          },
+          "badge": {
+            "type": "string",
+            "maxLength": 6,
+            "description": "매체 배지 칩 (영상 · 3D · 문서 등) — 이미지 좌상단"
+          }
+        }
+      }
+    },
+    "note": {
+      "type": "object",
+      "additionalProperties": false,
+      "x-read": true,
+      "description": "하단 중앙 풋노트 — 도판이 말하는 결론 한 줄",
+      "properties": {
+        "pre": {
+          "type": "string",
+          "maxLength": 18
+        },
+        "strong": {
+          "type": "string",
+          "maxLength": 12
+        },
+        "post": {
+          "type": "string",
+          "maxLength": 18
+        }
+      }
+    },
+    "frame": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "프레임 푸터 메타 — 없으면 푸터 숨김",
+      "properties": {
+        "brand": {
+          "type": "string",
+          "maxLength": 24
+        },
+        "idx": {
+          "type": "string",
+          "maxLength": 4
+        },
+        "total": {
+          "type": "string",
+          "maxLength": 4
+        }
+      }
+    }
+  }
+}

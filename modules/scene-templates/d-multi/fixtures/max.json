@@ -1,0 +1,47 @@
+{
+  "kicker": "부서 유형별 상한 확인",
+  "title": "부서 유형별 주간 보고 처리량",
+  "unit": "건",
+  "axisMax": 120,
+  "categories": [
+    { "label": "설계 1본부" },
+    { "label": "설계 2본부" },
+    { "label": "해석 센터" },
+    { "label": "품질 보증" },
+    { "label": "구매 조달" },
+    { "label": "생산 기술" },
+    { "label": "아카이브" }
+  ],
+  "series": [
+    {
+      "name": "작성 건수",
+      "tone": "primary",
+      "values": [118, 96, 74, 51, 42, 66, 12]
+    },
+    {
+      "name": "게시 건수",
+      "tone": "secondary",
+      "values": [64, 58, 41, 30, 22, 37, 96]
+    },
+    {
+      "name": "코멘트 수",
+      "tone": "positive",
+      "values": [22, 31, 18, 12, 9, 15, 88]
+    },
+    {
+      "name": "반려 건수",
+      "tone": "caution",
+      "values": [14, 9, 41, 6, 4, 8, 2]
+    }
+  ],
+  "note": {
+    "pre": "게시·코멘트가 ",
+    "strong": "아카이브 부서",
+    "post": " 로 역전 집중된다"
+  },
+  "frame": {
+    "brand": "ReportArchive 운영협의회",
+    "idx": "07",
+    "total": "07"
+  }
+}

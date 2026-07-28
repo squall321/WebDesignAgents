@@ -124,6 +124,13 @@ class BriefingFact(ToolModel):
     text: str
     source: str = ""
     confidence: float | str | None = None
+    widget: str = Field(default="", description="원천 위젯 타입 (flowchart·table·progress_bar…)")
+    structured: str = Field(
+        default="",
+        description="구조 위젯 요약 한 줄 — '표 4열×7행: 단계/담당/기한/상태', "
+        "'흐름도 6노드 선형', '진행률 7계열: 100%/100%/70%'. 씬 템플릿 선택 근거다. "
+        "빈 문자열이면 구조 없는 텍스트 조각.",
+    )
 
 
 class ModuleIndexEntry(ToolModel):

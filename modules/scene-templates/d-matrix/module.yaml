@@ -1,0 +1,39 @@
+# tpl.d-matrix — 씬 템플릿 모듈 SSOT (격자 표 — 헤더 고정 · 행 순차 등장 · 코드값 칩)
+id: tpl.d-matrix
+type: scene-template
+name: "격자 표 — 헤더 고정 N열×M행 + 코드값 칩"
+status: draft
+version: 1.0.0
+engine_compat: "animations-v2"
+origin: "창작 모드 위젯 수용 2026-07-27"
+formats: [wide-16x9]
+stage: { w: 1920, h: 1080 }
+nat_default: 12
+scene_name_default: "격자"
+entry:
+  template: "web/templates/omx-templates-data.jsx#MatrixScene"
+  schema: schema.json
+  fixtures:
+    - fixtures/min.json
+    - fixtures/typical.json
+    - fixtures/max.json
+  preview: preview.html
+  snapshots: fixtures/snapshots/
+metaphors:
+  - frame-chrome
+  - dot-grid
+theme_default: hwax-blue
+summary: "헤더 행이 먼저 서고 데이터 행이 위→아래(행 안은 좌→우 스윕)로 등장하는 격자 표 씬 — 열≤8·행≤8 을 스키마가 강제하고 초과분은 '외 N행' 으로 정직하게 표기"
+composition: "표 패널(헤더 행 + 열 가이드 + 지브라 행) + '외 N행' 표기 + 하단 풋노트 — 은유: 대장(臺帳) 펼치기"
+in_scope:
+  - "3~8열 × 2~8행 격자 표 (raci_matrix · table · fmea 발췌 · record_table · comparison 3안+)"
+  - "코드값 셀은 칩(chip:true, ≤4자), 중요 셀은 em 강조 (활성 블루 톤)"
+  - "행 초과분은 omitted('외 N행') 표기 — 잘라 넣기 판단은 심의 몫"
+out_of_scope:
+  - "9열 이상·9행 이상 (자동 축소·폰트 축소 금지 — 최소 폰트 24px 준수)"
+  - "셀 병합·중첩 표·셀 내 수치 막대"
+  - "표 스크롤/페이지네이션 (씬은 단일 정지 화면으로 완결)"
+quality:
+  gates_passed:
+    - "20260727-221719-e0b503"  # 7게이트 클린 (error 0 · warning 0)
+  reviews: []

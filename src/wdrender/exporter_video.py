@@ -8,7 +8,7 @@ import tempfile
 from pathlib import Path
 from typing import Callable
 
-from .config import RenderConfig, load_config
+from .config import RenderConfig, apply_format, load_config
 from .page_session import RenderSession
 from .server import StaticServer
 
@@ -19,6 +19,7 @@ def export_video(
     out_path: str | Path,
     *,
     config: RenderConfig | None = None,
+    format_id: str | None = None,
     resources: dict[str, str] | None = None,
     frames_dir: str | Path | None = None,
     keep_frames: bool = False,
@@ -27,9 +28,11 @@ def export_video(
 ) -> dict:
     """root_dir 서빙 트리의 page_relpath 엔트리를 mp4로 export 한다.
 
+    format_id — 포맷 id. 주면 뷰포트·캡처 크기를 포맷 스펙 stage 에서 가져온다
+                (미지정 시 render.toml 의 width/height).
     반환: {duration, fps, frames, out} 요약 dict.
     """
-    cfg = config or load_config()
+    cfg = apply_format(config or load_config(), format_id)
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     tmp_frames = Path(frames_dir) if frames_dir else Path(tempfile.mkdtemp(prefix="wdr_frames_"))

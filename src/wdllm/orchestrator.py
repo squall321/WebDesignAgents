@@ -39,6 +39,8 @@ from wdcore.models.meeting import (
     Stance,
 )
 
+from wdmcp.session import split_fact_structure
+
 from .client import LLMError, SupportsChat, chat_json
 
 log = structlog.get_logger("wdllm.orchestrator")
@@ -86,7 +88,9 @@ class AutoOrchestrator:
         self.max_facts = max_facts
         self.recent_n = recent_n
         self.parse_retries = parse_retries
-        self._fragments: list[tuple[str, str, str]] = []  # (frag_id, type, text) — run()에서 설정
+        # (frag_id, 라벨, 본문) — run()에서 설정. 라벨은 구조 요약("표 4열×7행: …")이거나
+        # 구조가 없으면 "조각:{type}" 이다.
+        self._fragments: list[tuple[str, str, str]] = []
 
     # --- 실행 ---
     def run(
@@ -258,7 +262,7 @@ class AutoOrchestrator:
 
         # 조각은 라운드 지시·gist 와 같은 층위 — 역할 무관 매 턴 브리핑에 포함 (모더레이터 대독 포함)
         facts: list[tuple[str, str, str]] = [
-            (fid, f"조각:{ftype}", text[:200]) for fid, ftype, text in self._fragments
+            (fid, label, text[:200]) for fid, label, text in self._fragments
         ]
         if role is SpeakerRole.expert:
             facts += self._facts_for(speaker_id)
@@ -311,7 +315,12 @@ class AutoOrchestrator:
     def _load_fragments(
         run_id: str | None, fragments_path: Path | None
     ) -> list[tuple[str, str, str]]:
-        """fragments.json → (frag_id, type, text) 목록. run_id·경로 둘 다 없으면 빈 목록."""
+        """fragments.json → (frag_id, 라벨, 본문) 목록. run_id·경로 둘 다 없으면 빈 목록.
+
+        구조 위젯 조각은 라벨이 구조 요약 한 줄이 되어 [F#] 줄이
+        `[F7] ref=RA-x-012 | 표 4열×7행: 단계/담당/기한/상태 | 배포 절차 표` 로 찍힌다.
+        구조가 없는 조각은 종전대로 `조각:{type}` 라벨을 쓴다.
+        """
         if fragments_path is None:
             if run_id is None:
                 return []
@@ -321,11 +330,14 @@ class AutoOrchestrator:
         raw = json.loads(fragments_path.read_text(encoding="utf-8"))
         if not isinstance(raw, list):
             raise ValueError(f"fragments.json 형식 오류(리스트 아님): {fragments_path}")
-        return [
-            (str(f["frag_id"]), str(f.get("type", "")), str(f.get("text", "")))
-            for f in raw
-            if isinstance(f, dict) and f.get("frag_id")
-        ]
+        out: list[tuple[str, str, str]] = []
+        for f in raw:
+            if not isinstance(f, dict) or not f.get("frag_id"):
+                continue
+            summary, body = split_fact_structure(f)
+            label = summary or f"조각:{f.get('type', '')}"
+            out.append((str(f["frag_id"]), label, body))
+        return out
 
     def _facts_for(self, speaker_id: str | None) -> list[tuple[str, str, str]]:
         """발언자 브리핑용 (ref, title, gist) 목록 — 자기 카드 우선, 부족분은 전역 카드로 보충."""
