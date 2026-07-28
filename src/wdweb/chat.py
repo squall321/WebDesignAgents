@@ -17,7 +17,6 @@ from typing import Any
 
 import yaml
 from fastapi import HTTPException
-from pydantic import ValidationError
 
 from . import runs as runledger
 from .runs import REPO_ROOT, data_dir
@@ -29,7 +28,8 @@ _HISTORY_WINDOW = 8
 # 씬 data 요약을 프롬프트에 넣을 때의 절단 길이
 _DATA_BRIEF_LEN = 240
 
-_TPL_REF_RE = re.compile(r"^([a-z][a-z0-9_-]*)@(\d+)$")
+# "[씬이름] ..." 프리픽스 — 콘솔 씬 스트립의 "이 씬 수정" 타겟 지정 규약
+_SCENE_TARGET_RE = re.compile(r"^\s*\[([^\[\]]{1,60})\]")
 
 ALLOWED_ACTIONS = (
     "set_field", "set_narration", "set_dur", "set_tpl",
@@ -131,119 +131,32 @@ def _system_prompt(scenario: dict) -> str:
 {{"reply":"<사용자에게 할 말 (한국어)>","actions":[<액션 0개 이상>]}}"""
 
 
-# ── 액션 적용 ────────────────────────────────────────────────────────────────
-
-
-def _fmt_num(v: Any) -> str:
-    try:
-        f = float(v)
-        return str(int(f)) if f.is_integer() else str(f)
-    except (TypeError, ValueError):
-        return str(v)
-
-
-def _find_scene(scenario: dict, name: Any) -> dict | None:
-    """씬 이름 정확 일치 우선 — 소형 모델 대비 tpl 기본명(process 등)도 허용."""
-    for s in scenario.get("scenes", []):
-        if s.get("name") == name:
-            return s
-    for s in scenario.get("scenes", []):
-        if isinstance(name, str) and str(s.get("tpl", "")).startswith(f"{name}@"):
-            return s
+def _scene_target(scenario: dict, message: str) -> str | None:
+    """"[씬이름] ..." 프리픽스가 실존 씬을 가리키면 그 이름을 반환한다."""
+    m = _SCENE_TARGET_RE.match(message)
+    if not m:
+        return None
+    name = m.group(1).strip()
+    if any(s.get("name") == name for s in scenario.get("scenes", [])):
+        return name
     return None
 
 
-def _schema_at(schema: dict, segs: list[str]) -> dict | None:
-    """schema.json 을 점 경로로 내려가 해당 필드의 부분 스키마를 찾는다 (못 찾으면 None)."""
-    node = schema
-    for seg in segs:
-        if not isinstance(node, dict):
-            return None
-        props = node.get("properties")
-        if isinstance(props, dict) and seg in props:
-            node = props[seg]
-        elif seg.isdigit() and isinstance(node.get("items"), dict):
-            node = node["items"]
-        else:
-            return None
-    return node
+# ── 액션 적용 (정본은 wdpipeline.patch — 여기서는 액션명 변환 + 위임만) ─────
 
-
-def _load_tpl_schema(tpl_ref: str) -> dict | None:
-    m = _TPL_REF_RE.match(str(tpl_ref))
-    if not m:
-        return None
-    from wdpipeline.scenario import resolve_modules_root
-
-    path = resolve_modules_root() / "scene-templates" / m.group(1) / "schema.json"
-    if not path.is_file():
-        return None
-    return json.loads(path.read_text(encoding="utf-8"))
-
-
-def _tpl_exists(tpl_ref: str) -> bool:
-    m = _TPL_REF_RE.match(str(tpl_ref))
-    if not m:
-        return False
-    from wdpipeline.scenario import resolve_modules_root
-
-    return (resolve_modules_root() / "scene-templates" / m.group(1) / "module.yaml").is_file()
-
-
-def _normalize_tpl_ref(tpl: str) -> str:
-    """"process" 처럼 major 없는 참조는 레지스트리 버전으로 보정한다."""
-    tpl = str(tpl).strip()
-    if "@" in tpl:
-        return tpl
-    for t in _tpl_index():
-        if t["ref"].startswith(f"{tpl}@"):
-            return t["ref"]
-    return tpl
-
-
-def _apply_set_field(scenario: dict, scene: dict, action: dict) -> tuple[str | None, str | None]:
-    """(적용 요약, 거부 사유) 중 하나만 채워 반환한다."""
-    path = str(action.get("path") or "").strip()
-    if not path:
-        return None, "set_field: path 가 비었다"
-    data = _resolve_ref(scenario, scene.get("data_ref") or "")
-    if not isinstance(data, dict):
-        return None, f"set_field: 씬 {scene['name']!r} 의 data_ref 를 해석할 수 없다"
-    segs = path.split(".")
-    value = action.get("value")
-    # 스키마 maxLength 사전 검증 (전체 스키마 검증은 적용 후 validate_scenario 가 한 번 더)
-    schema = _load_tpl_schema(scene.get("tpl", ""))
-    if schema is not None:
-        sub = _schema_at(schema, segs)
-        if sub is not None and isinstance(value, str):
-            max_len = sub.get("maxLength")
-            if max_len is not None and len(value) > max_len:
-                return None, f"set_field: {path} 값이 maxLength {max_len} 초과 ({len(value)}자)"
-    node: Any = data
-    for seg in segs[:-1]:
-        if isinstance(node, dict) and seg in node:
-            node = node[seg]
-        elif isinstance(node, list) and seg.isdigit() and int(seg) < len(node):
-            node = node[int(seg)]
-        else:
-            return None, f"set_field: 경로 {path!r} 가 씬 data 에 없다"
-    last = segs[-1]
-    if isinstance(node, dict):
-        node[last] = value
-    elif isinstance(node, list) and last.isdigit() and int(last) < len(node):
-        node[int(last)] = value
-    else:
-        return None, f"set_field: 경로 {path!r} 가 씬 data 에 없다"
-    return f"{scene['name']} {path} 수정", None
+# 챗 액션명 → patch 연산명 (나머지는 이름 동일)
+_ACTION_TO_OP = {"set_field": "set_data", "drop_scene": "remove_scene"}
 
 
 def _apply_actions(
     scenario: dict, actions: list
 ) -> tuple[dict, list[str], list[str], bool, bool, dict | None]:
-    """액션 목록을 시나리오 깊은 복사본에 적용한다.
+    """액션 목록을 시나리오 깊은 복사본에 적용한다 (연산 실체는 wdpipeline.patch.apply_op).
 
     반환: (수정본, applied 요약, rejected 사유, modified 여부, rebuild 요청 여부, qa 요청).
     """
+    from wdpipeline import patch as patchops
+
     work = copy.deepcopy(scenario)
     applied: list[str] = []
     rejected: list[str] = []
@@ -267,63 +180,14 @@ def _apply_actions(
             gates = action.get("gates")
             qa_request = {"gates": gates if isinstance(gates, list) else None}
             continue
-        if atype == "reorder":
-            names = action.get("names")
-            current = [s["name"] for s in work["scenes"]]
-            if not isinstance(names, list) or sorted(map(str, names)) != sorted(current):
-                rejected.append(f"reorder: names 가 현재 씬 이름 순열이 아니다 (현재: {current})")
-                continue
-            by_name = {s["name"]: s for s in work["scenes"]}
-            work["scenes"] = [by_name[str(n)] for n in names]
-            applied.append("씬 순서 변경: " + " → ".join(map(str, names)))
-            modified = True
-            continue
 
-        scene = _find_scene(work, action.get("scene"))
-        if scene is None:
-            rejected.append(f"{atype}: 씬 {action.get('scene')!r} 을 찾을 수 없다")
-            continue
-
-        if atype == "set_field":
-            ok, err = _apply_set_field(work, scene, action)
-            if err:
-                rejected.append(err)
-            else:
-                applied.append(ok)  # type: ignore[arg-type]
-                modified = True
-        elif atype == "set_narration":
-            text = action.get("text")
-            if not isinstance(text, str) or not text.strip():
-                rejected.append("set_narration: text 가 비었다")
-                continue
-            scene["narration"] = text.strip()
-            applied.append(f"{scene['name']} narration 수정")
-            modified = True
-        elif atype == "set_dur":
-            try:
-                dur = float(action.get("dur"))
-            except (TypeError, ValueError):
-                rejected.append(f"set_dur: dur 가 숫자가 아니다 ({action.get('dur')!r})")
-                continue
-            old = scene.get("dur")
-            scene["dur"] = dur
-            # 파이프라인 stills 공식(dur-1.0, 하한 dur/2)으로 초과 시각을 재클램프
-            still_cap = round(max(dur - 1.0, dur * 0.5), 2)
-            scene["stills"] = [s if s <= dur else still_cap for s in scene.get("stills", [])]
-            applied.append(f"{scene['name']} dur {_fmt_num(old)}→{_fmt_num(dur)}")
-            modified = True
-        elif atype == "set_tpl":
-            tpl = _normalize_tpl_ref(action.get("tpl") or "")
-            if not _tpl_exists(tpl):
-                rejected.append(f"set_tpl: 레지스트리에 없는 템플릿 {action.get('tpl')!r}")
-                continue
-            old = scene.get("tpl")
-            scene["tpl"] = tpl
-            applied.append(f"{scene['name']} tpl {old}→{tpl}")
-            modified = True
-        elif atype == "drop_scene":
-            work["scenes"] = [s for s in work["scenes"] if s is not scene]
-            applied.append(f"{scene['name']} 씬 제거")
+        op = {k: v for k, v in action.items() if k != "type"}
+        op["op"] = _ACTION_TO_OP.get(atype, atype)
+        diff, err = patchops.apply_op(work, op)
+        if err:
+            rejected.append(err)
+        else:
+            applied.append(diff)  # type: ignore[arg-type]
             modified = True
 
     return work, applied, rejected, modified, rebuild_requested, qa_request
@@ -333,18 +197,10 @@ def _apply_actions(
 
 
 def _validate(work: dict) -> tuple[Any, list[str]]:
-    """ScenarioDoc 파싱 + 확장 검증 — (doc | None, 오류 목록)."""
-    from wdcore.models.scenario import ScenarioDoc
-    from wdpipeline.scenario import validate_scenario
+    """ScenarioDoc 파싱 + 확장 검증 — (doc | None, 오류 목록). 정본은 wdpipeline.patch."""
+    from wdpipeline.patch import validate_scenario_dict
 
-    try:
-        doc = ScenarioDoc.model_validate(work)
-    except ValidationError as exc:
-        msgs = [
-            f"{'.'.join(str(p) for p in e['loc'])}: {e['msg']}" for e in exc.errors()[:5]
-        ]
-        return None, msgs
-    return doc, validate_scenario(doc)
+    return validate_scenario_dict(work)
 
 
 def _rebuild(run: dict, doc) -> tuple[Path, str]:
@@ -403,8 +259,15 @@ def handle_chat(run: dict, message: str) -> dict:
         raise HTTPException(status_code=409, detail=f"scenario.json 이 없습니다: {scen_path}")
     scenario = json.loads(scen_path.read_text(encoding="utf-8"))
 
-    # LLM 호출 — 시스템 프롬프트 + 최근 이력 + 이번 발화
-    messages: list[dict] = [{"role": "system", "content": _system_prompt(scenario)}]
+    # LLM 호출 — 시스템 프롬프트 + (씬 타겟 지정 시 그 씬 한정 지시) + 최근 이력 + 이번 발화
+    system = _system_prompt(scenario)
+    target = _scene_target(scenario, message)
+    if target:
+        system += (
+            f"\n\n[씬 타겟] 사용자가 씬 {target!r} 를 지목했다. 액션의 scene 값은 반드시 "
+            f"{target!r} 로 하고, 다른 씬은 언급하지도 수정하지도 마라."
+        )
+    messages: list[dict] = [{"role": "system", "content": system}]
     for m in (run.get("chat") or [])[-_HISTORY_WINDOW:]:
         if m.get("role") in ("user", "assistant") and m.get("content"):
             messages.append({"role": m["role"], "content": m["content"]})

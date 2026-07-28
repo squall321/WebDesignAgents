@@ -158,6 +158,13 @@
               <span>수정 반영 중…</span>
             </div>
           </div>
+
+          <!-- 씬 스트립 — 썸네일 클릭 = 그 씬만 재생, "수정" = 챗 씬 타겟 프리필 (PLAN §5.9) -->
+          <div class="strip-head" id="strip-head" hidden>
+            <span class="strip-title">씬별 확인 · 핀포인트 수정</span>
+            <button class="btn ghost" id="scene-all-btn" type="button" hidden>전체 재생으로</button>
+          </div>
+          <div class="scene-strip" id="scene-strip" role="group" aria-label="씬 스트립" hidden></div>
         </section>
 
         <section class="chat-panel" id="chat-panel" aria-label="대화형 제작">

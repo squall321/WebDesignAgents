@@ -226,6 +226,107 @@ def chat_history(run_id: str) -> dict:
     return envelope({"chat": run.get("chat") or []})
 
 
+# ── 씬 단위 HTML 출력 · 스틸 · 핀포인트 패치 (PLAN §5.9) ────────────────────
+
+
+def _built_run_or_409(run_id: str) -> dict:
+    run = _run_or_404(run_id)
+    if not run.get("build_dir") or not Path(run["build_dir"]).is_dir():
+        raise HTTPException(status_code=409, detail="빌드가 완료된 실행만 씬 API 를 쓸 수 있습니다")
+    return run
+
+
+@app.get("/api/runs/{run_id}/scenes")
+def run_scenes(run_id: str) -> dict:
+    """씬 목록 — name/tpl/dur/내레이션 요약/데이터 요약 (씬 스트립·chat 탐색용)."""
+    run = _built_run_or_409(run_id)
+    from . import scenes as sceneops
+
+    try:
+        scenes = sceneops.list_scenes(Path(run["build_dir"]))
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return envelope({"run_id": run_id, "scenes": scenes, "count": len(scenes)})
+
+
+@app.get("/api/runs/{run_id}/scenes/{scene_name}/html")
+def run_scene_html(
+    run_id: str, scene_name: str, mode: str = "light", still: float | None = None
+) -> PlainTextResponse:
+    """씬 하나만 도는 엔트리 HTML — light(상대 자원 참조)·self(전부 인라인, 다운로드 겸용)."""
+    run = _built_run_or_409(run_id)
+    if mode not in ("light", "self"):
+        raise HTTPException(status_code=400, detail="mode 는 light|self 입니다")
+    from . import scenes as sceneops
+
+    try:
+        html = sceneops.scene_entry_html(
+            Path(run["build_dir"]), scene_name, still=still, mode=mode,
+            # light 는 이 라우트 URL(…/scenes/{name}/html) 기준 상대 참조를
+            # 프리뷰 서빙 루트(…/preview/)로 보정해 iframe 재생을 가능케 한다.
+            base_href="../../preview/" if mode == "light" else None,
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=exc.args[0]) from exc
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    headers = {}
+    if mode == "self":
+        from urllib.parse import quote
+
+        fname = f"{run['slug']}-{sceneops.safe_name(scene_name)}.html"
+        headers["Content-Disposition"] = (
+            f"attachment; filename=\"scene.html\"; filename*=UTF-8''{quote(fname)}"
+        )
+    return PlainTextResponse(html, media_type="text/html; charset=utf-8", headers=headers)
+
+
+@app.get("/api/runs/{run_id}/scenes/{scene_name}/still.png")
+def run_scene_still(run_id: str, scene_name: str, t: float | None = None) -> FileResponse:
+    """씬 스틸 PNG — RenderSession seek 캡처 (포맷 stage 원척, scene-data 기준 캐시).
+
+    동기 def — sync Playwright 캡처가 FastAPI 스레드풀에서 돌며 이벤트 루프를 막지 않는다.
+    """
+    run = _built_run_or_409(run_id)
+    from . import scenes as sceneops
+
+    try:
+        path = sceneops.scene_still_png(
+            Path(run["build_dir"]), scene_name, t=t, entry=run.get("entry") or "index.html",
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=exc.args[0]) from exc
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return FileResponse(path, media_type="image/png")
+
+
+@app.patch("/api/runs/{run_id}/scenario")
+def patch_run_scenario(run_id: str, body: dict = Body(...)) -> dict:
+    """핀포인트 패치 — {ops:[...]} 를 patch_scenario 정본으로 적용·검증·재빌드한다.
+
+    동기 def — 재빌드가 블로킹이므로 FastAPI 스레드풀에서 돌린다.
+    실패(연산 거부·검증 위반)는 422 + 오류 목록으로 전체 취소된다 (원본 무손상).
+    """
+    run = _built_run_or_409(run_id)
+    ops = (body or {}).get("ops")
+    if not isinstance(ops, list) or not ops:
+        raise HTTPException(status_code=400, detail="ops 는 비어있지 않은 연산 목록이어야 합니다")
+    from wdpipeline.patch import PatchError
+
+    from . import scenes as sceneops
+
+    try:
+        result = sceneops.apply_patch_to_run(run, ops)
+    except PatchError as exc:
+        raise HTTPException(
+            status_code=422, detail="패치 적용 취소: " + "; ".join(exc.errors[:8])
+        ) from exc
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return envelope(result, message="시나리오 패치 적용 완료")
+
+
 @app.get("/api/runs/{run_id}/artifacts")
 def run_artifacts(run_id: str) -> dict:
     run = _run_or_404(run_id)

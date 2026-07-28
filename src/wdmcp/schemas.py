@@ -292,6 +292,64 @@ class ScenarioBuildOut(ToolModel):
     scenario_patches: int = 0
 
 
+# ── 씬 툴 4종 (핀포인트 수정 — PLAN §5.9) ─────────────────────────────
+
+
+class SceneInfo(ToolModel):
+    """씬 1건 요약 — scene_list 페이로드 행."""
+
+    name: str
+    tpl: str = ""
+    dur: float = 0
+    nat: float | None = None
+    stills: list[float] = Field(default_factory=list)
+    narration: str = ""
+    data_ref: str = ""
+    data_brief: str = Field(default="", description="씬 data 압축 JSON 요약 (240자 절단)")
+
+
+class SceneListOut(ToolModel):
+    """scene_list 성공 페이로드."""
+
+    run_id: str
+    build_dir: str
+    count: int
+    scenes: list[SceneInfo] = Field(default_factory=list)
+
+
+class SceneHtmlOut(ToolModel):
+    """scene_html 성공 페이로드 — 파일로 저장하고 경로를 반환한다."""
+
+    run_id: str
+    scene: str
+    mode: Literal["light", "self"]
+    still: float | None = None
+    html_path: str
+    size_bytes: int
+
+
+class SceneStillOut(ToolModel):
+    """scene_still 성공 페이로드 — 스틸 PNG 저장 경로."""
+
+    run_id: str
+    scene: str
+    t: float | None = None
+    png_path: str
+    size_bytes: int
+
+
+class ScenarioPatchOut(ToolModel):
+    """scenario_patch 성공 페이로드 — 사람이 읽는 diff 요약과 재빌드 결과."""
+
+    run_id: str
+    applied: list[str] = Field(default_factory=list, description="연산별 diff 요약")
+    scenario_path: str
+    build_dir: str | None = None
+    entry: str | None = None
+    scene_count: int
+    total_dur: float
+
+
 # ── 렌더 툴 2종 ───────────────────────────────────────────────────────
 
 RENDER_TARGETS = ("video", "pptx")

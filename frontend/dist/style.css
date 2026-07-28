@@ -555,6 +555,59 @@ main { padding: var(--sp-5) var(--sp-6) var(--sp-7); max-width: 1280px; margin: 
   animation: pulseRing 2s var(--ease-out-cubic) infinite;
 }
 
+/* ── 씬 스트립 — 썸네일 = 씬 단독 재생, 수정 = 챗 타겟 프리필 (PLAN §5.9) ── */
+.strip-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--sp-3); margin-top: var(--sp-3);
+}
+.strip-title { font-size: var(--fs-1); font-weight: 700; color: var(--c-sub); }
+.scene-strip {
+  display: flex; gap: var(--sp-3);
+  margin-top: var(--sp-2);
+  overflow-x: auto;
+  padding-bottom: var(--sp-1); /* 가로 스크롤바가 카드 그림자를 물어뜯지 않게 */
+  animation: rise var(--d-rise-sm) var(--ease-out-cubic) both;
+}
+.scene-card { flex: 0 0 auto; width: 148px; }
+.scene-card.selected .sc-thumb { border-color: var(--c-blue); box-shadow: var(--shadow-soft); }
+.sc-thumb {
+  position: relative; display: block; width: 100%;
+  aspect-ratio: 16 / 9;
+  padding: 0; border: 2px solid var(--c-line); border-radius: var(--r-sm);
+  overflow: hidden; cursor: pointer; background: var(--c-skel);
+}
+.sc-thumb:hover { border-color: var(--c-blue2); }
+.sc-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.sc-no {
+  position: absolute; top: var(--sp-1); left: var(--sp-1);
+  min-width: var(--sp-4); padding: 0 var(--sp-1);
+  border-radius: var(--r-sm); background: color-mix(in srgb, var(--c-ink) 72%, transparent);
+  color: var(--c-white); font-size: var(--fs-1); font-weight: 700; line-height: var(--sp-4);
+  text-align: center;
+}
+.sc-dur {
+  position: absolute; right: var(--sp-1); bottom: var(--sp-1);
+  padding: 0 var(--sp-1);
+  border-radius: var(--r-sm); background: color-mix(in srgb, var(--c-ink) 72%, transparent);
+  color: var(--c-white); font-size: var(--fs-1); font-weight: 600;
+}
+.sc-meta {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--sp-1); margin-top: var(--sp-1);
+}
+.sc-name {
+  font-size: var(--fs-1); font-weight: 600; color: var(--c-ink);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.sc-edit {
+  flex: 0 0 auto;
+  border: 1px solid var(--c-blue-border); border-radius: var(--r-pill);
+  background: var(--c-blue-soft); color: var(--c-blue);
+  font-size: var(--fs-1); font-weight: 700;
+  padding: 0 var(--sp-2); line-height: var(--sp-4); cursor: pointer;
+}
+.sc-edit:hover { background: var(--c-blue); color: var(--c-white); }
+
 /* ── 대화 패널 ───────────────────────────────────────────────────────── */
 .chat-panel {
   display: flex; flex-direction: column; min-width: 0;

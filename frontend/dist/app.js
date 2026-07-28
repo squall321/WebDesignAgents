@@ -168,6 +168,7 @@ let pollTimer = null;
 let runStartedAt = 0;
 let lastSummary = null;   // 대화 수정 전후 델타 계산용
 let sourceLabel = '';     // 접힌 소스 바에 남길 투입원
+let lastEntryName = 'index.html'; // 전체 재생 엔트리 파일명 (씬 단독 재생에서 복귀할 때 사용)
 
 const panel = $('panel-create');
 const setPhase = (p) => panel.setAttribute('data-phase', p);
@@ -269,6 +270,10 @@ function openRun(runId, label) {
   $('run-error').textContent = '';
   $('preview-wrap').hidden = true;
   $('preview-frame').removeAttribute('src');
+  sceneStripRun = null;
+  selectedScene = null;
+  $('scene-strip').hidden = true;
+  $('strip-head').hidden = true;
   $('rail-wrap').classList.remove('done');
   buildRail();
   renderRail(null);
@@ -418,14 +423,17 @@ function renderRunDetail(run) {
   if (built) {
     const wrap = $('preview-wrap');
     const frame = $('preview-frame');
+    lastEntryName = run.entry;
     const src = 'api/runs/' + encodeURIComponent(run.run_id) + '/preview/' + run.entry;
-    if (wrap.hidden || (frame.getAttribute('src') || '').split('?')[0] !== src) {
+    // 씬 단독 재생 중에는 폴링이 전체 엔트리로 되돌리지 않는다 (씬 스트립 규약)
+    if (wrap.hidden || (!selectedScene && (frame.getAttribute('src') || '').split('?')[0] !== src)) {
       wrap.hidden = false;
       frame.src = src;
       announce('빌드가 완료됐습니다. 프리뷰와 대화 패널을 사용할 수 있습니다.');
     }
     setPhase('done');
     refreshDownloads(run.run_id);
+    loadScenes(run.run_id);
   } else {
     $('run-downloads').innerHTML = '';
   }
@@ -558,6 +566,15 @@ async function loadChat(runId) {
   } catch (_) { chatEmptyHint(); /* 이력은 부가 정보 */ }
 }
 
+/** 캐시버스터 재부착 — 기존 쿼리(mode=light 등)를 보존한 채 v= 만 교체한다. */
+function cacheBust(src) {
+  const [pathq] = src.split('#');
+  const [path, q] = pathq.split('?');
+  const params = (q || '').split('&').filter((p) => p && !p.startsWith('v='));
+  params.push('v=' + Date.now());
+  return path + '?' + params.join('&');
+}
+
 /** 재빌드 반영 — 흰 플래시를 덮개로 감싸 의도된 전환으로 만든다 (MO-F17). */
 function reloadPreview() {
   const frame = $('preview-frame');
@@ -572,8 +589,92 @@ function reloadPreview() {
     setTimeout(() => { cover.hidden = true; }, 320);
   };
   frame.addEventListener('load', onLoad);
-  frame.src = src.split('?')[0] + '?v=' + Date.now();
+  frame.src = cacheBust(src);
 }
+
+// ── 씬 스트립 — 씬별 확인·핀포인트 수정 진입점 (PLAN §5.9) ──────────────────
+
+let sceneStripRun = null;   // 스트립을 그려 둔 run (폴링 중복 로드 방지)
+let selectedScene = null;   // 단독 재생 중인 씬 이름 (null = 전체 재생)
+
+function sceneApi(name, tail) {
+  return 'api/runs/' + encodeURIComponent(currentRunId) + '/scenes/'
+    + encodeURIComponent(name) + '/' + tail;
+}
+
+async function loadScenes(runId, force) {
+  if (!force && sceneStripRun === runId) return;
+  sceneStripRun = runId;
+  const strip = $('scene-strip');
+  try {
+    const data = await api('api/runs/' + encodeURIComponent(runId) + '/scenes');
+    const scenes = data.scenes || [];
+    if (!scenes.length) { strip.hidden = true; $('strip-head').hidden = true; return; }
+    // 재빌드로 씬이 사라졌으면 단독 재생을 전체 재생으로 복귀시킨다
+    if (selectedScene && !scenes.some((s) => s.name === selectedScene)) selectedScene = null;
+    const v = Date.now();
+    strip.innerHTML = scenes.map((s, i) => `
+      <div class="scene-card" data-scene="${esc(s.name)}">
+        <button class="sc-thumb" type="button" data-play="${esc(s.name)}"
+          aria-pressed="false" title="${esc(s.name)} 씬만 재생">
+          <img src="api/runs/${encodeURIComponent(runId)}/scenes/${encodeURIComponent(s.name)}/still.png?v=${v}"
+            alt="${esc(s.name)} 씬 스틸" loading="lazy">
+          <span class="sc-no" aria-hidden="true">${i + 1}</span>
+          <span class="sc-dur">${esc(s.dur)}s</span>
+        </button>
+        <div class="sc-meta">
+          <span class="sc-name">${esc(s.name)}</span>
+          <button class="sc-edit" type="button" data-edit="${esc(s.name)}">수정</button>
+        </div>
+      </div>`).join('');
+    strip.hidden = false;
+    $('strip-head').hidden = false;
+    markSelectedScene();
+  } catch (_) {
+    // 스트립은 보조 수단 — 실패해도 프리뷰·챗 루프를 막지 않는다
+    strip.hidden = true;
+    $('strip-head').hidden = true;
+  }
+}
+
+function markSelectedScene() {
+  document.querySelectorAll('#scene-strip .sc-thumb').forEach((b) => {
+    const on = b.dataset.play === selectedScene;
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    b.closest('.scene-card').classList.toggle('selected', on);
+  });
+  $('scene-all-btn').hidden = selectedScene === null;
+}
+
+function playScene(name) {
+  selectedScene = name;
+  $('preview-frame').src = cacheBust(sceneApi(name, 'html?mode=light'));
+  markSelectedScene();
+  announce(name + ' 씬만 반복 재생합니다.');
+}
+
+function playAll() {
+  selectedScene = null;
+  const run = currentRunId;
+  $('preview-frame').src = cacheBust(
+    'api/runs/' + encodeURIComponent(run) + '/preview/' + lastEntryName);
+  markSelectedScene();
+  announce('전체 재생으로 돌아왔습니다.');
+}
+
+$('scene-strip').addEventListener('click', (e) => {
+  const play = e.target.closest('[data-play]');
+  if (play) { playScene(play.dataset.play); return; }
+  const edit = e.target.closest('[data-edit]');
+  if (edit) {
+    const input = $('chat-input');
+    input.value = '[' + edit.dataset.edit + '] ';
+    input.focus();
+    announce(edit.dataset.edit + ' 씬을 수정 대상으로 지정했습니다. 요청을 이어서 입력하세요.');
+  }
+});
+
+$('scene-all-btn').addEventListener('click', playAll);
 
 async function sendChat() {
   const input = $('chat-input');
@@ -606,6 +707,8 @@ async function sendChat() {
       reloadPreview();
       // 요약이 옛 값을 그대로 들고 있지 않게 원장을 다시 읽는다 (TY-F24)
       refreshRun();
+      // 씬 스트립 썸네일도 수정본 기준으로 다시 뜬다 (스틸 캐시는 서버가 무효화)
+      loadScenes(chatRunId, true);
     }
     announce('수정 응답이 도착했습니다.');
   } catch (e) {

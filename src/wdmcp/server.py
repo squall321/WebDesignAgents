@@ -71,7 +71,12 @@ from .schemas import (
     ReportIngestOut,
     RoundInfo,
     ScenarioBuildOut,
+    ScenarioPatchOut,
     SceneBrief,
+    SceneHtmlOut,
+    SceneInfo,
+    SceneListOut,
+    SceneStillOut,
     SpeakingRules,
     SubmitTurnOut,
     TurnGist,
@@ -890,6 +895,228 @@ def qa_run(build_path: str, gates: list[str] | None = None, scenario_path: str |
         results=[QaGateResult.model_validate(r) for r in report.get("results", [])],
     )
     return ok_envelope(state, data.model_dump(mode="json"), qa_instructions(data.passed))
+
+
+# ── 씬 툴 4종 (핀포인트 수정 — PLAN §5.9, wdweb.scenes/wdpipeline.patch 지연 import) ──
+
+
+def _scene_run_paths(run_id: str) -> tuple[Path | None, Path | None, dict | None]:
+    """run_id → (build_dir, scenario_path, 웹 원장 run|None).
+
+    웹 콘솔 원장(data/web_runs)을 우선 조회하고, 없으면 MCP 파이프라인 run
+    (data/pipeline/{run_id})으로 폴백한다 — 두 경로 모두 scenario.json 이 진실이다.
+    """
+    webruns, _err = _lazy_import("wdweb.runs")
+    if webruns is not None:
+        try:
+            web_run = webruns.read_run(run_id)
+        except Exception:  # noqa: BLE001 — 원장 조회 실패는 파이프라인 폴백으로
+            web_run = None
+        if web_run is not None:
+            scen = webruns.data_dir() / "pipeline" / run_id / "scenario.json"
+            bd = (
+                Path(web_run["build_dir"])
+                if web_run.get("build_dir")
+                else webruns.data_dir() / "build" / web_run["slug"]
+            )
+            return bd, scen, web_run
+    scen = _run_dir(run_id) / "scenario.json"
+    if scen.is_file():
+        return get_settings().data_dir / "build" / run_id, scen, None
+    return None, None, None
+
+
+def _ensure_scene_build(bd: Path, scen_path: Path) -> tuple[Path | None, str | None]:
+    """빌드 산출물이 없거나 시나리오보다 낡았으면 재빌드한다. (엔트리 경로, 오류)."""
+    entry = bd / "index.html"
+    if entry.is_file() and entry.stat().st_mtime >= scen_path.stat().st_mtime:
+        return entry, None
+    mod, err = _lazy_import("wdpipeline.build")
+    if mod is None:
+        return None, f"wdpipeline.build 를 불러올 수 없다: {err}"
+    from wdcore.models.scenario import ScenarioDoc
+
+    try:
+        doc = ScenarioDoc.model_validate_json(scen_path.read_text(encoding="utf-8"))
+        return Path(mod.build_render_package(doc, bd)), None
+    except Exception as exc:  # noqa: BLE001 — 빌드 실패는 봉투로 강등
+        return None, f"{type(exc).__name__}: {exc}"
+
+
+def _scene_ctx(state, run_id: str):
+    """씬 툴 공용 전처리 — (build_dir, scenario_path, web_run, 오류 봉투|None)."""
+    bd, scen, web_run = _scene_run_paths(run_id)
+    if bd is None or scen is None or not scen.is_file():
+        return None, None, None, error_envelope(
+            state, "RUN_NOT_FOUND", f"run 을 찾지 못했다: {run_id}",
+            "웹 콘솔 실행(wr-*) 또는 scenario_build 를 마친 파이프라인 run_id 를 넘겨라.",
+        )
+    mod, err = _lazy_import("wdweb.scenes")
+    if mod is None:
+        return None, None, None, error_envelope(
+            state, "SCENES_UNAVAILABLE", f"wdweb.scenes 를 불러올 수 없다: {err}",
+            "wdweb 모듈이 아직 구현 중일 수 있다. 구현 완료 후 다시 호출하라.",
+        )
+    _entry, berr = _ensure_scene_build(bd, scen)
+    if berr:
+        return None, None, None, error_envelope(state, "BUILD_FAILED", berr)
+    return bd, scen, web_run, None
+
+
+@mcp.tool()
+def scene_list(run_id: str) -> dict:
+    """씬 목록(name/tpl/dur/내레이션·데이터 요약)을 반환한다 — 핀포인트 수정의 탐색 진입점.
+
+    잘못 만들어진 씬을 찾으면 scene_html/scene_still 로 확인하고 scenario_patch 로 고쳐라.
+    """
+    state = get_session()
+    bd, _scen, _web, err = _scene_ctx(state, run_id)
+    if err:
+        return err
+    scenes_mod, _ = _lazy_import("wdweb.scenes")
+    try:
+        rows = scenes_mod.list_scenes(bd)
+    except Exception as exc:  # noqa: BLE001
+        return error_envelope(state, "SCENE_LIST_FAILED", f"{type(exc).__name__}: {exc}")
+    data = SceneListOut(
+        run_id=run_id, build_dir=str(bd), count=len(rows),
+        scenes=[SceneInfo.model_validate(r) for r in rows],
+    )
+    return ok_envelope(
+        state, data.model_dump(mode="json"),
+        "씬 목록이다. 수정 대상 씬을 특정했으면 scene_html(자립형)으로 화면을 확인하거나 "
+        "scenario_patch 의 ops(set_data/set_narration/set_dur/set_tpl/set_stills/reorder/"
+        "remove_scene/insert_scene)로 핀포인트 수정하라.",
+    )
+
+
+@mcp.tool()
+def scene_html(run_id: str, scene: str, mode: str = "self", still: float | None = None) -> dict:
+    """씬 하나만 도는 엔트리 HTML 을 파일로 저장하고 경로를 반환한다.
+
+    mode="self"(기본)는 JS·토큰·데이터·폰트를 전부 인라인한 자립형 단일 html —
+    http 서빙 없이 file:// 로도 열린다 (chat 임베드·파일 첨부용, 수 MB).
+    mode="light"는 빌드 상대 자원 참조 경량판이다. still 지정 시 그 시각에서 정지한다.
+    """
+    state = get_session()
+    if mode not in ("light", "self"):
+        return error_envelope(state, "INVALID_MODE", f"mode 는 light|self 다: {mode!r}")
+    bd, _scen, _web, err = _scene_ctx(state, run_id)
+    if err:
+        return err
+    scenes_mod, _ = _lazy_import("wdweb.scenes")
+    try:
+        html = scenes_mod.scene_entry_html(bd, scene, still=still, mode=mode)
+    except KeyError as exc:
+        return error_envelope(state, "SCENE_NOT_FOUND", str(exc.args[0]),
+                              "scene_list 로 씬 이름을 확인하라.")
+    except Exception as exc:  # noqa: BLE001
+        return error_envelope(state, "SCENE_HTML_FAILED", f"{type(exc).__name__}: {exc}")
+    out = bd / f"scene-{scenes_mod.safe_name(scene)}.{mode}.html"
+    out.write_text(html, encoding="utf-8")
+    data = SceneHtmlOut(
+        run_id=run_id, scene=scene, mode=mode, still=still,
+        html_path=str(out), size_bytes=out.stat().st_size,
+    )
+    if mode == "self":
+        instr = (
+            "자립형 씬 html 을 저장했다. 필요하면 Read 로 열어 구조를 확인하고, 사용자에게는 "
+            "html_path 를 전달하라 — http 서빙 없이 브라우저(file:// 포함)에서 바로 열린다."
+        )
+    else:
+        instr = (
+            "경량 씬 html 을 빌드 디렉터리에 저장했다. 빌드 상대 자원을 참조하므로 "
+            "빌드 디렉터리를 http 로 서빙한 상태에서 열어야 한다 (file:// 불가)."
+        )
+    return ok_envelope(state, data.model_dump(mode="json"), instr)
+
+
+@mcp.tool()
+def scene_still(run_id: str, scene: str, t: float | None = None) -> dict:
+    """씬 스틸 PNG 를 캡처해 저장 경로를 반환한다 (t 미지정 = 대표 스틸 시각).
+
+    RenderSession seek 캡처 — 포맷 스펙 stage 원척이며 scene-data 기준으로 캐시된다.
+    """
+    state = get_session()
+    bd, _scen, web_run, err = _scene_ctx(state, run_id)
+    if err:
+        return err
+    scenes_mod, _ = _lazy_import("wdweb.scenes")
+    entry = (web_run or {}).get("entry") or "index.html"
+    try:
+        path = scenes_mod.scene_still_png(bd, scene, t=t, entry=entry)
+    except KeyError as exc:
+        return error_envelope(state, "SCENE_NOT_FOUND", str(exc.args[0]),
+                              "scene_list 로 씬 이름을 확인하라.")
+    except Exception as exc:  # noqa: BLE001
+        return error_envelope(state, "SCENE_STILL_FAILED", f"{type(exc).__name__}: {exc}")
+    data = SceneStillOut(
+        run_id=run_id, scene=scene, t=t, png_path=str(path), size_bytes=path.stat().st_size,
+    )
+    return ok_envelope(
+        state, data.model_dump(mode="json"),
+        "씬 스틸 PNG 를 저장했다. png_path 를 Read 로 열어 눈으로 확인하라 "
+        "(Claude 는 이미지를 볼 수 있다). 문제가 보이면 scenario_patch 로 고쳐라.",
+    )
+
+
+@mcp.tool()
+def scenario_patch(run_id: str, ops: list[dict]) -> dict:
+    """핀포인트 패치 — 원자 연산 목록을 정본(patch_scenario)으로 적용·전량 검증·재빌드한다.
+
+    연산: set_data{scene,path,value} / set_narration{scene,text} / set_dur{scene,dur} /
+    set_tpl{scene,tpl} / set_stills{scene,stills} / reorder{names} / remove_scene{scene} /
+    insert_scene{after,tpl,data,name?,dur?}. 하나라도 거부되거나 검증에 실패하면
+    전체 취소된다 (원본 무손상). 성공 시 사람이 읽는 diff 요약을 반환한다.
+    """
+    state = get_session()
+    patch_mod, err = _lazy_import("wdpipeline.patch")
+    if patch_mod is None:
+        return error_envelope(
+            state, "PIPELINE_UNAVAILABLE", f"wdpipeline.patch 를 불러올 수 없다: {err}",
+            "wdpipeline 모듈이 아직 구현 중일 수 있다. 구현 완료 후 다시 호출하라.",
+        )
+    bd, scen, web_run, ctx_err = _scene_ctx(state, run_id)
+    if ctx_err:
+        return ctx_err
+    scenario = json.loads(scen.read_text(encoding="utf-8"))
+    try:
+        patched, diffs = patch_mod.patch_scenario(scenario, ops)
+    except patch_mod.PatchError as exc:
+        return error_envelope(
+            state, "PATCH_REJECTED", "; ".join(exc.errors[:8]),
+            "전체 취소되었다 (원본 무손상). 거부 사유를 반영해 ops 를 수정 후 재호출하라. "
+            "씬 이름·경로는 scene_list 로 확인할 수 있다.",
+        )
+    scen.write_text(json.dumps(patched, ensure_ascii=False, indent=2), encoding="utf-8")
+    entry, berr = _ensure_scene_build(bd, scen)
+    if berr:
+        return error_envelope(
+            state, "BUILD_FAILED",
+            f"패치는 저장됐지만 재빌드에 실패했다: {berr}",
+            "scenario.json 은 갱신된 상태다. 빌드 오류를 해결한 뒤 다시 호출하라.",
+        )
+    total = round(sum(float(s["dur"]) for s in patched["scenes"]), 3)
+    if web_run is not None:
+        webruns, _ = _lazy_import("wdweb.runs")
+        if webruns is not None:
+            webruns.update_run(
+                run_id, build_dir=str(entry.parent), entry=entry.name,
+                scenario_summary={
+                    "scene_count": len(patched["scenes"]), "total_dur": total,
+                    "core_message": patched["meta"]["core_message"],
+                },
+            )
+    data = ScenarioPatchOut(
+        run_id=run_id, applied=diffs, scenario_path=str(scen),
+        build_dir=str(entry.parent), entry=entry.name,
+        scene_count=len(patched["scenes"]), total_dur=total,
+    )
+    return ok_envelope(
+        state, data.model_dump(mode="json"),
+        "패치가 적용되고 재빌드까지 끝났다. applied 의 diff 요약을 사용자에게 그대로 전하고, "
+        "필요하면 scene_still/scene_html 로 수정 결과를 확인시켜라.",
+    )
 
 
 # ── 엔트리 ───────────────────────────────────────────────────────────
