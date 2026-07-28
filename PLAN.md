@@ -245,6 +245,15 @@ artifact enum 확장 — 기존 5종 + `scene_draft / scenario_patch / module_ca
 
 ## 6. 씬 템플릿 · 모듈 라이브러리 · 디자인 토큰
 
+### 5.9 핀포인트 수정·HTML 출력·재현력 (사용자 확정 2026-07-28)
+
+자동 생성은 절반이다 — **잘못 만들어진 부분을 씬·필드 단위로 정밀 수정**할 수 있어야 하고, **chat 안에서 HTML 을 껴넣어 바로 볼 수** 있어야 하며, **규정된 템플릿은 재현력이 높아야** 한다.
+
+1. **부분 수정 API** — `patch_scenario(ops)` 가 정본: set_data/set_narration/set_dur/set_tpl/set_stills/reorder/remove/insert 원자 연산 + 전량 검증(실패 시 전체 취소) + 사람이 읽는 diff 요약. 웹 `PATCH /api/runs/{id}/scenario` 와 MCP `scenario_patch` 양면 노출. 콘솔 챗 액션도 같은 정본을 소비.
+2. **HTML 출력 API** — 씬 하나만 도는 엔트리를 두 모드로: light(빌드 자원 참조)와 **self-contained(JS·토큰·데이터·폰트 전부 인라인 단일 html — chat 임베드·파일 첨부용)**. `GET /api/runs/{id}/scenes/{name}/html`, MCP `scene_html`, 씬 스틸 PNG 동반.
+3. **재현력 보증** — 3층 정의: 세션 간(독립 렌더 2회 perceptual diff), 빌드 간(산출 바이트 동일), 골든 대비(스냅샷 diff). `wda repro` 가 전 모듈을 일괄 판정하고 module.yaml `quality.reproducibility` 에 기록. 재현력을 깨는 안티패턴은 게이트 6과 이 하네스가 이중 차단.
+4. **콘솔 씬 스트립** — 결과 화면에 씬 썸네일 스트립: 클릭 = 그 씬만 재생, "이 씬 수정" = 챗 타겟 프리필. 핀포인트 수정의 UI 진입점.
+
 ### 6.0 화면 구성의 소유권 (설계 명제)
 
 ReportArchive 위젯은 콘텐츠 조각일 뿐 화면 구성을 지정하지 않는다(문서 흐름 적층 + `page_slide_ratio` 힌트뿐). **화면 구성은 이 플랫폼의 고유 책임이다** — 씬 템플릿이 구성(배치·위계·모션 순서 = 논리)을 소유하고, 어떤 조각이 어떤 구성에 담기는지는 심의(P2)가 결정한다. P1의 위젯→씬 매핑표는 후보 힌트일 뿐 자동 배정 규칙이 아니다. 템플릿은 위젯의 1:1 변환이 아니라 설득 단위(씬당 하나의 주장)다.
