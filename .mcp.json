@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "webdesignagents": {
+      "type": "stdio",
+      "command": ".venv/bin/wdmcp",
+      "env": {
+        "WDA_PERSONAS_ROOT": "/home/koopark/claude/WebDesignAgents/personas",
+        "WDA_DATA_DIR": "/home/koopark/claude/WebDesignAgents/data"
+      }
+    }
+  }
+}

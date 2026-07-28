@@ -10,124 +10,229 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
+<a class="skip-link" href="#main">본문으로 건너뛰기</a>
+
 <header class="topbar">
   <div class="brand">
-    <span class="brand-mark">WD</span>
+    <span class="brand-mark" aria-hidden="true">WD</span>
     <div>
       <div class="brand-name">WebDesignAgents</div>
       <div class="brand-sub">전문가 심의 기반 발표자료 자동 생성</div>
     </div>
   </div>
   <div class="health" id="health">
-    <span class="health-dot" id="health-dot"></span>
+    <span class="health-dot" id="health-dot" aria-hidden="true"></span>
     <span id="health-text">확인 중…</span>
   </div>
 </header>
 
-<nav class="tabs" id="tabs">
-  <button class="tab active" data-tab="create">생성</button>
-  <button class="tab" data-tab="history">실행 이력</button>
-  <button class="tab" data-tab="modules">모듈 갤러리</button>
-  <button class="tab" data-tab="meetings">회의록</button>
+<nav class="tabs" id="tabs" role="tablist" aria-label="콘솔 화면">
+  <button class="tab active" id="tab-create" role="tab" aria-selected="true" aria-controls="panel-create" data-tab="create">생성</button>
+  <button class="tab" id="tab-history" role="tab" aria-selected="false" aria-controls="panel-history" tabindex="-1" data-tab="history">실행 이력</button>
+  <button class="tab" id="tab-modules" role="tab" aria-selected="false" aria-controls="panel-modules" tabindex="-1" data-tab="modules">모듈 갤러리</button>
+  <button class="tab" id="tab-meetings" role="tab" aria-selected="false" aria-controls="panel-meetings" tabindex="-1" data-tab="meetings">회의록</button>
 </nav>
 
-<main>
-  <!-- ① 생성 -->
-  <section class="panel active" id="panel-create">
-    <div class="create-grid">
-      <div class="card">
-        <h2>보고서 입력</h2>
-        <p class="hint">ReportArchive 보고서 JSON(report_archive_draft_v1)을 붙여넣거나 파일을 선택하세요.</p>
-        <textarea id="report-json" spellcheck="false" placeholder='{"_type": "report_archive_draft_v1", ...}'></textarea>
-        <div class="form-row">
-          <label class="file-label">
-            <input type="file" id="report-file" accept=".json,application/json">
-            <span id="file-name">파일 선택…</span>
-          </label>
-          <input type="text" id="slug-input" placeholder="슬러그 (선택)">
-          <button class="btn primary" id="run-btn">파이프라인 실행</button>
-        </div>
-        <div class="form-error" id="create-error"></div>
+<main id="main">
+  <!-- ① 생성 — data-phase: idle | running | done -->
+  <section class="panel active" id="panel-create" role="tabpanel" aria-labelledby="tab-create" data-phase="idle">
+
+    <!-- 국면 A: 투입 -->
+    <div class="phase-idle">
+      <div class="hero anim-rise">
+        <p class="hero-kicker">보고서 → 발표자료 파이프라인</p>
+        <h1 class="hero-title">보고서 JSON 하나로<br>심의를 거친 발표영상과 PPT까지</h1>
+        <p class="hero-lead">
+          ReportArchive 보고서를 넣으면 <b>정규화 → 조각화 → 시나리오 → 빌드</b> 4단계를 자동으로 거쳐
+          씬 단위 영상 초안이 만들어집니다. 완성본을 보면서 대화로 고치세요.
+        </p>
+        <ul class="hero-outputs">
+          <li><span class="ho-k">영상</span><span class="ho-v">mp4</span></li>
+          <li><span class="ho-k">슬라이드</span><span class="ho-v">pptx</span></li>
+          <li><span class="ho-k">시나리오</span><span class="ho-v">json</span></li>
+        </ul>
       </div>
 
-      <div class="card" id="run-detail" hidden>
-        <div class="run-head">
-          <h2 id="run-title">실행</h2>
-          <span class="badge" id="run-status"></span>
+      <div class="idle-grid">
+        <div class="card anim-rise a-d1">
+          <div class="card-head">
+            <h2>보고서를 투입하세요</h2>
+            <button class="btn accent" id="sample-btn" type="button">예시 보고서 넣기</button>
+          </div>
+          <p class="hint">
+            <code>report_archive_draft_v1</code> JSON 을 붙여넣거나 파일을 선택하세요.
+            보고서가 없으면 <b>예시 보고서 넣기</b>로 바로 시작할 수 있습니다.
+          </p>
+          <textarea id="report-json" spellcheck="false" aria-label="보고서 JSON"
+            placeholder='{"_type": "report_archive_draft_v1", "title": "...", "pages": [...]}'></textarea>
+          <div class="form-row">
+            <label class="file-label" for="report-file">
+              <input type="file" id="report-file" accept=".json,application/json">
+              <span id="file-name">파일 선택…</span>
+            </label>
+            <input type="text" id="slug-input" aria-label="슬러그 (선택)" placeholder="슬러그 (선택)">
+            <button class="btn primary" id="run-btn" type="button">파이프라인 실행</button>
+          </div>
+          <p class="form-error" id="create-error" role="alert"></p>
         </div>
-        <ol class="stages" id="run-stages"></ol>
-        <div class="summary" id="run-summary" hidden></div>
-        <div class="form-error" id="run-error"></div>
 
-        <div class="actions" id="run-actions" hidden>
-          <button class="btn" id="render-btn">렌더 (mp4 + pptx)</button>
-          <button class="btn" id="qa-btn">QA 게이트 실행</button>
-          <span class="action-note" id="render-status"></span>
+        <aside class="card guide anim-rise a-d2" aria-label="진행 안내">
+          <h2>이렇게 진행됩니다</h2>
+          <ol class="guide-steps">
+            <li>
+              <span class="gs-no">1</span>
+              <div><b>보고서 투입</b><span>JSON 을 붙여넣거나 파일로 올립니다.</span></div>
+            </li>
+            <li>
+              <span class="gs-no">2</span>
+              <div><b>4단계 자동 조립</b><span>정규화·조각화·시나리오·빌드가 순서대로 돕니다.</span></div>
+            </li>
+            <li>
+              <span class="gs-no">3</span>
+              <div><b>프리뷰 보며 대화 수정</b><span>“오프닝을 7초로” 처럼 말하면 다시 빌드합니다.</span></div>
+            </li>
+            <li>
+              <span class="gs-no">4</span>
+              <div><b>렌더·QA·다운로드</b><span>mp4·pptx 를 뽑고 품질 게이트를 돌립니다.</span></div>
+            </li>
+          </ol>
+          <p class="guide-note">진행 중에도 화면을 떠날 수 있습니다. <b>실행 이력</b> 탭에서 다시 열면 이어서 볼 수 있습니다.</p>
+        </aside>
+      </div>
+    </div>
+
+    <!-- 국면 B: 실행 / 결과 -->
+    <div class="phase-run">
+      <!-- tabindex=-1: 국면 전환 때 사라진 트리거(실행 버튼·이력 항목) 대신 포커스를 받는 착지점 (WCAG 2.4.3) -->
+      <div class="source-bar" id="source-bar" tabindex="-1">
+        <span class="sb-icon" aria-hidden="true">▤</span>
+        <span class="sb-name" id="sb-name">보고서</span>
+        <span class="sb-meta" id="sb-meta"></span>
+        <span class="badge" id="run-status">대기</span>
+        <button class="btn ghost" id="reset-btn" type="button">다른 보고서 투입</button>
+      </div>
+
+      <div class="rail-wrap" id="rail-wrap">
+        <ol class="rail" id="run-stages" aria-label="파이프라인 단계"></ol>
+        <!-- 경과 타이머는 라이브 리전 밖 — 1.5s 폴링마다 낭독되면 스크린리더가 침묵할 수 없다 (AX-live) -->
+        <p class="rail-note" id="rail-note"><span id="rail-note-msg" aria-live="polite"></span><span id="rail-note-timer"></span></p>
+      </div>
+
+      <div class="summary" id="run-summary" hidden>
+        <div class="sum-stat">
+          <span class="sum-v" id="sum-scenes">–</span>
+          <span class="sum-k">씬</span>
         </div>
+        <div class="sum-stat">
+          <span class="sum-v" id="sum-dur">–</span>
+          <span class="sum-k">총 길이(초)</span>
+          <span class="sum-delta" id="sum-delta" hidden></span>
+        </div>
+        <div class="sum-msg">
+          <span class="sum-k">핵심 메시지</span>
+          <span class="sum-msg-v" id="sum-core">–</span>
+        </div>
+        <div class="sum-actions" id="run-actions" hidden>
+          <button class="btn" id="render-btn" type="button">렌더 (mp4 + pptx)</button>
+          <button class="btn" id="qa-btn" type="button">QA 게이트</button>
+        </div>
+      </div>
+
+      <div class="result-row">
         <div class="downloads" id="run-downloads"></div>
-        <div class="qa-result" id="qa-result" hidden></div>
+        <p class="action-note" id="render-status" aria-live="polite"></p>
+      </div>
+      <p class="form-error" id="run-error" role="alert"></p>
+      <div class="qa-result" id="qa-result" hidden></div>
 
-        <div class="preview-wrap" id="preview-wrap" hidden>
-          <div class="preview-split">
-            <div class="preview-left">
-              <h3>프리뷰</h3>
-              <div class="frame-box"><iframe id="preview-frame" title="렌더 프리뷰"></iframe></div>
-            </div>
-            <div class="chat-panel" id="chat-panel">
-              <h3>대화형 제작</h3>
-              <div class="chat-messages" id="chat-messages"></div>
-              <div class="chat-input-row">
-                <input type="text" id="chat-input" placeholder='예: "절차 씬 길이를 14초로 줄여줘"'>
-                <button class="btn primary" id="chat-send">전송</button>
-              </div>
-              <div class="form-error" id="chat-error"></div>
+      <div class="workbench" id="preview-wrap" hidden>
+        <section class="wb-preview" aria-label="프리뷰">
+          <div class="wb-head">
+            <h2>프리뷰</h2>
+            <span class="wb-note">완성본을 재생하며 확인하세요</span>
+          </div>
+          <div class="frame-box">
+            <iframe id="preview-frame" title="렌더 프리뷰"></iframe>
+            <div class="frame-cover" id="frame-cover" hidden>
+              <span class="fc-ring" aria-hidden="true"></span>
+              <span>수정 반영 중…</span>
             </div>
           </div>
-        </div>
+        </section>
+
+        <section class="chat-panel" id="chat-panel" aria-label="대화형 제작">
+          <div class="wb-head">
+            <h2>대화로 수정</h2>
+            <span class="wb-note">바꾸면 다시 빌드됩니다</span>
+          </div>
+          <div class="chat-messages" id="chat-messages" role="log" aria-live="polite" aria-label="대화 이력"></div>
+          <div class="chat-suggest" id="chat-suggest"></div>
+          <div class="chat-input-row">
+            <input type="text" id="chat-input" aria-label="수정 요청"
+              placeholder='예: 절차 씬을 14초로 줄여줘'>
+            <button class="btn primary" id="chat-send" type="button">전송</button>
+          </div>
+          <p class="form-error" id="chat-error" role="alert"></p>
+        </section>
       </div>
     </div>
   </section>
 
   <!-- ② 실행 이력 -->
-  <section class="panel" id="panel-history">
+  <section class="panel" id="panel-history" role="tabpanel" aria-labelledby="tab-history" hidden>
     <div class="panel-head">
-      <h2>실행 이력</h2>
-      <button class="btn" id="history-refresh">새로고침</button>
+      <div>
+        <h2>실행 이력</h2>
+        <div class="hint" id="history-meta">불러오는 중…</div>
+      </div>
+      <button class="btn" id="history-refresh" type="button">새로고침</button>
     </div>
     <div id="history-list" class="list"></div>
   </section>
 
   <!-- ③ 모듈 갤러리 -->
-  <section class="panel" id="panel-modules">
+  <section class="panel" id="panel-modules" role="tabpanel" aria-labelledby="tab-modules" hidden>
     <div class="panel-head">
-      <h2>모듈 갤러리</h2>
-      <span class="hint" id="modules-meta"></span>
+      <div>
+        <h2>모듈 갤러리</h2>
+        <p class="hint" id="modules-meta">불러오는 중…</p>
+      </div>
+      <div class="filters" id="module-filters" role="group" aria-label="모듈 종류 필터"></div>
     </div>
-    <div id="modules-grid" class="module-grid"></div>
     <div class="preview-wrap" id="module-preview-wrap" hidden>
-      <h3 id="module-preview-title">모듈 프리뷰</h3>
+      <div class="wb-head">
+        <h3 id="module-preview-title">모듈 프리뷰</h3>
+        <button class="btn ghost" id="module-preview-close" type="button">닫기</button>
+      </div>
       <div class="frame-box"><iframe id="module-preview-frame" title="모듈 프리뷰"></iframe></div>
     </div>
+    <div id="modules-grid" class="module-grid"></div>
   </section>
 
   <!-- ④ 회의록 -->
-  <section class="panel" id="panel-meetings">
+  <section class="panel" id="panel-meetings" role="tabpanel" aria-labelledby="tab-meetings" hidden>
     <div class="meetings-grid">
       <div class="card">
         <div class="panel-head">
-          <h2>회의 목록</h2>
-          <button class="btn" id="meetings-refresh">새로고침</button>
+          <div>
+            <h2>회의 목록</h2>
+            <p class="hint" id="meetings-meta">불러오는 중…</p>
+          </div>
+          <button class="btn" id="meetings-refresh" type="button">새로고침</button>
         </div>
-        <div id="meetings-list" class="list"></div>
+        <div id="meetings-list" class="list compact"></div>
       </div>
       <div class="card">
         <h2 id="minutes-title">회의록</h2>
-        <pre id="minutes-body" class="minutes">왼쪽에서 회의를 선택하세요.</pre>
+        <div id="minutes-body" class="minutes" aria-live="polite">
+          <p class="empty">왼쪽에서 회의를 선택하면 회의록이 여기에 표시됩니다.</p>
+        </div>
       </div>
     </div>
   </section>
 </main>
 
+<span class="sr-only" id="live-status" role="status" aria-live="polite"></span>
 <script src="app.js"></script>
 </body>
 </html>
