@@ -149,8 +149,24 @@ def open_session(
         if (cand / "react.production.min.js").exists():
             resources = vendor_resources(base)
             break
+    # 무대 크기는 빌드의 scene-data.json format 이 정본 — 세로(9:16) 빌드도 원척 검사를 통과하게
+    width, height = 1920, 1080
+    sd = serve_root / "scene-data.json"
+    if sd.is_file():
+        try:
+            import json as _json
+
+            from wdrender.config import apply_format, load_config
+
+            fmt = _json.loads(sd.read_text(encoding="utf-8")).get("format")
+            rc = apply_format(load_config(), fmt)
+            width, height = rc.width, rc.height
+        except Exception:  # noqa: BLE001 — 포맷 해석 실패 시 가로 폴백 (기존 동작)
+            pass
     with StaticServer(serve_root) as srv:
-        with RenderSession(srv.url_for(entry_rel), resources=resources) as sess:
+        with RenderSession(
+            srv.url_for(entry_rel), width=width, height=height, resources=resources
+        ) as sess:
             yield QASession(sess, cfg)
 
 

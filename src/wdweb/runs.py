@@ -124,6 +124,18 @@ def list_runs() -> list[dict]:
 # ── 파이프라인 실행 (POST /api/runs) ─────────────────────────────────────────
 
 
+
+def _format_of(build_dir: Path) -> str | None:
+    """빌드 산출물의 scene-data.json 에서 포맷 id 를 읽는다 (없으면 render.toml 폴백)."""
+    sd = Path(build_dir) / "scene-data.json"
+    if not sd.is_file():
+        return None
+    try:
+        return json.loads(sd.read_text(encoding="utf-8")).get("format")
+    except ValueError:
+        return None
+
+
 def submit_run(report: dict, slug: str | None = None) -> dict:
     """보고서 JSON을 임시 저장하고 백그라운드 스레드로 ingest→fragmentize→scenario→build 를 돌린다."""
     run_id = new_run_id()
@@ -289,14 +301,15 @@ def _run_render(run_id: str, targets: list[str], fps: int | None, droot: Path) -
         if "video" in targets:
             out = out_dir / "video.mp4"
             detail["video"] = export_video(
-                root, rel, out, config=cfg, resources=resources, log=lambda m: None,
+                root, rel, out, config=cfg, resources=resources,
+                format_id=_format_of(root), log=lambda m: None,
             )
             outputs["video"] = str(out)
         if "pptx" in targets:
             out = out_dir / "slides.pptx"
             detail["pptx"] = export_pptx(
                 root, rel, out, config=cfg, resources=resources,
-                stills=stills, notes=notes, log=lambda m: None,
+                format_id=_format_of(root), stills=stills, notes=notes, log=lambda m: None,
             )
             outputs["pptx"] = str(out)
         _update_render(run_id, status="done", outputs=outputs, detail=detail,

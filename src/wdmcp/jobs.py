@@ -1,6 +1,7 @@
 # 렌더 잡 원장·백그라운드 워커 — data/render_jobs/{id}.json이 진실, 스레드가 빌드→렌더 상태를 기록
 from __future__ import annotations
 
+import json
 import threading
 import uuid
 from datetime import datetime, timezone
@@ -11,6 +12,18 @@ from wdcore.config import get_settings
 from .schemas import RenderJob
 
 _lock = threading.Lock()
+
+
+
+def _format_of(build_dir: Path) -> str | None:
+    """빌드 산출물의 scene-data.json 에서 포맷 id 를 읽는다 (없으면 render.toml 폴백)."""
+    sd = Path(build_dir) / "scene-data.json"
+    if not sd.is_file():
+        return None
+    try:
+        return json.loads(sd.read_text(encoding="utf-8")).get("format")
+    except ValueError:
+        return None
 
 
 def _now_iso() -> str:
@@ -141,14 +154,15 @@ def _run_job(job_id: str, renders_root: Path, build_root: Path) -> None:
         if "video" in job.targets:
             out = out_dir / "video.mp4"
             detail["video"] = export_video(
-                root, rel, out, config=cfg, resources=resources, log=lambda m: None,
+                root, rel, out, config=cfg, resources=resources,
+                format_id=_format_of(root), log=lambda m: None,
             )
             outputs["video"] = str(out)
         if "pptx" in job.targets:
             out = out_dir / "slides.pptx"
             detail["pptx"] = export_pptx(
                 root, rel, out, config=cfg, resources=resources,
-                stills=stills, notes=notes, log=lambda m: None,
+                format_id=_format_of(root), stills=stills, notes=notes, log=lambda m: None,
             )
             outputs["pptx"] = str(out)
         _update_job(job_id, status="done", outputs=outputs, detail=detail)
