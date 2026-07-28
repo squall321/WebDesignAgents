@@ -34,5 +34,9 @@ out_of_scope:
   - "통계·수치 요약 동반 (vtpl.metric 을 앞 씬으로 배치)"
   - "진입점 4개 이상 — 엄지 도달 구역(1120~1552)을 넘음"
 quality:
+  reproducibility:
+    verdict: pass
+    max_diff_ratio: 0.00000000
+    checked_at: "2026-07-28T02:14:38"
   gates_passed: []
   reviews: []

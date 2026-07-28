@@ -34,5 +34,9 @@ out_of_scope:
   - "카드 5장 이상 — 세로 존(1180px)이 수용하지 못함"
   - "카드별 2줄 초과 보조 설명 (4장 기준 카드 최대 높이 240px 초과)"
 quality:
+  reproducibility:
+    verdict: pass
+    max_diff_ratio: 0.00000000
+    checked_at: "2026-07-28T02:14:38"
   gates_passed: []
   reviews: []

@@ -33,5 +33,9 @@ out_of_scope:
   - "통계 4개 이상(밀도 초과)"
   - "연락처 목록 나열형 클로징"
 quality:
+  reproducibility:
+    verdict: pass
+    max_diff_ratio: 0.00000000
+    checked_at: "2026-07-28T02:14:38"
   gates_passed: []
   reviews: []

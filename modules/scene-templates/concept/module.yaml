@@ -32,5 +32,9 @@ out_of_scope:
   - "계층형 트리 다이어그램"
   - "노드에 이미지/아이콘이 필요한 경우"
 quality:
+  reproducibility:
+    verdict: pass
+    max_diff_ratio: 0.00000000
+    checked_at: "2026-07-28T02:14:38"
   gates_passed: []
   reviews: []

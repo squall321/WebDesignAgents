@@ -33,5 +33,9 @@ out_of_scope:
   - "수렴 없이 반박만 있는 구성"
   - "표/수치 비교 중심의 차별점(stat 계열 은유 필요)"
 quality:
+  reproducibility:
+    verdict: pass
+    max_diff_ratio: 0.00000000
+    checked_at: "2026-07-28T02:14:38"
   gates_passed: []
   reviews: []

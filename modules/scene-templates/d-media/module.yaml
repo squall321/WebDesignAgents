@@ -34,6 +34,10 @@ out_of_scope:
   - "영상 재생·3D 인터랙션 (렌더 결정성 위배 — 포스터로 대체)"
   - "이미지 위 긴 본문 오버레이 (대비 미보장)"
 quality:
+  reproducibility:
+    verdict: pass
+    max_diff_ratio: 0.00000000
+    checked_at: "2026-07-28T02:14:38"
   gates_passed:
     - "20260727-221721-83e735"  # 7게이트 클린 (error 0 · warning 0)
   reviews: []

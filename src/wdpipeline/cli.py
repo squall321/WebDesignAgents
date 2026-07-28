@@ -233,6 +233,67 @@ def run(
 
 
 @app.command()
+def repro(
+    module: str = typer.Option("", "--module", help="모듈 id 하나만 검증 (기본: 레지스트리 전 씬 템플릿 모듈)"),
+    runs: int = typer.Option(2, "--runs", help="독립 세션 렌더 횟수"),
+    update_golden: bool = typer.Option(
+        False, "--update-golden", help="typical 골든 스냅샷 재생성 (기존과의 diff 는 리포트에 기록)"
+    ),
+    build_slug: str = typer.Option(
+        "", "--build", help="빌드 슬러그 — 같은 시나리오 2회 빌드 바이트 동일성 검사 추가"
+    ),
+) -> None:
+    """QA — 템플릿 재현력 검증 (세션 간·골든 대비·빌드 간). 리포트는 data/qa_reports 에 저장."""
+    from datetime import datetime
+
+    from wdqa.repro import record_quality, template_modules, verify_all, verify_build
+
+    fixtures_by_module = None
+    if module:
+        ids = {m["id"] for m in template_modules(_MODULES_ROOT)}
+        dirs = {m["dir"]: m["id"] for m in template_modules(_MODULES_ROOT)}
+        mid = module if module in ids else dirs.get(module, "")
+        if not mid:
+            typer.echo(f"[오류] 레지스트리에 없는 모듈: {module}", err=True)
+            raise typer.Exit(code=1)
+        # 전 모듈 순회 대신 대상 1종만 3픽스처, 나머지는 생략
+        fixtures_by_module = {i: () for i in ids}
+        fixtures_by_module[mid] = ("min", "typical", "max")
+
+    report = verify_all(
+        _MODULES_ROOT, runs=runs, fixtures_by_module=fixtures_by_module,
+        update_golden=update_golden, progress=lambda s: typer.echo(f"[repro] {s}"),
+    )
+
+    if build_slug:
+        report["build"] = verify_build(_data_dir() / "build" / build_slug)
+        b = report["build"]
+        typer.echo(f"[repro] build {build_slug}: {'PASS' if b['passed'] else 'FAIL'} — "
+                   + ", ".join(f"{k}={'=' if v['identical'] else '≠'}"
+                               for k, v in b.get("files", {}).items()))
+        report["passed"] = report["passed"] and b["passed"]
+
+    out_dir = _data_dir() / "qa_reports"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out = out_dir / f"repro-{datetime.now().strftime('%Y%m%d-%H%M%S')}.json"
+    _write_json(out, report)
+
+    typer.echo(f"[repro] {'통과' if report['passed'] else '실패'} — 모듈 {report['modules']}종 → {out}")
+    typer.echo(f"  {'모듈':<22} {'판정':<6} {'max_diff_ratio':<16} golden_diff")
+    mods_by_id = {m["id"]: m for m in template_modules(_MODULES_ROOT)}
+    for r in report["results"]:
+        g = r["fixtures"].get("typical", {}).get("golden_diff_ratio")
+        typer.echo(
+            f"  {r['module']:<22} {'PASS' if r['passed'] else 'FAIL':<6} "
+            f"{r['max_diff_ratio']:<16.8f} {'-' if g is None else f'{g:.8f}'}"
+        )
+        record_quality(mods_by_id[r["module"]]["mod_dir"], r,
+                       checked_at=report["checked_at"])
+    if not report["passed"]:
+        raise typer.Exit(code=1)
+
+
+@app.command()
 def validate() -> None:
     """페르소나 레지스트리 + 씬 템플릿 모듈 레지스트리 정합성 검사."""
     from jsonschema import Draft202012Validator

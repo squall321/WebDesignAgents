@@ -32,5 +32,9 @@ out_of_scope:
   - "분기/병렬이 있는 플로차트"
   - "단계 간 화살표·의존 관계 표현"
 quality:
+  reproducibility:
+    verdict: pass
+    max_diff_ratio: 0.00000000
+    checked_at: "2026-07-28T02:14:38"
   gates_passed: []
   reviews: []
