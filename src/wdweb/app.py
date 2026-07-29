@@ -11,6 +11,7 @@ import yaml
 from fastapi import Body, FastAPI, HTTPException, Request, status
 from fastapi.responses import PlainTextResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.routing import Route
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -23,14 +24,13 @@ from .runs import REPO_ROOT, RENDER_TARGETS, data_dir
 
 # wdmcp(경로 A stdio 어댑터)와 동일한 FastMCP 서버를 /mcp 로도 서빙 — heax 매니페스트
 # mcp:{path:/mcp, transport:streamable_http} 선언과 실체를 일치시켜 게이트웨이 자동연동
-# (ThermalShockMCP app/main.py 마운트 규약)을 성립시킨다. 도구 정의는 한 곳(wdmcp)뿐.
-_wdmcp.settings.streamable_http_path = "/"  # 마운트 지점(/mcp)이 곧 MCP 경로가 되게
-_mcp_app = _wdmcp.streamable_http_app()
+# (ThermalShockMCP app/main.py 규약)을 성립시킨다. 도구 정의는 한 곳(wdmcp)뿐이다.
+_mcp_app = _wdmcp.streamable_http_app()  # 내부 라우트 = settings.streamable_http_path("/mcp")
 
 
 @asynccontextmanager
 async def _lifespan(_app: FastAPI):
-    # 마운트된 서브앱의 lifespan 은 자동 실행되지 않으므로 세션 매니저를 직접 구동한다.
+    # 서브앱의 lifespan 은 자동 실행되지 않으므로 세션 매니저를 직접 구동한다.
     async with _wdmcp.session_manager.run():
         yield
 
@@ -42,7 +42,14 @@ app = FastAPI(
     lifespan=_lifespan,
 )
 
-app.mount("/mcp", _mcp_app)
+# ⚠ app.mount("/mcp", ...) 를 쓰면 안 된다. Starlette Mount 의 경로 정규식은
+# "/mcp/{path:path}" 라 뒤 슬래시 없는 정확 경로 "/mcp" 를 매칭하지 못하고, 이 앱은
+# 파일 끝에서 SPA(StaticFiles)를 "/" 에 캐치올로 마운트하므로 그 캐치올이 "/mcp" 를
+# 대신 먹어 GET/HEAD 전용 405 를 돌려준다(redirect_slashes 도 캐치올이 먼저 매칭돼
+# 발동하지 않는다). 게이트웨이·표준 MCP 클라이언트는 뒤 슬래시 없이 호출하므로
+# ASGI 앱을 정확 경로 Route 로 위임한다. methods 를 주지 않으면 메서드 필터가 없어
+# POST(메시지)·GET(SSE)·DELETE(세션 종료)가 그대로 MCP 앱에 전달된다.
+app.router.routes.append(Route("/mcp", endpoint=_mcp_app))
 
 _MODULES_REGISTRY = REPO_ROOT / "modules" / "registry.yaml"
 _WEB_ROOT = REPO_ROOT / "web"
