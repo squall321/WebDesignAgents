@@ -140,6 +140,40 @@ MEETING_TEMPLATES: dict[MeetingType, list[RoundSpec]] = {
             speaker_order="fixed",
         ),
     ],
+    # 포맷 승격 심사: design_review 파생 — 장르 발표 → 심사 → 반론 → 승격 판정 (PLAN §8.0, pilot→active)
+    MeetingType.format_review: [
+        RoundSpec(
+            name="present",
+            instruction=(
+                "모더레이터가 포맷 후보(format_candidate)의 무대·골격·프리셋·골든 산출물과 "
+                "누적 사용 실적(usage_count)을 대독하고 심사 범위를 선언하라."
+            ),
+            speaker_order="fixed",
+        ),
+        RoundSpec(
+            name="review",
+            instruction=(
+                "이 장르가 재현 가능한 자산인지 심사하라 — 프리셋(참가자·의제·자수·구간 예산)이 "
+                "실측 근거를 갖는지, 교훈이 다음 제작에 실행 가능한 형태인지, 골든이 회귀 기준으로 "
+                "충분한지 결함(Finding)을 심각도와 함께 지적하라. 근거 인용 의무."
+            ),
+            speaker_order="round_robin", cycles=2,
+            citation_required=True, allow_early_close=True,
+        ),
+        RoundSpec(
+            name="rebuttal",
+            instruction="제기된 Finding별로 수용/반박/조건부수용 입장을 밝혀라. 반박도 근거 인용 의무.",
+            speaker_order="round_robin", citation_required=True,
+        ),
+        RoundSpec(
+            name="verdict",
+            instruction=(
+                "포맷의 active 승격을 Go/Conditional-Go/No-Go로 판정하라. "
+                "조건은 액션아이템화하고, 확정된 교훈은 format.yaml lessons 항목으로 적어라."
+            ),
+            speaker_order="fixed",
+        ),
+    ],
 }
 
 

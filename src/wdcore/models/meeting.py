@@ -15,13 +15,14 @@ from .common import PersonaId, StrictModel, utcnow
 
 
 class MeetingType(str, Enum):
-    """회의 유형 5종 (PLAN §5.2 회의 파이프라인)."""
+    """회의 유형 6종 (PLAN §5.2 회의 파이프라인 + §8.0 포맷 승격)."""
 
     brainstorm = "brainstorm"            # 컨셉 발산 → 상호보완 → 수렴 (M1)
     design_review = "design_review"      # 시안 크리틱 (발표 → 리뷰 → 반론 → 판정, M3)
     tradeoff = "tradeoff"                # 시안 A/B/C 선정 (입장 → 교차반박 → 평가 → 결정)
     scenario_build = "scenario_build"    # 시나리오 빌드 (구조발산 → 교차반박 → 수렴타임라인 → 검증판정, M2)
     module_review = "module_review"      # 모듈 승격 심사 (design_review 파생, M4)
+    format_review = "format_review"      # 포맷 승격 심사 (design_review 파생, PLAN §8.0 pilot→active)
 
 
 class MeetingStatus(str, Enum):
@@ -48,6 +49,7 @@ class ArtifactType(str, Enum):
     scene_draft = "scene_draft"            # 씬 구성 초안 (scenario_build R1)
     scenario_patch = "scenario_patch"      # 시나리오 통합 패치 (ST 독점 작성권)
     module_candidate = "module_candidate"  # 모듈 승격 후보 (module_review)
+    format_candidate = "format_candidate"  # 포맷 승격 후보 (format_review) — 프리셋·골든·교훈 묶음
 
 
 # 발언 태도. 회의록의 미해결 쟁점 추출은 rebut 이후 accept 여부로 판단한다.

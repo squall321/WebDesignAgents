@@ -1,11 +1,15 @@
 # 포맷 스펙 계층 — formats/{id}/format.yaml 을 FormatSpec 으로 로드·검증하고 무대(stage)·골격의 단일 정본을 제공
 from __future__ import annotations
 
+import json
 import os
+import re
+from datetime import date, datetime, timezone
 from pathlib import Path
+from typing import Literal
 
 import yaml
-from pydantic import Field, model_validator
+from pydantic import Field, field_validator, model_validator
 
 from wdcore.models.common import StrictModel
 
@@ -19,6 +23,17 @@ DEFAULT_FORMAT_ID = "wide-16x9"
 
 FORMAT_FILE = "format.yaml"
 REGISTRY_FILE = "registry.yaml"
+USAGE_FILE = "usage.jsonl"
+
+# 포맷 수명주기 — 템플릿 승격과 동형 (PLAN §8.0)
+FormatStatus = Literal["draft", "pilot", "active"]
+
+# status 전이표. 여기 없는 status 는 다음 전이가 없다.
+PROMOTION_PATH: dict[str, str] = {"draft": "pilot", "pilot": "active"}
+
+# 제작 심의로 인정되는 회의 유형 (draft→pilot 의 정성 조건)
+PRODUCTION_MEETING_TYPES = frozenset({"scenario_build", "design_review"})
+GO_VERDICTS = frozenset({"Go", "Conditional-Go"})
 
 
 class FormatError(ValueError):
@@ -91,6 +106,57 @@ class FormatConstraints(StrictModel):
     safe_margin: int = Field(default=0, ge=0)
 
 
+class FormatOrigin(StrictModel):
+    """이 포맷이 태어난 자리 — 어느 심의가 장르를 정의했나."""
+
+    meeting_id: str = ""
+    created: str = Field(default="", description="YYYY-MM-DD")
+
+    @field_validator("created", mode="before")
+    @classmethod
+    def _stringify_date(cls, v: object) -> object:
+        """YAML 이 2026-07-27 을 date 로 파싱해도 문자열로 받는다."""
+        return v.isoformat() if isinstance(v, (date, datetime)) else v
+
+
+class FormatDeliberation(StrictModel):
+    """이 장르를 심의할 때의 회의 프리셋 — 다음 회의가 그대로 재소집할 수 있게."""
+
+    type: str = ""
+    participants: list[str] = Field(default_factory=list)
+    agenda: list[str] = Field(default_factory=list)
+
+
+class FormatNarrationPreset(StrictModel):
+    """실측으로 검증된 낭독 값. rate 는 게이트 예산, max_silence 는 씬별 무음 상한(초)."""
+
+    rate: float = Field(default=5.5, gt=0)
+    max_silence: float = Field(default=0.0, ge=0)
+
+
+class FormatPresets(StrictModel):
+    """한 번의 제작 경험이 남긴 재사용 프리셋 묶음."""
+
+    deliberation: FormatDeliberation = Field(default_factory=FormatDeliberation)
+    copy_guide: dict[str, int] = Field(
+        default_factory=dict, description="문안 필드 경로 → 실측 자수 상한"
+    )
+    dur_plan: dict[str, float] = Field(default_factory=dict, description="역할 → 확정 초")
+    narration: FormatNarrationPreset = Field(default_factory=FormatNarrationPreset)
+
+
+class FormatGolden(StrictModel):
+    """검증된 레퍼런스 산출물 — 회귀 기준선."""
+
+    run_id: str = ""
+    artifacts: list[str] = Field(default_factory=list)
+    qa_report: str = ""
+
+    def registered(self) -> bool:
+        """골든 등록 완료 판정 — run_id 와 산출물 경로가 둘 다 있어야 한다."""
+        return bool(self.run_id and self.artifacts)
+
+
 class FormatSpec(StrictModel):
     """포맷 정본 — 무대 크기·씬 골격·템플릿 풀·출력 규격의 단일 소유자."""
 
@@ -105,6 +171,31 @@ class FormatSpec(StrictModel):
     pptx: FormatPptx
     constraints: FormatConstraints = Field(default_factory=FormatConstraints)
     theme: str = Field(default="hwax-blue", min_length=1)
+
+    # ── 승격 루프 필드 (PLAN §8.0) — 전부 기본값이라 기존 스펙은 그대로 로드된다 ──
+    status: FormatStatus = "draft"
+    origin: FormatOrigin = Field(default_factory=FormatOrigin)
+    usage_count: int = Field(default=0, ge=0, description="이 포맷으로 완주한 산출물 수 (record_usage 집계)")
+    presets: FormatPresets = Field(default_factory=FormatPresets)
+    golden: FormatGolden = Field(default_factory=FormatGolden)
+    lessons: list[str] = Field(default_factory=list, description="심의가 남긴 교훈 — 다음 회의가 인용한다")
+
+    @model_validator(mode="after")
+    def _presets_match_skeleton(self) -> "FormatSpec":
+        """프리셋 키가 골격 역할을 벗어나면 거절한다 — 역할 개명 후 방치된 프리셋을 잡는다."""
+        roles = set(self.skeleton)
+        stray_dur = sorted(set(self.presets.dur_plan) - roles)
+        if stray_dur:
+            raise ValueError(
+                f"presets.dur_plan 에 골격 밖 역할 {stray_dur} — skeleton {self.skeleton} 의 이름과 맞춰라"
+            )
+        stray_copy = sorted({k.split(".", 1)[0] for k in self.presets.copy_guide} - roles)
+        if stray_copy:
+            raise ValueError(
+                f"presets.copy_guide 에 골격 밖 역할 {stray_copy} — 키를 '역할.필드' 로 쓰고 "
+                f"skeleton {self.skeleton} 의 이름과 맞춰라"
+            )
+        return self
 
     @model_validator(mode="after")
     def _skeleton_pool_agree(self) -> "FormatSpec":
@@ -343,3 +434,213 @@ def check_format_templates(
                     f"module.yaml 에 formats: [{spec.id}] 를 추가하라"
                 )
     return problems
+
+
+# ── 사용 원장 (usage_count 자동 집계) ───────────────────────────────────
+
+
+def usage_path(format_id: str, formats_root: str | Path | None = None) -> Path:
+    return resolve_formats_root(formats_root) / format_id / USAGE_FILE
+
+
+def load_usage(format_id: str, *, formats_root: str | Path | None = None) -> list[dict]:
+    """formats/{id}/usage.jsonl 을 읽어 산출물 기록 목록으로 돌려준다 (없으면 빈 목록)."""
+    path = usage_path(format_id, formats_root)
+    if not path.is_file():
+        return []
+    runs: list[dict] = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            row = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(row, dict) and row.get("run_id"):
+            runs.append(row)
+    return runs
+
+
+def record_usage(
+    format_id: str,
+    run_id: str,
+    *,
+    gate_errors: int = 0,
+    qa_report: str = "",
+    formats_root: str | Path | None = None,
+) -> dict:
+    """산출물 1건을 포맷 사용 원장에 기록하고 format.yaml 의 usage_count 를 재집계한다.
+
+    같은 run_id 재기록은 무시한다(recorded=False) — 재렌더가 건수를 부풀리지 않게 한다.
+    """
+    path = usage_path(format_id, formats_root)
+    if not path.parent.is_dir():
+        raise FormatError(
+            f"포맷 디렉터리 없음: {path.parent} — 알려진 포맷은 {list_formats(formats_root) or '(없음)'} 이다"
+        )
+    runs = load_usage(format_id, formats_root=formats_root)
+    recorded = not any(r["run_id"] == run_id for r in runs)
+    if recorded:
+        row = {
+            "run_id": run_id,
+            "gate_errors": int(gate_errors),
+            "qa_report": qa_report,
+            "at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        }
+        with path.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(row, ensure_ascii=False) + "\n")
+        runs.append(row)
+    count = len({r["run_id"] for r in runs})
+    _set_top_level_scalar(format_path(format_id, formats_root), "usage_count", count)
+    return {"format": format_id, "run_id": run_id, "recorded": recorded, "usage_count": count,
+            "runs": [r["run_id"] for r in runs]}
+
+
+def _set_top_level_scalar(path: Path, key: str, value: object) -> None:
+    """format.yaml 의 최상위 스칼라 한 줄만 교체한다 — 주석·필드 순서를 보존하려고 재직렬화하지 않는다."""
+    text = path.read_text(encoding="utf-8")
+    line = f"{key}: {value}"
+    pattern = re.compile(rf"^{re.escape(key)}:[^\n]*$", re.MULTILINE)
+    if pattern.search(text):
+        text = pattern.sub(line, text, count=1)
+    else:
+        text = text.rstrip("\n") + f"\n{line}\n"
+    path.write_text(text, encoding="utf-8")
+
+
+# ── 승격 판정 ───────────────────────────────────────────────────────────
+
+
+def _check(name: str, ok: bool, detail: str) -> dict:
+    return {"name": name, "ok": ok, "detail": detail}
+
+
+def _verdict_check(verdicts: list[dict], *, meeting_types: frozenset[str], label: str) -> dict:
+    """해당 유형의 심의 판정이 Go/Conditional-Go 인지 본다."""
+    hits = [v for v in verdicts if str(v.get("type")) in meeting_types]
+    passing = [v for v in hits if str(v.get("verdict")) in GO_VERDICTS]
+    if passing:
+        v = passing[-1]
+        return _check(label, True, f"{v.get('type')} 판정 {v.get('verdict')} (회의 {v.get('meeting_id', '?')})")
+    if hits:
+        got = ", ".join(f"{v.get('type')}={v.get('verdict')}" for v in hits)
+        return _check(label, False, f"{label} 미충족 — 제출된 판정은 [{got}], 필요한 것은 Go/Conditional-Go 다")
+    need = "/".join(sorted(meeting_types))
+    return _check(label, False, f"{label} 없음 — {need} 심의를 열고 판정을 evidence.verdicts 로 제출하라")
+
+
+def promote_format(
+    format_id: str,
+    *,
+    evidence: dict,
+    formats_root: str | Path | None = None,
+    modules_root: str | Path | None = None,
+    apply: bool = True,
+) -> dict:
+    """포맷 승격을 판정하고(조건 충족 시) format.yaml 의 status 를 올린다.
+
+    evidence = {
+        "runs":     [{"run_id": ..., "gate_errors": 0, "qa_report": ...}],  # 생략 시 usage.jsonl
+        "verdicts": [{"meeting_id": ..., "type": "scenario_build", "verdict": "Conditional-Go"}],
+    }
+    반환 = {format, status, target, promoted, applied, checks[], missing[]} — 미충족은 missing 에
+    무엇이 얼마나 부족한지 수치로 적힌다.
+    """
+    spec = load_format(format_id, formats_root=formats_root, modules_root=modules_root)
+    runs = list(evidence.get("runs") or load_usage(format_id, formats_root=formats_root))
+    verdicts = list(evidence.get("verdicts") or [])
+    target = PROMOTION_PATH.get(spec.status)
+
+    if target is None:
+        return {
+            "format": format_id, "status": spec.status, "target": None,
+            "promoted": False, "applied": False, "checks": [],
+            "missing": [f"status={spec.status} 는 마지막 단계다 — 더 올릴 곳이 없다"],
+        }
+
+    n = len({str(r.get("run_id")) for r in runs if r.get("run_id")})
+    need = 1 if target == "pilot" else 2
+    checks = [_check("산출물", n >= need, f"산출물 {n}건 / 필요 {need}건" + (
+        "" if n >= need else f" — {need - n}건 더 완주하고 record_usage 로 기록하라"))]
+
+    if target == "pilot":
+        unknown = [str(r.get("run_id")) for r in runs if r.get("gate_errors") is None]
+        total_err = sum(int(r.get("gate_errors") or 0) for r in runs)
+        if unknown:
+            checks.append(_check("게이트", False, f"게이트 결과 미기록 {unknown} — qa_run 결과를 gate_errors 로 넣어라"))
+        else:
+            checks.append(_check("게이트", total_err == 0,
+                                 f"게이트 error 합계 {total_err}건 / 허용 0건 (산출물 {n}건 집계)"))
+        checks.append(_verdict_check(verdicts, meeting_types=PRODUCTION_MEETING_TYPES, label="제작 심의"))
+    else:
+        checks.append(_check("골든", spec.golden.registered(),
+                             f"골든 run_id={spec.golden.run_id or '(미등록)'} · 산출물 {len(spec.golden.artifacts)}건"
+                             + ("" if spec.golden.registered() else " — golden.run_id 와 artifacts 를 채워라")))
+        checks.append(_verdict_check(verdicts, meeting_types=frozenset({"format_review"}), label="format_review"))
+
+    missing = [c["detail"] for c in checks if not c["ok"]]
+    promoted = not missing
+    applied = False
+    if promoted and apply:
+        _set_top_level_scalar(format_path(format_id, formats_root), "status", target)
+        applied = True
+    return {
+        "format": format_id, "status": target if applied else spec.status, "target": target,
+        "promoted": promoted, "applied": applied, "checks": checks, "missing": missing,
+    }
+
+
+# ── 심의 브리핑용 프리셋 요약 ───────────────────────────────────────────
+
+
+def format_presets_briefing(
+    format_id: str,
+    *,
+    formats_root: str | Path | None = None,
+    modules_root: str | Path | None = None,
+) -> str:
+    """이 장르의 노하우를 다음 심의가 인용할 수 있는 형태로 요약한다 (마크다운 문자열)."""
+    spec = load_format(format_id, formats_root=formats_root, modules_root=modules_root)
+    p = spec.presets
+    L: list[str] = [
+        f"## 포맷 {spec.id} — {spec.name_ko} ({spec.status} · 산출물 {spec.usage_count}건)",
+        f"- 무대 {spec.stage.w}×{spec.stage.h} · 목표 {spec.duration.target:g}초 "
+        f"(허용 {spec.duration.min:g}~{spec.duration.max:g}) · 최소 폰트 {spec.constraints.min_font} "
+        f"· safe margin {spec.constraints.safe_margin}",
+        "- 골격 " + " → ".join(
+            f"{r}({spec.primary_tpl(r)})" for r in spec.skeleton
+        ),
+    ]
+    if p.deliberation.type or p.deliberation.participants:
+        L.append(
+            f"- 심의 프리셋 — 유형 {p.deliberation.type or '(미정)'} · "
+            f"참가자 {', '.join(p.deliberation.participants) or '(미정)'}"
+        )
+        for i, a in enumerate(p.deliberation.agenda, 1):
+            L.append(f"  {i}. {a}")
+    if p.dur_plan:
+        total = sum(p.dur_plan.values())
+        L.append("- 구간 예산(초) — " + " · ".join(
+            f"{r} {p.dur_plan[r]:g}" for r in spec.skeleton if r in p.dur_plan
+        ) + f" (합계 {total:g})")
+    if p.copy_guide:
+        L.append("- 카피 자수 상한 — " + " · ".join(
+            f"{k} {v}자" for k, v in p.copy_guide.items()
+        ))
+    L.append(
+        f"- 낭독 — 예산 {p.narration.rate:g}자/초"
+        + (f" · 씬별 무음 상한 {p.narration.max_silence:g}초" if p.narration.max_silence else "")
+    )
+    if spec.golden.registered():
+        L.append(
+            f"- 골든 — run {spec.golden.run_id} · "
+            + ", ".join(spec.golden.artifacts)
+            + (f" · QA {spec.golden.qa_report}" if spec.golden.qa_report else "")
+        )
+    if spec.origin.meeting_id:
+        L.append(f"- 출처 심의 — {spec.origin.meeting_id} ({spec.origin.created or '날짜 미상'})")
+    if spec.lessons:
+        L.append("- 교훈 (이전 심의가 남긴 것 — 재발명 대신 인용하라)")
+        L.extend(f"  {i}. {t}" for i, t in enumerate(spec.lessons, 1))
+    return "\n".join(L)

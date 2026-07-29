@@ -15,3 +15,71 @@ outputs: [video, pptx]
 pptx: { slide_w_in: 7.5, slide_h_in: 13.333 }      # 세로 슬라이드
 constraints: { min_font: 32, safe_margin: 72 }
 theme: hwax-blue
+
+# ── 승격 루프 (PLAN §8.0) — 아래는 전부 short_v1 제작 1회차의 실측 산물이다 ──
+status: pilot
+usage_count: 1
+origin:
+  meeting_id: 67bd5d0d-e44f-47f1-bc80-d9fa1c10e5ea   # 세로 숏폼 시나리오 심의 19턴 (Conditional-Go)
+  created: "2026-07-27"
+
+presets:
+  # 이 장르를 다시 심의할 때 그대로 재소집할 회의 프리셋 (심의 67bd5d0d 개회 선언)
+  deliberation:
+    type: scenario_build
+    participants:
+      - narr-story-architect      # ST — 5역할 배치·조각 흡수 설계 (scenario_patch 독점 작성권)
+      - narr-copywriter           # CP — 세로 자수 상한 안에서 집필
+      - ux-audience-advocate      # AU — 청중 재정의·엄지 가림 검수
+      - mot-motion-director       # MO — dur·stills (스케줄 실측 소유)
+      - av-narration              # NR — 낭독 예산 (TTS 실합성 소유)
+    agenda:
+      - "청중 — 세로 피드에서 소리 없이 넘기는 사람은 누구인가. 바뀌면 core_message·tone·CTA가 전부 바뀐다"
+      - "5역할 배치 — 가로 7역할에서 버릴 논지(개념·절차·차별점)를 어디에 흡수할지부터 정한다"
+      - "세로 카피 자수 — 상한 안에서 처음부터 집필한다. 가로 문안 말줄임 금지"
+      - "낭독 예산 — 총 길이는 허용대 안에서 심의가 정하고 TTS 실측으로 검증한다"
+  # 실측 자수 상한 (vtpl.* schema.json maxLength = 세로 무대 역산값, 최종본 초과 0건)
+  copy_guide:
+    hook.line.accent: 10
+    hook.focus.word: 8
+    hook.focus.caption: 22
+    hook.hint.beats: 6
+    problem.title: 22
+    problem.cards.title: 30
+    problem.cards.desc: 20
+    problem.conclusion: 20
+    solution.cards.title: 30
+    solution.cards.desc: 20
+    solution.conclusion: 20
+    proof.label: 20
+    proof.value: 7
+    proof.evidence: 34
+    proof.source: 26
+    cta.headline.accent: 10
+    cta.sub: 38
+    cta.entries.text: 16
+    cta.footnote: 26
+  # 확정 구간 예산 (Σ 46.0초 — 목표 60을 의도적으로 채우지 않았다)
+  dur_plan: { hook: 6.2, problem: 11.2, solution: 11.6, proof: 9.6, cta: 7.4 }
+  # rate 는 게이트 예산 상수, max_silence 는 short_v1 씬별 무음 실측 최대(문제 3.56초)
+  narration: { rate: 5.5, max_silence: 3.6 }
+
+golden:
+  run_id: short_v1
+  artifacts:
+    - data/renders/short_v1/short_v1_voiced.mp4
+    - data/renders/short_v1/short_v1.mp4
+    - data/renders/short_v1/short_v1.pptx
+    - data/renders/short_v1/narration.srt
+    - data/renders/short_v1/drift_report.json
+    - data/pipeline/short_v1/scenario.json
+  qa_report: data/qa_reports/20260727-223243-f1e865/qa.json
+
+lessons:
+  - "목표 60초를 채우지 않는다 — TTS·스케줄 실측이 46초를 가리키면 46초로 확정한다 (Σdur 46.0s, 허용대 40~75s)"
+  - "청중이 바뀌면 서법이 바뀐다 — 경영진 브리핑의 서술형을 실무자(모바일 피드) 숏폼 직설·명령형으로 갈아 끼웠다"
+  - "가로본 축약은 부결 사유다 — 같은 원천이어도 문안을 새로 쓴다 (심의 대조 결과 실질 일치 1건 = 원문 출처 표기뿐)"
+  - "가로 7역할을 5역할로 흡수한다 — 개념·절차는 solution 으로 합치고 차별점은 버린다"
+  - "dur 하한은 max(낭독 예산, 정착+판독)이다 — 스케줄 실측 settle_last(problem 7.1s) 위에 판독 여유를 얹어 11.2s"
+  - "게이트 낭독 예산 5.5자/초 vs Chatterbox 실측 6.0~8.4자/초 — 예산을 지키는 한 무음 25% 이상이 구조적이다 (short_v1 25.7%)"
+  - "1700px 아래에는 콘텐츠를 두지 마라 — 숏폼 플레이어 UI 가 덮는다 (safe margin 72 와 별개의 하단 금지대)"

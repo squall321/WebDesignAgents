@@ -19,3 +19,73 @@ outputs: [video, pptx]
 pptx: { slide_w_in: 13.333, slide_h_in: 7.5 }      # PowerPoint 표준 16:9
 constraints: { min_font: 17, safe_margin: 140 }    # type.iconCheck=17 · layout.marginX=140 서술
 theme: hwax-blue
+
+# ── 승격 루프 (PLAN §8.0) — delib_v1(Go) · delib_v2(Conditional-Go) 2회차의 실측 산물 ──
+status: pilot
+usage_count: 2
+origin:
+  meeting_id: 339e3bac-18dd-415c-b1f0-ea022ed36843   # 재심의 v2 25턴 (10종 카탈로그·TTS 실측 반영)
+  created: "2026-07-26"
+
+presets:
+  deliberation:
+    type: scenario_build
+    participants:
+      - narr-story-architect      # ST — 7씬 설득 골격 (scenario_patch 독점 작성권)
+      - narr-copywriter           # CP — 스키마 maxLength 안에서 집필
+      - impl-technical-director   # TD — 엔진 계약·로드 순서 필수 점검
+      - mot-motion-director       # MO — dur 배분
+      - av-narration              # NR — 씬-음성 동기·무음 예산
+      - ux-accessibility          # AX — 접근성 (게이트 3·4 조건 소유)
+      - impl-slide-editor         # SL — stills 선정
+    agenda:
+      - "씬 템플릿 교체 — 어떤 씬을 신규 카탈로그로 바꾸면 논증이 강해지는가 (Conditional-Go 템플릿은 미해소 액션아이템 검토 후 판정)"
+      - "TTS 실측 기반 dur·내레이션 재조정 — 무음 3초 이상 방치 금지, 총 길이는 고정이 아니며 심의가 정한다"
+      - "신규 템플릿 데이터는 스키마 maxLength 안에서 처음부터 집필한다 — 말줄임 절단 금지"
+  # 실측 자수 상한 (scene-template schema.json maxLength — 최종본 초과 0건)
+  copy_guide:
+    opening.title.accent: 12
+    opening.subtitle: 40
+    problem.title: 30
+    problem.failures: 20
+    problem.conclusion: 40
+    concept.rounds.name: 14
+    concept.rounds.desc: 40
+    process.steps.name: 12
+    process.steps.desc: 40
+    differentiator.flow.quote: 40
+    differentiator.converge.verdict: 30
+    proof.bars.label: 9          # dataviz@1 채택 후 기준 (proof@1 은 cases.title 24)
+    proof.headline.desc: 16
+    closing.title.accent: 12
+    closing.ctas.text: 18
+  # 확정 구간 예산 (Σ 78.0초 — v1 90초 대비 -12s. duration.target 90 은 v1 자연 길이 합의 잔재다)
+  dur_plan:
+    opening: 7.0
+    problem: 11.5
+    concept: 9.5
+    process: 15.5
+    differentiator: 12.0
+    proof: 12.0
+    closing: 10.5
+  # rate 는 게이트 예산 상수, max_silence 는 v2 씬별 무음 실측 최대(절차 4.10초)
+  narration: { rate: 5.5, max_silence: 4.1 }
+
+golden:
+  run_id: delib_v2
+  artifacts:
+    - data/renders/delib_v2/delib_v2_voiced.mp4
+    - data/renders/delib_v2/delib_v2.mp4
+    - data/renders/delib_v2/delib_v2.pptx
+    - data/renders/delib_v2/narration.srt
+    - data/renders/delib_v2/drift_report.json
+    - data/pipeline/delib_v2/scenario.json
+  qa_report: data/qa_reports/20260726-222655-11d2c8/qa.json
+
+lessons:
+  - "총 길이를 줄이는 것이 무음을 줄이는 가장 확실한 수단이다 — 90초→78초(-12s)로 무음 37.64s→19.64s(41.8%→25.2%)"
+  - "실증 씬은 사례 나열(proof@1)보다 수치 논증(dataviz@1)이 강하다 — 재심의에서 반대 0으로 교체 채택"
+  - "신규 템플릿이 생겼다고 다 갈아 끼우지 않는다 — timeline·compare 는 미해소 액션아이템을 이유로 기각, process·differentiator 유지"
+  - "재심의는 개선이지 재작성이 아니다 — 전 회차의 core_message·청중·골격·확정 카피는 갈아엎지 않는다"
+  - "빌드 엔트리의 스크립트 로드 순서는 registry.yaml load_order_contract 에서 파생시켜라 — 수기 목록은 템플릿 추가 때 누락된다 (v2 Conditional-Go 의 유일한 사유)"
+  - "씬별 무음 3.0초를 상한으로 잡아도 절차(4.10s)·클로징(3.42s)은 넘는다 — 긴 씬은 대본 보강이 아니라 dur 단축으로 잡는다"
