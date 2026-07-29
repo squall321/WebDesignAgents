@@ -1,0 +1,27 @@
+{
+  "kicker": "우선순위",
+  "title": "난이도 × 진척 사분면",
+  "xAxis": { "name": "구현 난이도", "low": "낮음", "high": "높음" },
+  "yAxis": { "name": "진척률", "low": "0%", "high": "100%" },
+  "quadrants": { "tl": "이미 끝냄", "tr": "핵심 성과", "bl": "빠른 승리", "br": "다음 고비" },
+  "highlight": "br",
+  "items": [
+    { "label": "게시 (Mount)", "x": 0.18, "y": 1, "tone": "positive" },
+    { "label": "시스템 관리자 분리", "x": 0.3, "y": 1, "tone": "positive" },
+    { "label": "작성자 hard lock", "x": 0.42, "y": 1, "tone": "positive" },
+    { "label": "can_edit 풀 함수", "x": 0.8, "y": 0.7, "tone": "primary" },
+    { "label": "내 공간 hub", "x": 0.55, "y": 0.3, "tone": "primary" },
+    { "label": "종합보고 탭 분리", "x": 0.42, "y": 0.2, "tone": "primary" },
+    { "label": "참조 복제 (Fork)", "x": 0.85, "y": 0, "tone": "caution" }
+  ],
+  "note": {
+    "pre": "세로는 실측 진척률, 가로는 ",
+    "strong": "심의가 매긴 난이도",
+    "post": " 다"
+  },
+  "frame": {
+    "brand": "ReportArchive",
+    "idx": "04",
+    "total": "07"
+  }
+}

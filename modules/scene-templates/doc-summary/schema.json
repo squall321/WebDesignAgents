@@ -1,0 +1,130 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "wda:tpl.doc-summary/schema@1.0.0",
+  "title": "tpl.doc-summary 데이터 스키마 (문서형 요약·결론 2단 · 3무대 공용)",
+  "description": "좌 핵심 3~5줄 / 우 다음 행동 1~4건. maxLength 는 지원 무대 3종(deck-doc-16x9 1920×1080 · deck-4x3 1440×1080 · print-a4 1240×1754)에서 flex 비율(좌 1.3 / 우 1)로 갈린 실측 열폭 역산이다 — 좌열 947/685/572px, 우열 761/543/456px. **자수 상한의 바닥은 A4 좌열 572px, 행 수 상한의 바닥은 4:3 본문 가용 높이 약 716px** 다. 영상 템플릿 값 재사용 없음. x-read 는 실제 낭독 대상(제목·맺음 한 줄)만 표시한다.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "title",
+    "points",
+    "actions"
+  ],
+  "properties": {
+    "kicker": {
+      "type": "string",
+      "maxLength": 12,
+      "description": "머리말 좌측 위치 라벨 — 25px + 자간 0.12em(≈28px/자) → 12자"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 26,
+      "x-read": true,
+      "description": "요약 제목 — 38px, 본문 폭 바닥 1072px(A4) → 28자/줄. 26자면 어느 무대에서도 1줄"
+    },
+    "points": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 5,
+      "description": "핵심 3~5줄 — 번호 원판 + 본문(+보조 한 줄). 이 장의 밀도는 여기서 나온다",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "text"
+        ],
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40,
+            "description": "핵심 한 줄 — 26px, 번호 38 + 간격 16 을 뺀 텍스트 폭 631px(4:3) → 24.3자/줄, 40자면 4:3 2줄 · A4(518px) 3줄 이내"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 24,
+            "description": "보조 근거 한 줄 — 24px, 631px → 26자/줄. 24자면 4:3 에서 1줄(행 높이 예산의 근거)"
+          }
+        }
+      }
+    },
+    "actions_title": {
+      "type": "string",
+      "maxLength": 10,
+      "description": "우측 카드 제목 — 25px. 미지정 시 \"다음 행동\""
+    },
+    "actions": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 4,
+      "description": "다음 행동 1~4건 — 체크박스 + 문구 + 담당/기한 칩",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "text"
+        ],
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 34,
+            "description": "행동 문구 — 26px, 체크박스 22 + 간격 12 + 카드 패딩 44 를 뺀 폭 465px(4:3) → 17.9자/줄, 34자면 2줄 이내"
+          },
+          "owner": {
+            "type": "string",
+            "maxLength": 8,
+            "description": "담당 칩 — 24px + 좌우 패딩 12, 8자면 칩 폭 216px 로 기한 칩과 한 줄에 든다"
+          },
+          "due": {
+            "type": "string",
+            "maxLength": 10,
+            "description": "기한 칩 — 24px, \"2026-08-15\" 10자가 상한"
+          }
+        }
+      }
+    },
+    "note": {
+      "type": "string",
+      "maxLength": 40,
+      "x-read": true,
+      "description": "맺음 한 줄 — 24px, 본문 폭 1072px → 44자/줄. 40자면 1줄"
+    },
+    "page": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "머리말 우측 페이지 표시",
+      "required": [
+        "no"
+      ],
+      "properties": {
+        "no": {
+          "type": "string",
+          "maxLength": 4
+        },
+        "total": {
+          "type": "string",
+          "maxLength": 4
+        }
+      }
+    },
+    "footer": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "꼬리말 — 좌: 문서명·출처, 우: 배포 구분",
+      "properties": {
+        "left": {
+          "type": "string",
+          "maxLength": 40,
+          "description": "24px, 꼬리말 좌측 — 40자"
+        },
+        "right": {
+          "type": "string",
+          "maxLength": 14,
+          "description": "24px, 꼬리말 우측(줄바꿈 금지) — 14자"
+        }
+      }
+    }
+  }
+}

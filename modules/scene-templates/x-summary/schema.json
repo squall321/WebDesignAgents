@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "wda:tpl.x-summary/schema@1.0.0",
+  "title": "tpl.x-summary 데이터 스키마 — 요약 회수형 클로징",
+  "description": "본문에서 다룬 핵심을 3~5줄로 되짚고 그대로 남긴다. 행 높이·수치 글자 크기는 행 수에서 렌더가 역산하므로 배치 필드를 두지 않는다. maxLength 는 1920×1080 무대 실측 폭에서 뽑은 값이다.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "kicker",
+    "title",
+    "points",
+    "standby"
+  ],
+  "properties": {
+    "kicker": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 12,
+      "description": "상단 킥커 — 26px"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 22,
+      "x-read": true,
+      "description": "섹션 타이틀 — 56px 1줄"
+    },
+    "points": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 5,
+      "description": "되짚을 핵심 3~5개. 6개 이상은 요약이 아니다 — 본문으로 돌려보낸다.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "text",
+          "metric"
+        ],
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 34,
+            "x-read": true,
+            "description": "한 문장 회수 — 31px 1줄(실측 폭 1136px 기준)"
+          },
+          "metric": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 8,
+            "description": "근거 수치 — 38px(5행이면 31px) 우측 정렬 1줄"
+          },
+          "metricLabel": {
+            "type": "string",
+            "maxLength": 12,
+            "description": "수치의 단위·출처 한 마디 — 24px"
+          }
+        }
+      }
+    },
+    "standby": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 30,
+      "description": "질의응답 대기 문구 — 마지막 상태에 남는 필(26px)"
+    },
+    "frame": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "brand": {
+          "type": "string",
+          "maxLength": 20
+        },
+        "idx": {
+          "type": "string",
+          "maxLength": 4
+        },
+        "total": {
+          "type": "string",
+          "maxLength": 4
+        }
+      }
+    }
+  }
+}

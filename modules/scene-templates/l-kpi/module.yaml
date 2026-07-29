@@ -1,0 +1,42 @@
+# tpl.l-kpi — 씬 템플릿 모듈 SSOT (KPI 대시보드 — 지표 4~6개 그리드 · 방향≠평가 증감 배지)
+id: tpl.l-kpi
+type: scene-template
+name: "KPI 대시보드 — 지표 4~6개 2×2/3×2 그리드"
+status: draft
+version: 1.0.0
+engine_compat: "animations-v2"
+origin: "창작 모드 레이아웃 확장 2026-07-29"
+formats: [wide-16x9]
+stage: { w: 1920, h: 1080 }
+nat_default: 11
+scene_name_default: "지표"
+entry:
+  template: "web/templates/omx-layouts-b.jsx#KpiScene"
+  schema: schema.json
+  fixtures:
+    - fixtures/min.json
+    - fixtures/typical.json
+    - fixtures/max.json
+  preview: preview.html
+  snapshots: fixtures/snapshots/
+metaphors:
+  - frame-chrome
+  - dot-grid
+theme_default: hwax-blue
+summary: "지표 4~6개를 2×2/3×2 타일 그리드에 [라벨 + 큰 수치 + 증감 배지 + 미니 스파크바]로 담는 계기판 씬 — 증감은 방향(▲▼)과 평가(좋음/나쁨)를 분리해 '오류율 ▼62%'가 녹색이 되게 한다"
+composition: "타일 그리드(라벨 → 큰 수치 + 단위 → 증감 배지 → 스파크바) + '외 N개 지표' 표기 + 하단 풋노트 — 은유: 계기판 점등"
+in_scope:
+  - "지표 4~6개 동시 제시 (closing.stats 3개 상한이 못 담던 다지표 보고서)"
+  - "structured series payload(progress_bar·metric 계열)의 label/value 를 그대로 수용"
+  - "증감 방향과 평가의 분리 — dir(글리프)과 tone(색)이 독립"
+  - "지표 초과분은 omitted('외 N개 지표')로 표기"
+out_of_scope:
+  - "7개 이상 지표 (타일 축소·폰트 축소 금지 — 최소 폰트 24px 준수)"
+  - "시계열 상세 차트 (스파크바는 추세의 결일 뿐 축·눈금이 없다)"
+  - "수치 카운트업 애니메이션 (값은 문자열 — 결정성 우선)"
+quality:
+  reproducibility:
+    verdict: unverified
+    checked_at: null
+  gates_passed: []
+  reviews: []

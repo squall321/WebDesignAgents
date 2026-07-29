@@ -1,0 +1,19 @@
+{
+  "title": "도입 목적",
+  "bullets": [
+    { "text": "보고서 공간을 개인과 조직으로 나눈다" },
+    { "text": "게시는 사본이 아니라 링크로 한다" },
+    { "text": "정기 취합을 반복 노동에서 뺀다" }
+  ],
+  "evidence": {
+    "kind": "chart",
+    "caption": "도입 전후 작성 시간",
+    "chart": {
+      "unit": "분",
+      "bars": [
+        { "label": "도입 전", "value": 92 },
+        { "label": "도입 후", "value": 38, "emphasis": true }
+      ]
+    }
+  }
+}

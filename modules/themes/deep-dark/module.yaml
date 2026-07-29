@@ -1,0 +1,52 @@
+# theme.deep-dark — 테마 모듈 SSOT (짙은 네이비 지면 + 시안/라임 고채도 액센트, 무게감 있는 모션)
+id: theme.deep-dark
+type: theme
+name: "딥 다크 — 짙은 네이비 지면 + 시안/라임 액센트"
+status: draft
+version: 1.0.0
+engine_compat: "animations-v2"
+origin: "web/tokens/hwax-blue.json (3층 구조 계승 — 명암을 반전하고 값만 교체)"
+entry:
+  tokens: web/tokens/deep-dark.json
+  loader: "window.OMX.themes.load('deep-dark') | OMX.themes.fromGlobal() (OM_THEME 주입)"
+  previews:
+    - web/tokens/_previews/deep-dark/process.png
+    - web/tokens/_previews/deep-dark/proof.png
+    - web/tokens/_previews/deep-dark/closing.png
+base_theme: hwax-blue
+summary: "암전 상영과 대형 스크린을 전제로, 지면을 어둡게 깔고 시안/라임만 빛나게 하는 다크 테마"
+personality:
+  color: "딥 네이비 배경(#0B1220)·한 단 밝은 카드(#141C2E)·시안 강조(#4CD9E5)·라임 보조(#B6E86A)"
+  shadow: "그림자는 검정으로 깊게(0 20px 50px / 0.55), 강조 요소에만 시안 글로우 — 어두운 지면에서 면을 분리하는 유일한 수단"
+  motion: "지속시간을 기준보다 약 40% 길게(1.0s), easeOutQuart 로 길게 감속 — 밝은 요소가 갑자기 튀지 않게"
+inverted_keys:
+  extra.white: |
+    다크에서는 '흰 글씨/어두운 배경' 이 반전되므로 extra.white 를 흰색이 아니라
+    '액센트 채움 위 전경색'(#0A1420 짙은 잉크)으로 뒤집었다. 이 키는 component 에서
+    chip.activeFg · tag.successFg · network.centerFg · converge.checkFg · decision.fg 로만
+    소비되며 흰 면(surface)으로는 쓰이지 않는다 — 키 이름은 계약상 유지한다.
+in_scope:
+  - "기술 아키텍처·데이터 파이프라인·모니터링 대시보드 서사"
+  - "컨퍼런스·전시 등 조명이 어두운 대형 스크린 상영"
+  - "루프 재생되는 부스 영상 (밝은 지면 대비 잔상·눈부심이 적다)"
+out_of_scope:
+  - "인쇄·PDF 배포 (잉크 소모와 흑백 변환 손실이 크다)"
+  - "밝은 회의실 프로젝터 (검정 지면이 회색으로 뜬다)"
+quality:
+  contrast:
+    verdict: pass
+    standard: "WCAG 2.1 AA 4.5:1 (다크 반전 기준으로 전수 재계산)"
+    pairs_checked: 17
+    min_ratio: 5.76
+    median_ratio: 10.01
+    checked_at: "2026-07-29"
+  key_completeness:
+    verdict: pass
+    missing_vs_base: 0
+    extra_vs_base: 0
+  render:
+    verdict: pass
+    templates: [tpl.process, tpl.proof, tpl.closing]
+    console_errors: 0
+  gates_passed: []
+  reviews: []

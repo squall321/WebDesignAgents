@@ -1,0 +1,35 @@
+# deck-doc-16x9 — 문서형 읽는 자료. 영상 없이 슬라이드만 뽑는 첫 포맷이다(outputs: [pptx]).
+id: deck-doc-16x9
+name_ko: 문서형 브리핑 덱
+stage: { w: 1920, h: 1080 }          # 가로 무대와 동일 — 씬 스틸을 섞어 넣을 때 원척이 맞는다
+# 분량 정본은 **초가 아니라 장수**다. 읽는 자료에는 낭독 예산도 씬 dur 스케일도 없다.
+# target 15 = 표지1 + 목차1 + 3섹션×(구분1+본문3) + 요약1. min 5 = 골격 5역할 1회 순회.
+# max 30 = 한 시간 회의에서 장당 2분. (duration 은 slides×12초로 자동 파생 — format.py)
+slides: { target: 15, min: 5, max: 30 }
+# 문서 흐름이다. cover→toc→section→body→…→summary 로 흐르고 section→body 는 반복된다.
+# 반복 횟수는 골격이 아니라 export_pptx(structure=...) 가 정한다 — 골격은 역할 목록이다.
+skeleton: [cover, toc, section, body, summary]
+# 1순위는 문서형 씬 템플릿(tpl.doc-*, 무대 3종 공용 선언)이 가져간다 — 조립 기본이다.
+# 2순위 native.* 는 씬 캡처가 아니라 exporter 가 텍스트로 조립하는 슬라이드다(레지스트리 모듈 아님).
+# 목차·섹션 구분처럼 이미지로 구울 이유가 없는 자리, 그리고 브라우저 없이 뽑아야 할 때의 폴백.
+template_pool:
+  cover: [tpl.doc-cover, native.cover]
+  toc: [tpl.doc-toc, native.toc]
+  section: [tpl.doc-section, native.section]
+  body: [tpl.doc-body, native.body]
+  summary: [tpl.doc-summary, native.summary]
+narration: { enabled: false, rate: 5.5 }   # 낭독 없음 — 읽는 자료다
+outputs: [pptx]
+pptx: { slide_w_in: 13.333, slide_h_in: 7.5 }      # PowerPoint 표준 16:9
+# 실측값 — safe_margin = min(mx 119, my 81), min_font = 쪽번호·꼬리말 0.020×1080 = 21.6px
+constraints: { min_font: 21, safe_margin: 81 }
+theme: hwax-blue
+
+status: draft
+usage_count: 0
+
+lessons:
+  - "읽는 자료의 분량은 초가 아니라 장수다 — slides{min,target,max} 가 정본이고 duration 은 파생값이다(장당 명목 12초)"
+  - "목차·섹션 구분은 캡처하지 않는다 — 텍스트 슬라이드로 만들면 파워포인트에서 곧바로 고쳐진다(native.*)"
+  - "영상용 가로 템플릿(tpl.opening 등)은 이 무대에서 **안 깨진다** — 1920×1080 원 무대와 넘침이 완전히 동일했다(7씬 중 6씬 0px, 클로징 26.0px 로 원 무대와 같음, delib_v2 실측). 도판으로 끼워 넣을 수 있다는 뜻이다. 다만 module.yaml 에 formats 선언이 없어 지금은 풀에 못 넣는다"
+  - "무대가 같아도 영상 씬을 그대로 쓰면 한 화면 한 메시지의 저밀도가 따라온다 — 본문은 문서형 밀도로 새로 짜고, 씬 스틸은 도판으로만 끼운다"

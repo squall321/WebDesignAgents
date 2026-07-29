@@ -1,0 +1,145 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "wda:tpl.c-ratio/schema@1.0.0",
+  "title": "tpl.c-ratio 데이터 스키마",
+  "description": "비율·구성비 씬. 수치 왜곡 방지를 구조로 강제한다 — (1) percent/share/angle/startAngle 같은 백분율·각도 필드가 아예 없다(additionalProperties:false). 화면 비율은 언제나 value/Σvalue 로 파생되므로 조각 각도 합은 정확히 360°(±0.5° 검산은 tests/test_layouts_c_render.py)이고 저작자가 합을 100 이 아니게 쓸 방법이 없다. (2) value 는 minimum:0 — 음수 조각 불가. (3) 조각 정렬(큰 것부터 시계 방향)과 등장 순서는 렌더러가 값에서 정하므로 저작 순서로 위계를 왜곡할 수 없다. (4) 3D·기울임·원근 필드가 없다 — 정면 평면 원환만 그린다. (5) total.value 를 선언하면 명시 항목 합과의 차이를 '기타(미표기)' 조각으로 자동 편입하고 각주에 자동 편입량을 화면에 쓴다(합이 total 을 0.5% 초과하면 초과량을 각주에 명시). (6) 지분 5% 미만 조각은 링 밖 비율 라벨을 생략하고 범례로만 표기한다 — 겹침 오독 방지. maxLength 는 1920×1080 무대 실측 역산: 범례 폭 940 − 아이콘 34 − 비율존 162 − 값존 150 − 간격 16 = 라벨 578px. wdpipeline.widgets series payload(pie·waffle·treemap·packing) 대응 — payload.series[{label,value}] 를 series 에, payload.unit 을 unit 에 그대로 싣는다.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "kicker",
+    "title",
+    "series"
+  ],
+  "properties": {
+    "kicker": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16,
+      "description": "상단 킥커 — 26px 기준 좌측 영역 (실측 역산)"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 26,
+      "x-read": true,
+      "description": "본문 폭 1640px ÷ sectionTitle 56px ≈ 29자 → 26자 (실측 역산)"
+    },
+    "style": {
+      "type": "string",
+      "enum": [
+        "donut",
+        "waffle"
+      ],
+      "default": "donut",
+      "description": "donut = 좌측 원환 + 중앙 총계 / waffle = 10×10 100칸 격자(1칸 = 1%). 와플 칸 배분은 최대잔여법이라 반올림해도 칸 합이 정확히 100 이다."
+    },
+    "unit": {
+      "type": "string",
+      "maxLength": 6,
+      "description": "절대값 표기에 붙는 단위 (예: 종·건·억원). 비율(%)은 파생값이라 단위를 받지 않는다."
+    },
+    "series": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 7,
+      "description": "구성 항목 4~7개. 값은 절대량으로 쓴다 — 백분율은 렌더러가 value/Σvalue 로 파생한다. 순서는 자유(렌더러가 큰 것부터 시계 방향으로 정렬).",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "label",
+          "value"
+        ],
+        "properties": {
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 20,
+            "description": "범례 라벨 578px ÷ body 26px ≈ 22자 → 20자 1행 (실측 역산)"
+          },
+          "value": {
+            "type": "number",
+            "minimum": 0,
+            "description": "절대량. 음수 금지 — 원환은 음수 지분을 그릴 수 없다."
+          },
+          "display": {
+            "type": "string",
+            "maxLength": 6,
+            "description": "절대값 표기 override. 값존 150px ÷ caption 24px ≈ 6자 (실측 역산). 생략하면 value+unit 를 쓴다."
+          }
+        }
+      }
+    },
+    "total": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "선언된 전체. value 를 주면 명시 항목 합과의 차이를 '기타(미표기)' 조각으로 자동 편입하고 각주에 명시한다 — 부분만 보여주면서 100% 인 척하는 왜곡을 차단한다.",
+      "properties": {
+        "value": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "전체 절대량. 명시 항목 합이 이보다 0.5% 넘게 크면 초과량을 각주에 드러낸다."
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 10,
+          "description": "중앙 총계 라벨 기본값 — 원환 내경 292px ÷ caption 24px ≈ 12자 → 10자 (실측 역산)"
+        }
+      }
+    },
+    "center": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "원환 중앙(와플은 상단 헤더) 대형 표기. 생략하면 total.value + unit 를 쓴다.",
+      "properties": {
+        "value": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 5,
+          "description": "원환 내경 292px ÷ display 92px 숫자폭 53px ≈ 5자 (실측 역산 — 한글은 3자 상당)"
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 10,
+          "description": "내경 292px ÷ caption 24px ≈ 12자 → 10자 (실측 역산)"
+        }
+      }
+    },
+    "footnote": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "text"
+      ],
+      "description": "각주. 자동 편입·초과 경고 문구가 앞에 붙고 ' · ' 로 이어진다.",
+      "properties": {
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 30,
+          "x-read": true,
+          "description": "각주 폭 940px ÷ caption 24px ≈ 39자/행 × 2행 = 78자에서 자동 문구 최대 44자를 뺀 30자 (실측 역산)"
+        }
+      }
+    },
+    "frame": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "프레임 푸터 메타 — 없으면 푸터 숨김",
+      "properties": {
+        "brand": {
+          "type": "string",
+          "maxLength": 24
+        },
+        "idx": {
+          "type": "string",
+          "maxLength": 4
+        },
+        "total": {
+          "type": "string",
+          "maxLength": 4
+        }
+      }
+    }
+  }
+}

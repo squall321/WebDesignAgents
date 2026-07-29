@@ -1,0 +1,31 @@
+# deck-4x3 — 사내 표준·구형 프로젝터용 4:3 덱. 영상 없이 슬라이드만 뽑는다(outputs: [pptx]).
+id: deck-4x3
+name_ko: 4:3 사내 표준 덱
+stage: { w: 1440, h: 1080 }          # 4:3. 높이는 가로 무대와 같고 폭만 480px 좁다
+# target 12 = 표지1 + 목차1 + 3섹션×(구분1+본문2) + 요약1. min 5 = 골격 1회 순회.
+slides: { target: 12, min: 5, max: 24 }
+skeleton: [cover, toc, section, body, summary]
+# 영상용 가로 템플릿(tpl.opening 등) 재사용은 실측 기각이다(아래 lessons) — 이 무대를 위해
+# 새로 만든 문서형 템플릿 tpl.doc-* 가 1순위이고, native.* 는 exporter 텍스트 조립 폴백이다.
+template_pool:
+  cover: [tpl.doc-cover, native.cover]
+  toc: [tpl.doc-toc, native.toc]
+  section: [tpl.doc-section, native.section]
+  body: [tpl.doc-body, native.body]
+  summary: [tpl.doc-summary, native.summary]
+narration: { enabled: false, rate: 5.5 }
+outputs: [pptx]
+pptx: { slide_w_in: 10.0, slide_h_in: 7.5 }        # PowerPoint 표준 4:3 (EMU/px 6350 정확)
+# 실측값 — safe_margin = min(mx 89, my 81), min_font = 0.020×1080 = 21.6px
+constraints: { min_font: 21, safe_margin: 81 }
+theme: hwax-blue
+
+status: draft
+usage_count: 0
+
+lessons:
+  - "가로 템플릿(tpl.*) 재사용은 5/7 씬에서 실측 기각이다 — delib_v2 를 1440×1080 무대에 올려 재보니 문제 340.0px(9요소)·개념 350.0px(17)·절차 340.0px(8)·차별점 340.0px(6)·실증 400.3px(2)가 무대 밖으로 나갔다"
+  - "살아남은 것은 중앙 정렬 2씬뿐이다 — 오프닝 0px·클로징 26.0px 로 1920×1080 원 무대와 완전히 같았다. 좌우 배치 씬만 깨진다"
+  - "넘침 폭 = 콘텐츠 우변(x≈1780 = 1920 − marginX 140) − 무대 폭 이다 — 절대 px 좌표라 무대를 줄인 만큼 정확히 그대로 넘친다. 스케일링이 아니라 폭 재설계가 답이다"
+  - "높이 1080 은 같고 폭만 480px 좁다 — 세로 포맷(short-9x16)의 스택 은유를 가져올 자리가 아니다"
+  - "PowerPoint 표준 4:3 은 10×7.5in 이다 — 1440×1080 무대와 EMU/px 6350 으로 정확히 떨어져 좌표 왜곡이 없다"

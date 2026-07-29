@@ -1,0 +1,46 @@
+# tpl.o-statement — 씬 템플릿 모듈 SSOT (선언형 오프닝 — 문장 하나가 좌→우로 밝아지며 완성된다)
+id: tpl.o-statement
+type: scene-template
+name: "오프닝 · 선언형 — 문장 하나가 화면을 채운다"
+status: draft
+version: 1.0.0
+engine_compat: "animations-v2"
+origin: "창작 모드 오프닝 변주 2026-07-29"
+formats: [wide-16x9]
+stage: { w: 1920, h: 1080 }
+nat_default: 8
+scene_name_default: "오프닝"
+entry:
+  template: "web/templates/omx-openings.jsx#StatementOpeningScene"
+  schema: schema.json
+  fixtures:
+    - fixtures/min.json
+    - fixtures/typical.json
+    - fixtures/max.json
+  preview: preview.html
+  snapshots: fixtures/snapshots/
+metaphors:
+  - frame-chrome
+  - dot-grid
+theme_default: hwax-blue
+summary: "배지·도트·장식 없이 2~3행 선언 문장만 놓고, 옅은 실루엣에서 단어 단위로 좌→우 점등되며 문장이 완성되는 오프닝 — 강조어는 굵기가 아니라 색만 다르고, 완성 후 출처 한 줄이 조용히 붙는다"
+composition: "좌측 정렬 대형 문장(96~120px, 행 최대 자수로 렌더가 결정) + 하단 출처 한 줄 — 은유: 불이 켜지는 문장"
+imprint_strategy: "문장 각인 — 요소를 하나씩 쌓아 올리는 tpl.opening 과 달리, 문장 전체가 처음부터 실루엣으로 존재하고 '읽히는 순서대로' 밝아진다. 시청자는 등장을 보는 게 아니라 문장을 읽는다."
+in_scope:
+  - "격식 있는 보고·감사·정책 브리핑의 선언형 오프닝 (주장 한 문장)"
+  - "행 안의 강조 부분 문자열 1개(accent) — 색만 다름"
+  - "출처·발행 주체 한 줄 (30자 이내)"
+out_of_scope:
+  - "4행 이상 또는 행당 19자 이상 (96px 하한을 지키려 폰트를 줄이지 않는다 — 문장을 줄여라)"
+  - "배지·수치·항목 칩이 필요한 오프닝 (tpl.opening / tpl.o-metric / tpl.o-question)"
+  - "행마다 강조가 둘 이상 필요한 카피 (accent 는 행당 1개)"
+  - "중간 씬으로의 전용 — t=0 에 문장 실루엣이 이미 떠 있어 앞 씬과의 컷이 튄다 (첫 씬 전용).
+     frame-match 자체는 통과한다(첫/끝 프레임이 정지 상태) — 문제는 컷 연결이지 프레임 안정성이 아니다"
+quality:
+  reproducibility:
+    verdict: pass
+    max_diff_ratio: 0.00000000   # 독립 세션 2회 렌더 픽셀 해시 동일 (min/typical/max 3종 모두)
+    checked_at: "2026-07-29T03:01:00"
+  gates_passed:
+    - "20260729-030132-364be9"  # 7게이트 클린 (error 0 · warning 0 · info 0 · 오프닝 3씬 빌드)
+  reviews: []

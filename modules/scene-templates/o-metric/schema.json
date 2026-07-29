@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "wda:tpl.o-metric/schema@1.0.0",
+  "title": "tpl.o-metric 데이터 스키마 — 수치 충격형 오프닝(핵심 숫자를 먼저 던진다)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "value",
+    "meaning",
+    "title"
+  ],
+  "properties": {
+    "value": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 999999,
+      "description": "카운트업 목표값. 상한 6자리는 폭이 아니라 가독의 한계 — 최악(999,999.0 + 단위 3자)도 220px 로 실측 1378px 라 무대(1720px)에 남지만, 7자리부터는 한눈에 읽히지 않아 '충격 수치'가 되지 못한다"
+    },
+    "decimals": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1,
+      "default": 0,
+      "description": "소수 자릿수 (3.2배 · 97.4% 표기용). 카운트업 중에도 같은 자릿수로 고정"
+    },
+    "suffix": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 3,
+      "x-read": true,
+      "description": "단위 — 수치의 절반 크기로 붙는다 (건 · % · 배 · 만원)"
+    },
+    "meaning": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 34,
+      "x-read": true,
+      "description": "그 수치가 무엇을 뜻하는지 한 줄 (36px 1행 실측 상한)"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 24,
+      "x-read": true,
+      "description": "보고서 제목 — 이 오프닝에서는 조연이라 26px 킥커 취급"
+    },
+    "source": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 30,
+      "description": "하단 출처 한 줄"
+    }
+  }
+}

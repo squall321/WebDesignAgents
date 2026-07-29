@@ -1,0 +1,53 @@
+# tpl.x-quote — 씬 템플릿 모듈 SSOT (클로징 변주 — 한 문장 각인형 · 다 지우고 하나만 남긴다)
+id: tpl.x-quote
+type: scene-template
+name: "클로징 · 한 문장 각인 — 결론 한 줄을 92px 로 남긴다"
+status: draft
+version: 1.0.0
+engine_compat: "animations-v2"
+origin: "창작 모드 클로징 변주 2026-07-29"
+formats: [wide-16x9]
+stage: { w: 1920, h: 1080 }
+nat_default: 10
+scene_name_default: "각인"
+entry:
+  template: "web/templates/omx-closings.jsx#QuoteScene"
+  schema: schema.json
+  fixtures:
+    - fixtures/min.json
+    - fixtures/typical.json
+    - fixtures/max.json
+  preview: preview.html
+  snapshots: fixtures/snapshots/
+metaphors:
+  - frame-chrome
+  - dot-grid
+theme_default: hwax-blue
+summary: "결론을 한 문장으로 압축해 theme.type.display(92px)로 남기고 배경에는 킥커·타이틀·푸터를 두지 않는 각인형 클로징 씬 — 오프닝 선언형(tpl.o-statement, 96~120px·행간 1.24)과 같은 타이포 층위에서 한 계단 아래에 앉아 여는 화면과 닫는 화면이 대응한다(수미상관)"
+composition: "상단 블루 규칙선 → 문장 92px(강조부만 blue) → 밑줄이 좌→우로 그어져 문장을 고정 → 출처 · 일자 26px — 은유: 비문"
+closing_strategy: "삭감 — 화면에서 뺄 수 있는 것을 전부 뺀다. 남은 하나가 결론이다"
+typography_contract:
+  quote_size_token: "type.display"      # 92px — 요구 대역 80~100px 안. 임의 px 대신 토큰(UI 원칙 3)
+  quote_line_height: 1.24               # tpl.o-statement 의 ST_LINE_H 와 동일
+  quote_width_px: 1560                  # 좌우 180px 여백
+  meta_size_token: "type.body"          # 26px 출처/일자
+  # 수미상관 실측 (2026-07-29, web/templates/omx-openings.jsx) — 오프닝 선언형은 행 최대 자수에
+  # 따라 96~120px·행간 1.24 를 쓴다. 클로징은 그 대역 바로 아래 토큰값 92px 에 고정한다.
+  # 여는 화면이 가장 크고 닫는 화면이 같은 층위에서 한 단계 낮게 앉는다.
+  opening_counterpart: "tpl.o-statement (96~120px · line-height 1.24)"
+in_scope:
+  - "심의가 도달한 결론 한 문장 (합계 38자 상한 — 92px 폭 1560px 기준 최대 3줄)"
+  - "{pre, accent, post} 강조 분절 — accent 만 blue 로 갈라 읽힌다"
+  - "출처(회의체·문서명)와 일자 — 인용의 책임 소재"
+out_of_scope:
+  - "두 문장 이상·목록 (되짚기는 tpl.x-summary)"
+  - "행동 유도·일정 (권유는 tpl.closing, 일정·책임은 tpl.x-next)"
+  - "배경 이미지·로고·CTA (배경을 비우는 것이 이 템플릿의 정의다)"
+quality:
+  reproducibility:
+    verdict: pass
+    max_diff_ratio: 0.00000000   # 독립 브라우저 세션 2회 렌더 픽셀 diff (min/typical/max 3종 모두 0)
+    checked_at: "2026-07-29T03:03:00"
+  gates_passed:
+    - "20260729-031020-fe0f62"  # 7게이트 클린 (error 0 · warning 0 · 클로징 3씬 38초 빌드)
+  reviews: []

@@ -1,0 +1,46 @@
+# theme.fresh-teal — 테마 모듈 SSOT (민트 지면 + 딥 틸 강조, 탄력 있는 모션)
+id: theme.fresh-teal
+type: theme
+name: "프레시 틸 — 민트 지면 + 딥 틸 강조"
+status: draft
+version: 1.0.0
+engine_compat: "animations-v2"
+origin: "web/tokens/hwax-blue.json (3층 구조 계승 — 값만 교체)"
+entry:
+  tokens: web/tokens/fresh-teal.json
+  loader: "window.OMX.themes.load('fresh-teal') | OMX.themes.fromGlobal() (OM_THEME 주입)"
+  previews:
+    - web/tokens/_previews/fresh-teal/process.png
+    - web/tokens/_previews/fresh-teal/proof.png
+    - web/tokens/_previews/fresh-teal/closing.png
+base_theme: hwax-blue
+summary: "민트 지면 위에 순백 카드를 띄우고 딥 틸로 짚는, 제안·신사업용 활기 테마"
+personality:
+  color: "민트 배경(#E4F5F0)·순백 카드(#FFFFFF)·딥 틸 강조(#0B7168)·틸 블루 보조(#0E6E86). 지면과 카드의 색차가 4종 중 가장 커서 카드가 확실히 뜬다"
+  shadow: "틸을 섞은 중간 그림자(0 16px 40px / 0.10) — 순백 카드가 민트 지면 위로 뜨는 높이를 만든다"
+  motion: "등장 전 구간 easeOutBack 오버슈트 + 짧은 지속시간(0.62s) — 요소가 튀어 들어와 자리를 잡는다"
+in_scope:
+  - "신사업·신제품 제안, 파일럿 결과 공유"
+  - "혁신·개선 활동 성과 발표 (전후 비교·수치 개선)"
+  - "짧은 세로 포맷 훅 (탄력 모션이 짧은 길이에서 잘 읽힌다)"
+out_of_scope:
+  - "감사·규정 등 절제가 요구되는 자리 (오버슈트 모션이 가볍게 읽힌다)"
+  - "장문 문서형 포맷 (지면 채도가 본문 가독을 방해할 수 있다)"
+quality:
+  contrast:
+    verdict: pass
+    standard: "WCAG 2.1 AA 4.5:1"
+    pairs_checked: 17
+    min_ratio: 4.58
+    median_ratio: 5.58
+    checked_at: "2026-07-29"
+  key_completeness:
+    verdict: pass
+    missing_vs_base: 0
+    extra_vs_base: 0
+  render:
+    verdict: pass
+    templates: [tpl.process, tpl.proof, tpl.closing]
+    console_errors: 0
+  gates_passed: []
+  reviews: []

@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "wda:tpl.doc-toc/schema@1.0.0",
+  "title": "tpl.doc-toc 데이터 스키마 (문서형 목차 · 3무대 공용)",
+  "description": "maxLength 는 지원 무대 3종(deck-doc-16x9 1920×1080 · deck-4x3 1440×1080 · print-a4 1240×1754) 실측 역산이다. 항목 7개 이상이면 2열로 갈리므로 **한 열 폭의 바닥은 A4 (1072-44)/2 = 514px**, 그중 번호·리더점·페이지를 뺀 텍스트 폭 384px 이 자수 상한의 근거다. 높이 바닥은 4:3(1440×1080) — 본문 가용 높이 약 730px 에 10항목(2열 × 5행) + 그룹 머리글이 들어가야 한다. 영상 템플릿 값 재사용 없음.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "title",
+    "items"
+  ],
+  "properties": {
+    "kicker": {
+      "type": "string",
+      "maxLength": 12,
+      "description": "상단 위치 라벨 — 25px + 자간 0.12em(≈28px/자) → 12자"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16,
+      "x-read": true,
+      "description": "목차 제목 — 38px, 본문 폭 1072px → 28자/줄. 16자는 관행(\"목차\"·\"이 문서의 구성\")에 맞춘 상한"
+    },
+    "items": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 10,
+      "description": "목차 항목 4~10개. group 이 바뀌는 지점에 그룹 머리글이 들어간다(섹션 그룹핑). 7개 이상이면 2열",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "text",
+          "page"
+        ],
+        "properties": {
+          "no": {
+            "type": "string",
+            "maxLength": 4,
+            "description": "항목 번호 — 26px, 고정 열폭 44px → \"1.\"~\"10.\" 4자"
+          },
+          "group": {
+            "type": "string",
+            "maxLength": 12,
+            "description": "소속 섹션명 — 앞 항목과 다르면 그룹 머리글로 한 줄 차지한다. 25px + 자간 0.1em → 12자"
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 26,
+            "description": "항목 제목 — 26px, 2열 최소 텍스트 폭 384px(A4) → 14.8자/줄, 26자면 2줄 이내"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 18,
+            "description": "항목 한 줄 설명 — 24px, 4:3 텍스트 폭 484px → 20자/줄. 18자로 잡아 4:3 에서 1줄을 보장한다(행 높이 예산의 근거)"
+          },
+          "page": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4,
+            "description": "페이지 번호 — 26px, 우측 고정. 4자(\"12\"·\"7-9\")"
+          }
+        }
+      }
+    },
+    "note": {
+      "type": "string",
+      "maxLength": 46,
+      "description": "목차 하단 안내 한 줄 — 24px, 본문 폭 1072px → 44자/줄"
+    },
+    "page": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "머리말 우측 페이지 표시",
+      "properties": {
+        "no": {
+          "type": "string",
+          "maxLength": 4
+        },
+        "total": {
+          "type": "string",
+          "maxLength": 4
+        }
+      },
+      "required": [
+        "no"
+      ]
+    },
+    "footer": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "꼬리말 — 좌: 문서명·출처, 우: 배포 구분",
+      "properties": {
+        "left": {
+          "type": "string",
+          "maxLength": 40,
+          "description": "24px, 꼬리말 좌측 — 우측 항목을 뺀 폭에서 40자"
+        },
+        "right": {
+          "type": "string",
+          "maxLength": 14,
+          "description": "24px, 꼬리말 우측(줄바꿈 금지) — 14자"
+        }
+      }
+    }
+  }
+}

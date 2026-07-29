@@ -1,0 +1,191 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "wda:tpl.l-mix/schema@1.0.0",
+  "title": "tpl.l-mix 데이터 스키마",
+  "description": "표 + 차트 혼합 씬 — 상단 40%(226px)는 요약 수치 2~3개 **또는** 한 줄 결론, 하단 60%(342px)는 좌측 간이표(≤4열×≤5행)와 우측 막대(3~4개). structured table 과 series 를 동시에 받는 유일한 템플릿이다. **라벨이 겹치는 행과 막대는 같은 수치를 가리켜야 한다** (교차 배열 제약이라 스키마가 아니라 테스트가 지킨다).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["kicker", "title", "table", "chart"],
+  "oneOf": [
+    { "required": ["stats"], "not": { "required": ["lead"] } },
+    { "required": ["lead"], "not": { "required": ["stats"] } }
+  ],
+  "properties": {
+    "kicker": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 26,
+      "x-read": true,
+      "description": "타이틀 1행 — 내용 폭 1640px ÷ 56px(sectionTitle) ≈ 29자, 안전 26자"
+    },
+    "stats": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 3,
+      "description": "상단 요약 수치 — lead 와 배타(oneOf). 3개 시 칸폭 531px",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["value", "label"],
+        "properties": {
+          "value": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 6,
+            "pattern": "^-?[0-9][0-9.,]*$",
+            "description": "숫자만 (단위는 unit 으로) — 92px(display) × 6자 ≈ 304px ≤ 531"
+          },
+          "unit": { "type": "string", "minLength": 1, "maxLength": 3 },
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 14,
+            "description": "수치 설명 — 26px × 14자 = 364px ≤ 531"
+          }
+        }
+      }
+    },
+    "lead": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 40,
+      "x-read": true,
+      "description": "상단 한 줄 결론 — stats 와 배타(oneOf). 35px(claim) 안폭 1592 ÷ 35 ≈ 45자, 안전 40자"
+    },
+    "table": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["columns", "rows"],
+      "description": "좌측 간이표 — 첫 열은 행 라벨 열(380px), 데이터 열은 각 171px",
+      "properties": {
+        "columns": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 4,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["label"],
+            "properties": {
+              "label": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 10,
+                "description": "열 이름 — 데이터 열폭 171px ÷ 24px(caption) ≈ 7자. 첫 열(안폭 356px)만 10자까지"
+              }
+            }
+          }
+        },
+        "rows": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 5,
+          "description": "데이터 행 3~5개 — 행 높이 (342-66-16)/5 = 52px",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["label", "cells"],
+            "properties": {
+              "label": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 13,
+                "description": "행 라벨 — 첫 열 안폭 356px ÷ 24px ≈ 14자, nowrap 안전 13자"
+              },
+              "cells": {
+                "type": "array",
+                "minItems": 2,
+                "maxItems": 3,
+                "description": "데이터 셀 — 개수는 columns-1",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["v"],
+                  "properties": {
+                    "v": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 6,
+                      "description": "셀 값 — 열폭 171px ÷ 24px ≈ 7자, nowrap 안전 6자"
+                    },
+                    "em": { "type": "boolean", "description": "강조 셀 — 청색 800" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "chart": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bars"],
+      "description": "우측 막대 — 표와 같은 사실의 다른 표현. 라벨이 표의 행 라벨과 같으면 수치도 같아야 한다",
+      "properties": {
+        "bars": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 4,
+          "description": "막대 3~4개 — 행 피치 73.5px, 트랙 폭 612px",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["label", "value", "display"],
+            "properties": {
+              "label": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 18,
+                "description": "막대 라벨 — 트랙 612 - 판독값 150 - gap 16 = 446px ÷ 24px ≈ 18자"
+              },
+              "value": {
+                "type": "number",
+                "minimum": 0,
+                "description": "막대 길이의 원천 — 0 기준선 고정(음수 금지), 최댓값 또는 axisMax 로 정규화"
+              },
+              "display": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 6,
+                "description": "판독값 표기 (예: 100%) — 24px × 6자 = 144px ≤ 150"
+              },
+              "em": { "type": "boolean", "description": "강조 막대 — 진한 청색 + 판독값 청색" }
+            }
+          }
+        },
+        "axisMax": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "축 상한 — 데이터 최댓값 미만이면 최댓값으로 승격한다(막대 절단 금지). 하한은 항상 0"
+        }
+      }
+    },
+    "note": {
+      "type": "object",
+      "additionalProperties": false,
+      "x-read": true,
+      "description": "하단 중앙 풋노트 — 표와 차트가 함께 말하는 결론 한 줄",
+      "properties": {
+        "pre": { "type": "string", "maxLength": 18 },
+        "strong": { "type": "string", "maxLength": 12 },
+        "post": { "type": "string", "maxLength": 18 }
+      }
+    },
+    "frame": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "프레임 푸터 메타 — 없으면 푸터 숨김",
+      "properties": {
+        "brand": { "type": "string", "maxLength": 24 },
+        "idx": { "type": "string", "maxLength": 4 },
+        "total": { "type": "string", "maxLength": 4 }
+      }
+    }
+  }
+}

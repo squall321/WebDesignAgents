@@ -1,0 +1,44 @@
+# tpl.doc-toc — 문서형 씬 템플릿 모듈 SSOT (문서형 목차 — 항목 4~10개 + 페이지 번호 + 섹션 그룹핑)
+id: tpl.doc-toc
+type: scene-template
+name: "문서형 목차 — 항목 4~10개 + 페이지 번호 + 섹션 그룹핑"
+status: draft
+version: 1.0.0
+engine_compat: "animations-v2"
+origin: "창작 모드 문서형 2026-07-29"
+formats: [deck-doc-16x9, deck-4x3, print-a4]
+# stage = 골든 스냅샷·재현력 검증의 기준 무대(deck-doc-16x9). 나머지 두 무대는 stages 에 명시하고
+# 레이아웃은 좌표가 아니라 flex 비율이라 같은 코드가 셋 다 성립한다(실측: tests/test_templates_doc_render.py).
+stage: { w: 1920, h: 1080 }
+stages:
+  deck-doc-16x9: { w: 1920, h: 1080 }
+  deck-4x3: { w: 1440, h: 1080 }
+  print-a4: { w: 1240, h: 1754 }
+nat_default: 7
+scene_name_default: "목차"
+entry:
+  template: "web/templates/omx-templates-doc.jsx#DocTocScene"
+  schema: schema.json
+  fixtures:
+    - fixtures/min.json
+    - fixtures/typical.json
+    - fixtures/max.json
+  preview: preview.html
+  snapshots: fixtures/snapshots/
+metaphors:
+  - doc-page
+  - doc-rule
+theme_default: hwax-blue
+summary: "항목 4~10개를 리더점과 페이지 번호로 잇고 group 이 바뀌는 지점에 섹션 머리글을 넣는 목차 씬 (7개 이상이면 2열)"
+composition: "머리말(위치 라벨 + 페이지) / 제목 38px + 룰 / 항목 목록 — 번호 26px + 제목 26px + 설명 24px + 리더 점선 + 페이지 26px, 항목 7개부터 좌우 2열 분할 / 하단 안내 + 꼬리말"
+in_scope:
+  - "문서형 덱의 목차 장"
+  - "섹션 그룹핑(그룹 머리글)"
+  - "항목별 한 줄 설명과 페이지 번호"
+out_of_scope:
+  - "영상 구간 예고 (vtpl.hook 의 beats 사용)"
+  - "11개 이상 항목 — 2열 × 5행이 4:3 무대(가용 높이 886px) 상한"
+  - "본문 요약 — 목차는 위치 안내다"
+quality:
+  gates_passed: []
+  reviews: []

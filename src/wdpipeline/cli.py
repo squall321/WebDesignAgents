@@ -98,10 +98,14 @@ def formats() -> None:
         except FormatError as e:
             typer.echo(f"  {fid}: [로드 실패] {str(e).splitlines()[0]}")
             continue
+        # 분량은 산출에 따라 자가 다르다 — 영상은 초, PPT 전용은 슬라이드 수.
+        if spec.slides is not None and not spec.wants("video"):
+            budget = f"{spec.slides.target}장(허용 {spec.slides.min}~{spec.slides.max})"
+        else:
+            budget = f"{spec.duration.target}s(허용 {spec.duration.min}~{spec.duration.max})"
         typer.echo(
-            f"  {fid}: {spec.name_ko} — 무대 {spec.stage.w}x{spec.stage.h} · "
-            f"{spec.duration.target}s(허용 {spec.duration.min}~{spec.duration.max}) · "
-            f"골격 {'→'.join(spec.skeleton)}"
+            f"  {fid}: {spec.name_ko} — 무대 {spec.stage.w}x{spec.stage.h} · {budget} · "
+            f"산출 {'+'.join(spec.outputs)} · 골격 {'→'.join(spec.skeleton)}"
         )
 
 
@@ -181,6 +185,7 @@ def render(
     from wdrender.exporter_pptx import export_pptx
     from wdrender.exporter_video import export_video
     from wdpipeline.build import ENTRY_NAME
+    from wdpipeline.format import render_targets
 
     build_dir = _data_dir() / "build" / slug
     if not (build_dir / ENTRY_NAME).is_file():
@@ -192,13 +197,20 @@ def render(
     # 무대·슬라이드 규격은 빌드된 시나리오의 포맷이 지배한다 (--format 은 명시 오버라이드)
     fid = format or scene_data.get("format") or DEFAULT_FORMAT_ID
 
+    # 무엇을 뽑을지는 포맷의 outputs 가 정한다 — PPT 전용 포맷(outputs: [pptx])은 mp4 를
+    # 아예 시도하지 않는다. --skip-video 는 그 위에 얹는 사용자 오버라이드다.
+    targets = render_targets(fid, skip_video=skip_video)
+    if not targets:
+        typer.echo(f"[오류] 포맷 {fid} 에 실행할 렌더 타깃이 없다 (--skip-video 와 outputs 확인)", err=True)
+        raise typer.Exit(code=1)
+
     cfg = load_config()
     if fps > 0:
         cfg.fps = fps
     out_dir = _data_dir() / "renders" / slug
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    if not skip_video:
+    if "video" in targets:
         info = export_video(
             build_dir, ENTRY_NAME, out_dir / f"{slug}.mp4", config=cfg, format_id=fid
         )
@@ -206,11 +218,14 @@ def render(
             f"[render] mp4 포맷={fid} duration={info['duration']}s fps={info['fps']} "
             f"frames={info['frames']} → {info['out']}"
         )
-    pinfo = export_pptx(
-        build_dir, ENTRY_NAME, out_dir / f"{slug}.pptx",
-        config=cfg, format_id=fid, stills=stills, notes=notes,
-    )
-    typer.echo(f"[render] pptx {pinfo['slides']}장/{pinfo['scenes']}씬 → {pinfo['out']}")
+    else:
+        typer.echo(f"[render] mp4 생략 — 포맷 {fid} 산출 {'+'.join(targets) or '(없음)'}")
+    if "pptx" in targets:
+        pinfo = export_pptx(
+            build_dir, ENTRY_NAME, out_dir / f"{slug}.pptx",
+            config=cfg, format_id=fid, stills=stills, notes=notes,
+        )
+        typer.echo(f"[render] pptx {pinfo['slides']}장/{pinfo['scenes']}씬 → {pinfo['out']}")
 
 
 @app.command()

@@ -1,0 +1,261 @@
+{
+  "id": "warm-amber",
+  "name": "Warm Amber",
+  "version": "1.0.0",
+  "description": "크림 배경 + 앰버/테라코타 강조 — 인사·조직문화·교육용 따뜻한 테마. hwax-blue 와 키 집합·semantic.layout·semantic.radius·semantic.type 동일, palette·shadow·motion·contrastPairs 만 교체. 모션은 부드럽게(easeOutSine 계열, 지속시간을 약 20% 길게).",
+  "raw": {
+    "palette": {
+      "bg": "#F8F0E4",
+      "ink": "#2E241C",
+      "sub": "#6B5747",
+      "faint": "#7A6656",
+      "line": "#E5D7C4",
+      "blue": "#9A4A12",
+      "blue2": "#9E5218",
+      "blueSoft": "#FAEBD6",
+      "blueBorder": "#DFC299",
+      "card": "#FFFDF9",
+      "red": "#A33327",
+      "redSoft": "#FAEBE7",
+      "green": "#4A6B2A",
+      "greenSoft": "#EFF3E6",
+      "skel": "#E4D5C1",
+      "chatGray": "#F2E9DC"
+    },
+    "extra": {
+      "white": "#FFFFFF",
+      "dot": "#E0CDB2",
+      "badgeBg": "#FFFFFFBF",
+      "typingBg": "#F0E5D6"
+    },
+    "font": {
+      "base": "'Pretendard Variable', Pretendard, 'Noto Sans KR', sans-serif"
+    },
+    "shadow": {
+      "card": "0 20px 48px rgba(74,52,34,0.10)",
+      "cardSoft": "0 10px 26px rgba(74,52,34,0.06)",
+      "blue": "0 18px 40px rgba(154,74,18,0.30)",
+      "blueSoft": "0 18px 40px rgba(154,74,18,0.24)",
+      "active": "0 22px 48px rgba(154,74,18,0.16)"
+    }
+  },
+  "semantic": {
+    "type": {
+      "iconCheck": 17,
+      "caption": 24,
+      "note": 25,
+      "body": 26,
+      "emphasis": 27,
+      "chat": 28,
+      "lead": 30,
+      "item": 31,
+      "cardTitle": 33,
+      "chipLg": 34,
+      "claim": 35,
+      "subtitle": 36,
+      "caseTitle": 38,
+      "arrow": 44,
+      "sectionTitle": 56,
+      "display": 92,
+      "hero": 112
+    },
+    "layout": {
+      "stageW": 1920,
+      "stageH": 1080,
+      "marginX": 140,
+      "kickerTop": 108,
+      "kickerRuleW": 46,
+      "kickerRuleH": 5,
+      "kickerGap": 18,
+      "titleTop": 162,
+      "contentTop": 330,
+      "footerBottom": 56,
+      "footerPadTop": 22
+    },
+    "radius": {
+      "card": 24,
+      "panel": 22,
+      "box": 20,
+      "chip": 16,
+      "tag": 14,
+      "bar": 8,
+      "pill": 999
+    },
+    "motion": {
+      "rise": { "dur": 0.85, "dy": 24, "ease": "easeOutSine" },
+      "riseSm": { "dur": 0.72, "dy": 16, "ease": "easeOutSine" },
+      "pop": { "dur": 0.55, "ease": "easeOutBack" },
+      "tag": { "dur": 0.6, "dy": 12, "ease": "easeOutSine" },
+      "exit": { "dur": 0.85, "dy": -24, "ease": "easeInSine" },
+      "fill": { "ease": "linear" },
+      "stagger": {
+        "micro": 0.18,
+        "icon": 0.18,
+        "bar": 0.35,
+        "row": 1.2,
+        "block": 1.4,
+        "step": 2.35,
+        "panel": 3.6
+      }
+    },
+    "contrastPairs": [
+      { "fg": "{palette.ink}", "bg": "{palette.bg}", "role": "본문 텍스트 / 크림 배경" },
+      { "fg": "{palette.sub}", "bg": "{palette.bg}", "role": "보조 텍스트 / 크림 배경" },
+      { "fg": "{palette.faint}", "bg": "{palette.bg}", "role": "푸터·캡션 / 크림 배경" },
+      { "fg": "{palette.blue}", "bg": "{palette.bg}", "role": "킥커·강조(테라코타) / 크림 배경" },
+      { "fg": "{palette.ink}", "bg": "{palette.card}", "role": "본문 텍스트 / 카드" },
+      { "fg": "{palette.sub}", "bg": "{palette.card}", "role": "보조 텍스트 / 카드" },
+      { "fg": "{palette.faint}", "bg": "{palette.card}", "role": "메타 텍스트 / 카드" },
+      { "fg": "{palette.blue}", "bg": "{palette.card}", "role": "강조·이니셜 / 카드" },
+      { "fg": "{palette.blue}", "bg": "{palette.blueSoft}", "role": "칩·배지 텍스트 / 소프트 앰버" },
+      { "fg": "{palette.blue2}", "bg": "{palette.blueSoft}", "role": "대기 상태 번호 / 소프트 앰버" },
+      { "fg": "{palette.ink}", "bg": "{palette.blueSoft}", "role": "질문 말풍선 텍스트 / 소프트 앰버" },
+      { "fg": "{extra.white}", "bg": "{palette.blue}", "role": "활성 칩·결정 박스 텍스트 / 테라코타" },
+      { "fg": "{extra.white}", "bg": "{palette.green}", "role": "체크마크·수렴 배지 텍스트 / 올리브" },
+      { "fg": "{palette.red}", "bg": "{palette.redSoft}", "role": "오류 태그 텍스트 / 소프트 레드" },
+      { "fg": "{palette.green}", "bg": "{palette.greenSoft}", "role": "성공 배지 텍스트 / 소프트 올리브" },
+      { "fg": "{palette.blue}", "bg": "{extra.badgeBg}", "role": "오프닝 배지 텍스트 / 반투명 화이트" },
+      { "fg": "{palette.sub}", "bg": "{extra.typingBg}", "role": "판정 필 텍스트 / 타이핑 샌드" }
+    ]
+  },
+  "component": {
+    "frame": {
+      "bg": "{palette.bg}",
+      "ink": "{palette.ink}",
+      "kicker": "{palette.blue}",
+      "rule": "{palette.blue}",
+      "line": "{palette.line}",
+      "footerInk": "{palette.faint}",
+      "dot": "{extra.dot}",
+      "glow": "radial-gradient(1400px 700px at 50% -12%, rgba(154,74,18,0.07), transparent)"
+    },
+    "card": {
+      "bg": "{palette.card}",
+      "border": "{palette.line}",
+      "shadow": "{shadow.card}",
+      "shadowSoft": "{shadow.cardSoft}"
+    },
+    "chip": {
+      "infoBg": "{palette.blueSoft}",
+      "infoFg": "{palette.blue2}",
+      "accentBg": "{palette.blueSoft}",
+      "accentFg": "{palette.blue}",
+      "activeBg": "{palette.blue}",
+      "activeFg": "{extra.white}",
+      "successBg": "{palette.greenSoft}",
+      "successFg": "{palette.green}",
+      "errorBg": "{palette.redSoft}",
+      "errorFg": "{palette.red}"
+    },
+    "tag": {
+      "errorBg": "{palette.redSoft}",
+      "errorFg": "{palette.red}",
+      "acceptBg": "{palette.blueSoft}",
+      "acceptFg": "{palette.blue}",
+      "successBg": "{palette.green}",
+      "successFg": "{extra.white}",
+      "infoBg": "{palette.blueSoft}",
+      "infoFg": "{palette.blue}"
+    },
+    "chat": {
+      "panelBg": "{palette.card}",
+      "panelBorder": "{palette.line}",
+      "headerDot": "{palette.skel}",
+      "headerFg": "{palette.faint}",
+      "questionBg": "{palette.blueSoft}",
+      "questionFg": "{palette.ink}",
+      "answerBg": "{palette.chatGray}",
+      "skelBar": "{palette.skel}",
+      "verdictBg": "{extra.typingBg}",
+      "verdictBorder": "{palette.line}",
+      "verdictFg": "{palette.sub}",
+      "verdictDot": "{palette.faint}"
+    },
+    "network": {
+      "line": "{palette.blueBorder}",
+      "travelDot": "{palette.blue2}",
+      "nodeBg": "{palette.card}",
+      "nodeBorder": "{palette.blueBorder}",
+      "nodeFg": "{palette.blue}",
+      "nameFg": "{palette.sub}",
+      "centerBg": "{palette.blue}",
+      "centerFg": "{extra.white}",
+      "centerShadow": "{shadow.blue}",
+      "r": 246,
+      "lineTrim": 118,
+      "centerW": 156,
+      "centerH": 92,
+      "nodeSize": 100,
+      "travelDotSize": 11
+    },
+    "stepGrid": {
+      "cardW": 516,
+      "cardH": 256,
+      "colPitch": 562,
+      "rowPitch": 292,
+      "top": 344,
+      "railTop": 296,
+      "railH": 5,
+      "railW": 1640,
+      "railBase": "{palette.line}",
+      "railFill": "{palette.blue}",
+      "activeBorder": "{palette.blue2}",
+      "idleBorder": "{palette.line}",
+      "activeShadow": "{shadow.active}",
+      "idleShadow": "{shadow.cardSoft}",
+      "numActiveBg": "{palette.blue}",
+      "numActiveFg": "{extra.white}",
+      "numIdleBg": "{palette.blueSoft}",
+      "numIdleFg": "{palette.blue2}"
+    },
+    "flow": {
+      "cardW": 508,
+      "colPitch": 566,
+      "top": 356,
+      "minH": 330,
+      "arrowY": 500,
+      "arrowFg": "{palette.faint}",
+      "noteTop": 782
+    },
+    "caseTrio": {
+      "cardW": 508,
+      "cardH": 520,
+      "colPitch": 566,
+      "top": 350,
+      "noteTop": 906
+    },
+    "processNote": { "top": 952 },
+    "converge": {
+      "avatarBg": "{palette.blueSoft}",
+      "avatarBorder": "{palette.blueBorder}",
+      "avatarFg": "{palette.blue}",
+      "checkBg": "{palette.green}",
+      "checkFg": "{extra.white}",
+      "avatarSize": 58,
+      "checkSize": 27
+    },
+    "statTrio": { "itemW": 480, "gap": 90, "valueFg": "{palette.blue}", "descFg": "{palette.sub}" },
+    "ctaPill": {
+      "bg": "{palette.card}",
+      "border": "{palette.blueBorder}",
+      "fg": "{palette.ink}",
+      "accent": "{palette.blue}",
+      "shadow": "{shadow.card}"
+    },
+    "decision": {
+      "bg": "{palette.blue}",
+      "fg": "{extra.white}",
+      "shadow": "{shadow.blueSoft}"
+    },
+    "badge": {
+      "bg": "{extra.badgeBg}",
+      "border": "{palette.blueBorder}",
+      "fg": "{palette.blue}"
+    },
+    "xList": {
+      "iconBg": "{palette.redSoft}",
+      "iconFg": "{palette.red}",
+      "iconSize": 50
+    }
+  }
+}

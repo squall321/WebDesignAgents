@@ -1,0 +1,146 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "wda:tpl.l-quad/schema@1.0.0",
+  "title": "tpl.l-quad 데이터 스키마",
+  "description": "4분면 매트릭스 씬 — x·y 두 축(각 축 끝 라벨)으로 나뉜 판에 항목 4~10개를 0~1 정규화 좌표로 배치한다. 포지셔닝·우선순위 논증용이며 structured series 의 quadrant 모드(entries {label, x, value})를 그대로 받는다. 좌표판 1000px, 범례 600px 로 나눠 이름 충돌을 없앴다 — 판에는 번호, 범례에 이름.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["kicker", "title", "xAxis", "yAxis", "quadrants", "items"],
+  "properties": {
+    "kicker": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 26,
+      "x-read": true,
+      "description": "타이틀 1행 — 내용 폭 1640px ÷ 56px(sectionTitle) ≈ 29자, 안전 26자"
+    },
+    "xAxis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "low", "high"],
+      "description": "가로축 — 이름은 판 상단 좌측, 끝 라벨은 판 하단 양끝",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 14,
+          "description": "축 이름 — '가로 · ' 접두 포함 24px × 17자 ≈ 420px (판 안폭 952의 절반 이하)"
+        },
+        "low": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 6,
+          "description": "좌측 끝 라벨 — 24px × 6자 = 144px ≤ 앵커 폭 200px"
+        },
+        "high": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 6,
+          "description": "우측 끝 라벨 — 24px × 6자 = 144px ≤ 앵커 폭 200px"
+        }
+      }
+    },
+    "yAxis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "low", "high"],
+      "description": "세로축 — 이름은 판 상단 우측, 끝 라벨은 좌측 스트립(폭 100px)",
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "maxLength": 14 },
+        "low": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4,
+          "description": "아래 끝 라벨 — 좌측 스트립 100px ÷ 24px = 4자 (실측 역산)"
+        },
+        "high": { "type": "string", "minLength": 1, "maxLength": 4 }
+      }
+    },
+    "quadrants": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tl", "tr", "bl", "br"],
+      "description": "사분면 이름 — tl 좌상 · tr 우상 · bl 좌하 · br 우하 (네 칸 모두 이름이 있어야 매트릭스가 논증이 된다)",
+      "properties": {
+        "tl": { "type": "string", "minLength": 1, "maxLength": 9 },
+        "tr": { "type": "string", "minLength": 1, "maxLength": 9 },
+        "bl": { "type": "string", "minLength": 1, "maxLength": 9 },
+        "br": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 9,
+          "description": "모서리 앵커 폭 260px ÷ 25px(note) ≈ 10자, nowrap 안전 9자"
+        }
+      }
+    },
+    "highlight": {
+      "type": "string",
+      "maxLength": 2,
+      "enum": ["tl", "tr", "bl", "br"],
+      "description": "강조 사분면 — 해당 칸을 blueSoft 로 옅게 칠하고 이름을 청색 강조한다 (예: 우상=핵심)"
+    },
+    "items": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 10,
+      "description": "항목 4~10개 — 판에는 번호 점, 우측 범례에 같은 번호와 이름. 10개 시 범례 행 높이 53px",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["label", "x", "y"],
+        "properties": {
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 18,
+            "description": "범례 이름 — 범례 안폭 544 - 번호칩 40 - gap 16 = 488px ÷ 25px ≈ 19자, 안전 18자"
+          },
+          "x": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "가로 좌표 0~1 정규화 (0=low 끝, 1=high 끝). 범위 밖 값은 렌더가 clamp01 로 판 안에 가둔다"
+          },
+          "y": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "세로 좌표 0~1 정규화 (0=아래 끝, 1=위 끝)"
+          },
+          "tone": {
+            "type": "string",
+            "maxLength": 8,
+            "enum": ["primary", "positive", "caution", "muted"],
+            "description": "점 색 — primary 청 · positive 녹 · caution 적 · muted 회 (모두 선언된 대비 페어)"
+          }
+        }
+      }
+    },
+    "note": {
+      "type": "object",
+      "additionalProperties": false,
+      "x-read": true,
+      "description": "하단 중앙 풋노트 — 이 배치가 말하는 결론 한 줄",
+      "properties": {
+        "pre": { "type": "string", "maxLength": 18 },
+        "strong": { "type": "string", "maxLength": 12 },
+        "post": { "type": "string", "maxLength": 18 }
+      }
+    },
+    "frame": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "프레임 푸터 메타 — 없으면 푸터 숨김",
+      "properties": {
+        "brand": { "type": "string", "maxLength": 24 },
+        "idx": { "type": "string", "maxLength": 4 },
+        "total": { "type": "string", "maxLength": 4 }
+      }
+    }
+  }
+}

@@ -1,0 +1,234 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "wda:tpl.c-trend/schema@1.0.0",
+  "title": "tpl.c-trend 데이터 스키마",
+  "description": "추세 시계열 씬 — 값의 궤적(tpl.timeline 은 사건의 이정표라 다르다). 수치 왜곡 방지를 구조로 강제한다 — (1) y 하한은 axis.min 이 없으면 항상 0. axis.min 을 0 이 아닌 값으로 주면 렌더러가 '축 절단 · 하한 N' 칩과 축 파단 표식을 화면에 반드시 띄운다(숨길 수 없다). (2) axis.max 는 데이터 최댓값보다 작으면 최댓값으로 승격 — 라인 절단 불가. axis.max 생략 시 niceCeil 로 올린다. (3) values 는 minimum:0 — 0 기준선 아래로 내려가는 계열은 범위 밖. (4) points[].at 을 전부 주면 x 를 값 비례로 배치한다(불균등 시점 간격을 등간격으로 속이지 않는다); 하나라도 빠지면 등간격. (5) readout.delta 는 direction(▲▼ 방향)과 polarity(good/bad/neutral 평가색)를 분리한다 — '불량률 하락'을 붉게 칠하는 방향=평가 혼동을 차단한다. (6) 라인 좌표는 y = plotH − (v − min)/(max − min) × plotH 비례 사상이며 검산은 tests/test_layouts_c_render.py 가 3점 이상 수행한다. maxLength 는 1920×1080 무대 실측 역산: 플롯 폭 980, 판독 칼럼 폭 420. wdpipeline.widgets series payload(chart line/area·progress 시계열) 대응 — payload.series[].label(고유 순서) → points[].label, payload.series[].group → lines[].label, payload.series[].value → lines[].values[i], payload.axis → axis, payload.unit → unit.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "kicker",
+    "title",
+    "points",
+    "lines",
+    "readout"
+  ],
+  "properties": {
+    "kicker": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16,
+      "description": "상단 킥커 — 26px 기준 좌측 영역 (실측 역산)"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 26,
+      "x-read": true,
+      "description": "본문 폭 1640px ÷ sectionTitle 56px ≈ 29자 → 26자 (실측 역산)"
+    },
+    "unit": {
+      "type": "string",
+      "maxLength": 6,
+      "description": "플롯 우상단 '단위 · {unit}' 및 축 절단 칩 표기에 쓴다"
+    },
+    "axis": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "y 축 범위. 생략하면 하한 0 · 상한 niceCeil(데이터 최댓값). 하한을 0 이 아니게 주면 축 절단 표식이 화면에 강제 표기된다.",
+      "properties": {
+        "min": {
+          "type": "number",
+          "minimum": 0,
+          "default": 0,
+          "description": "y 하한. 기본 0(0 기준선). 0 이 아니면 '축 절단' 칩 + 축 파단 글리프가 화면에 뜬다."
+        },
+        "max": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "y 상한. 데이터 최댓값보다 작으면 최댓값으로 승격 — 라인 절단 불가."
+        }
+      }
+    },
+    "points": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 12,
+      "description": "시점 축 4~12개. 모든 항목에 at(수치 시점)을 주면 x 를 값 비례로 배치하고, 하나라도 빠지면 등간격으로 배치한다.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "label"
+        ],
+        "properties": {
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 5,
+            "description": "시점 라벨. 플롯 980px ÷ 최대 12시점 간격 89px ÷ caption 24px ≈ 3자/행(2행까지 접힘) → 상한 5자 (실측 역산). 시점 수가 많으면 짧게 쓴다."
+          },
+          "at": {
+            "type": "number",
+            "description": "수치 시점(예: 연월을 일련값으로). 전 항목에 있어야 x 비례 배치가 켜진다 — 간격 불균등을 등간격으로 속이지 않기 위한 필드."
+          }
+        }
+      }
+    },
+    "lines": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 3,
+      "description": "계열 1~3개. 0번이 주계열(굵은 실선·최신 점 강조 링)이고 1·2번은 비교 계열(파선·점선)이다 — 색이 아니라 선형으로 구분해 평가색과 섞이지 않게 한다.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "label",
+          "values"
+        ],
+        "properties": {
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 8,
+            "description": "범례 라벨. 범례 존 956px ÷ 3계열 − 선샘플 52px ≈ 236px ÷ caption 24px ≈ 9자 → 8자 (실측 역산)"
+          },
+          "values": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 12,
+            "description": "points 와 같은 순서·같은 길이의 값 배열. 길이가 모자라면 있는 데까지만 그린다(없는 값을 지어내지 않는다).",
+            "items": {
+              "type": "number",
+              "minimum": 0,
+              "description": "0 기준선 강제 — 음수 금지"
+            }
+          },
+          "style": {
+            "type": "string",
+            "enum": [
+              "solid",
+              "dashed",
+              "dotted"
+            ],
+            "description": "선형 override. 생략하면 계열 순서대로 solid → dashed → dotted."
+          },
+          "fill": {
+            "type": "boolean",
+            "description": "true 면 기준선까지 12% 불투명도로 채운다 (면적은 누적이 아니라 단일 계열의 그늘이다)"
+          }
+        }
+      }
+    },
+    "readout": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "value",
+        "desc"
+      ],
+      "description": "우측 판독 칼럼 — 최신값 대형 수치 + 변화율 배지 + 한 줄 해석",
+      "properties": {
+        "value": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 6,
+          "description": "판독 칼럼 420px ÷ display 92px 숫자폭 53px ≈ 7자 → 6자 (실측 역산)"
+        },
+        "desc": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 20,
+          "x-read": true,
+          "description": "420px ÷ emphasis 27px ≈ 15자/행 × 2행 → 20자 (실측 역산)"
+        },
+        "delta": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "text",
+            "direction"
+          ],
+          "description": "변화율 배지. 방향(글리프)과 평가(색)를 분리한다.",
+          "properties": {
+            "text": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 10,
+              "description": "필 내폭 420 − 패딩 44 − 글리프 30 = 346px ÷ caption 24px ≈ 14자 → 10자 (실측 역산)"
+            },
+            "direction": {
+              "type": "string",
+              "enum": [
+                "up",
+                "down",
+                "flat"
+              ],
+              "description": "값의 이동 방향만 나타낸다 (▲/▼/■). 좋고 나쁨은 여기서 정하지 않는다."
+            },
+            "polarity": {
+              "type": "string",
+              "enum": [
+                "good",
+                "bad",
+                "neutral"
+              ],
+              "default": "neutral",
+              "description": "평가색. good=성공톤·bad=오류톤·neutral=정보톤. 방향과 분리돼 있어 '불량률 하락=good' 을 정확히 표현한다."
+            }
+          }
+        },
+        "insight": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "text"
+          ],
+          "properties": {
+            "text": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 34,
+              "x-read": true,
+              "description": "해석 상자 내폭 371px ÷ note 25px ≈ 14자/행 × 3행 → 34자 (실측 역산)"
+            }
+          }
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "text"
+      ],
+      "properties": {
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 28,
+          "description": "출처·집계 조건. 420px ÷ caption 24px ≈ 17자/행 × 2행 → 28자 ('출처 · ' 접두 제외, 실측 역산)"
+        }
+      }
+    },
+    "frame": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "프레임 푸터 메타 — 없으면 푸터 숨김",
+      "properties": {
+        "brand": {
+          "type": "string",
+          "maxLength": 24
+        },
+        "idx": {
+          "type": "string",
+          "maxLength": 4
+        },
+        "total": {
+          "type": "string",
+          "maxLength": 4
+        }
+      }
+    }
+  }
+}

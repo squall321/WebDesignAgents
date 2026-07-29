@@ -1,0 +1,55 @@
+# tpl.c-trend — 씬 템플릿 모듈 SSOT (추세 시계열 — 라인/영역 + 판독 칼럼)
+id: tpl.c-trend
+type: scene-template
+name: "추세 시계열 — 라인/영역 + 판독 칼럼"
+status: draft
+version: 1.0.0
+engine_compat: "animations-v2"
+origin: "창작 모드 커버리지 1순위 2026-07-29"
+formats: [wide-16x9]
+stage: { w: 1920, h: 1080 }
+nat_default: 13
+scene_name_default: "추세"
+entry:
+  template: "web/templates/omx-layouts-c.jsx#TrendScene"
+  schema: schema.json
+  fixtures:
+    - fixtures/min.json
+    - fixtures/typical.json
+    - fixtures/max.json
+  preview: preview.html
+  snapshots: fixtures/snapshots/
+metaphors:
+  - frame-chrome
+  - dot-grid
+theme_default: hwax-blue
+summary: "시간에 따른 수치 변화를 좌→우로 그려지는 라인 1~3계열로 보여주고 최신값·변화율·해석을 우측에서 판독하는 추세 씬 — tpl.timeline(사건의 이정표)과 달리 값의 궤적이다"
+composition: "좌측 플롯 패널(계열 범례 → 0 기준선 격자 → 시점 라벨 → 라인 좌→우 스윕 → 최신 점 강조 링) + 우측 판독 칼럼(최신값 대형 수치 → 변화율 배지 → 한 줄 해석 → 출처) — 은유: 값이 지나온 궤적"
+in_scope:
+  - "시점 4~12개 × 계열 1~3개의 월별 실적·누적 진척·추이 비교"
+  - "영역 채움(fill) 옵션 — 단일 계열의 그늘, 누적 면적 아님"
+  - "축 절단(axis.min > 0) — 화면에 절단 칩·파단 글리프를 강제 표기한 채로만 허용"
+out_of_scope:
+  - "마일스톤·사건 일정 (tpl.timeline 사용)"
+  - "음수 계열·이중 축·로그 축"
+  - "계열 4개 이상·시점 13개 이상"
+  - "누적 영역(stacked area) — 계열 합을 면적으로 겹쳐 읽게 만드는 표현"
+distortion_guards:
+  - "y 하한 기본 0. axis.min ≠ 0 이면 '축 절단 · 하한 N' 칩 + 축 파단 글리프가 화면에 강제로 뜬다"
+  - "axis.max 는 데이터 최댓값 미만이면 최댓값으로 승격 — 라인 절단 불가"
+  - "values minimum 0 — 0 기준선 아래 계열 불가"
+  - "points[].at 전원 선언 시 x 를 값 비례 배치 — 불균등 시점 간격을 등간격으로 속이지 않는다"
+  - "delta.direction(방향 ▲▼)과 delta.polarity(평가색)를 분리 — '불량률 하락'을 붉게 칠하지 않는다"
+  - "y = plotH − (v − min)/(max − min) × plotH 비례 사상 (렌더 테스트가 3점 이상 검산)"
+widget_intake:
+  payload_kind: series
+  widgets: [chart(line), chart(area), progress_bar(시계열)]
+  mapping: "payload.series[].label → points[].label, payload.series[].group → lines[].label, payload.series[].value → lines[].values[i], payload.axis → axis, payload.unit → unit"
+quality:
+  reproducibility:
+    verdict: pass          # 독립 컨텍스트 2회 렌더 × 3픽스처 — 스틸 PNG 바이트 동일
+    max_diff_ratio: 0.00000000
+    checked_at: "2026-07-29T02:21:22"
+  gates_passed:
+    - "20260729-022148-6c5f23"   # 게이트 1~7 error 0 · warning 0 (scenario 주입, x-read 자막 예산 포함)
+  reviews: []

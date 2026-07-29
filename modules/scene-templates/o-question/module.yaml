@@ -1,0 +1,44 @@
+# tpl.o-question — 씬 템플릿 모듈 SSOT (질문형 오프닝 — 답을 비워 두고 예고한다)
+id: tpl.o-question
+type: scene-template
+name: "오프닝 · 질문형 — 질문을 던지고 답을 예고한다"
+status: draft
+version: 1.0.0
+engine_compat: "animations-v2"
+origin: "창작 모드 오프닝 변주 2026-07-29"
+formats: [wide-16x9]
+stage: { w: 1920, h: 1080 }
+nat_default: 9
+scene_name_default: "오프닝"
+entry:
+  template: "web/templates/omx-openings.jsx#QuestionOpeningScene"
+  schema: schema.json
+  fixtures:
+    - fixtures/min.json
+    - fixtures/typical.json
+    - fixtures/max.json
+  preview: preview.html
+  snapshots: fixtures/snapshots/
+metaphors:
+  - frame-chrome
+  - dot-grid
+theme_default: hwax-blue
+summary: "상단 대형 질문 1~2행 → 중앙에 답이 들어갈 빈 자리(흰 원 + 물음표) → 하단 예고 한 줄과 다룰 항목 3개 칩이 차례로 켜지는 오프닝 — 각인되는 것은 문장이 아니라 궁금증이다"
+composition: "질문 92px(중앙 정렬) + Ø300 빈 자리 원 + 물음표 168px + 예고 36px + 항목 칩 3개(34px) + 하단 출처 — 은유: 비워 둔 답"
+imprint_strategy: "질문 유발 — tpl.opening 이 답(제품명·주장)을 먼저 각인한다면 이 오프닝은 답을 의도적으로 비워 둔다. 중앙의 빈 원이 '답이 들어올 자리'로 남아 본문을 기다리게 만든다."
+in_scope:
+  - "질문에서 출발하는 조사·진단·감사 보고서 오프닝"
+  - "질문 1~2행(행당 18자) + 예고 한 줄(24자) + 다룰 항목 3개(각 10자)"
+  - "항목 칩 = 본문 목차의 상위 3갈래 예고"
+out_of_scope:
+  - "항목 2개 또는 4개 이상 (2개는 예고가 되지 않고, 4개 이상은 예고가 아니라 목차다 — 목록은 tpl.c-grid)"
+  - "질문이 아니라 결론을 먼저 던지는 오프닝 (tpl.o-statement / tpl.o-metric)"
+  - "중앙 빈 자리에 도판·수치를 채우는 변형 (빈 자리가 이 템플릿의 존재 이유)"
+quality:
+  reproducibility:
+    verdict: pass
+    max_diff_ratio: 0.00000000   # 독립 세션 2회 렌더 픽셀 해시 동일 (min/typical/max 3종 모두)
+    checked_at: "2026-07-29T03:01:00"
+  gates_passed:
+    - "20260729-030132-364be9"  # 7게이트 클린 (error 0 · warning 0 · info 0 · 오프닝 3씬 빌드)
+  reviews: []

@@ -1,0 +1,65 @@
+{
+  "kicker": "기술 스택",
+  "title": "무엇으로 만들었는가",
+  "rows": [
+    {
+      "num": "01",
+      "title": "백엔드",
+      "desc": "FastAPI 0.115 + Uvicorn 0.32 + Python 3.12",
+      "chip": {
+        "text": "운영",
+        "tone": "info"
+      }
+    },
+    {
+      "num": "02",
+      "title": "프론트엔드",
+      "desc": "React 18 + Vite 5 (TipTap, recharts, plotly)",
+      "chip": {
+        "text": "운영",
+        "tone": "info"
+      }
+    },
+    {
+      "num": "03",
+      "title": "데이터베이스",
+      "desc": "PostgreSQL 16 (운영 :5433 / 개발 :5432)",
+      "chip": {
+        "text": "운영",
+        "tone": "info"
+      }
+    },
+    {
+      "num": "04",
+      "title": "인증",
+      "desc": "JWT (python-jose) + bcrypt 4.0.1 고정",
+      "chip": {
+        "text": "보안",
+        "tone": "caution"
+      }
+    },
+    {
+      "num": "05",
+      "title": "문서 출력",
+      "desc": "python-docx, python-pptx, openpyxl",
+      "chip": {
+        "text": "산출",
+        "tone": "success"
+      }
+    },
+    {
+      "num": "06",
+      "title": "배포 컨테이너",
+      "desc": "apptainer 1.x SIF 단일 이미지 (Ubuntu 24.04)",
+      "chip": {
+        "text": "배포",
+        "tone": "active"
+      }
+    }
+  ],
+  "frame": {
+    "brand": "ReportArchive",
+    "idx": "02",
+    "total": "07"
+  }
+}

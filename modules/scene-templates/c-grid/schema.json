@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "wda:tpl.c-grid/schema@1.0.0",
+  "title": "tpl.c-grid 데이터 스키마",
+  "description": "카드 그리드 씬 — 항목 4~9개를 한 화면에 담는 그릇. tpl.proof(3열 고정 2~3장)의 상한을 넘는 사례·기능·항목 목록 전용이다. widgets.py 의 table payload(record_table 행)·pairs payload(key_value 다수)·bulleted_list 다항목을 받는다(pairs.label→label, pairs.value→desc). 밀도 왜곡 방지를 스키마가 강제한다: (1) 배치 필드(cols/rows/fontSize/cardWidth)가 아예 없다 — 열·행·카드 크기·제목 크기는 개수로 렌더가 계산한다(4개=2×2, 5~6개=3×2, 7~9개=3×3). 데이터가 9개를 4열로 우겨넣어 글자를 줄이는 경로를 원천 차단한다. (2) maxItems 9 — 초과분은 잘라 넣지 않고 omitted('외 N건')로 정직하게 계상한다. (3) 자수 상한은 최악 배치(3×3 밀집: 카드 530.67×181.33px)에서 최소 폰트 24px 를 지키며 역산했다 — 개수가 늘어도 글자는 줄지 않는다.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["kicker", "title", "cards"],
+  "properties": {
+    "kicker": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16,
+      "description": "상단 킥커 — 목록의 범주 한 마디"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 26,
+      "x-read": true,
+      "description": "타이틀 1행 — 내용 폭 1640px ÷ 56px(sectionTitle) ≈ 29자, 안전 26자"
+    },
+    "cards": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 9,
+      "description": "항목 4~9개. 등장 순서가 곧 읽는 순서(좌상→우하)이며 칩 번호도 이 순서다. 9개 초과는 심의가 고르고 나머지는 omitted 로 표기한다",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["label"],
+        "properties": {
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16,
+            "description": "카드 제목 — 3×3 밀집 시 내폭 498.67px, 제목 26px 1줄이라 19자 수용, 안전 16자 (2행 배치에서는 33px 2줄로 커진다)"
+          },
+          "desc": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 36,
+            "description": "설명 1~2줄 — 24px 고정(밀집에서도 줄이지 않는다). 내폭 498.67px ÷ 24px ≈ 20자/행 × 2행 = 41자, 안전 36자"
+          },
+          "badge": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 8,
+            "description": "상태/수치 배지 — 칩 행 오른쪽 필. 8자 × 24px + 패딩 32px = 224px 로 칩(40px)과 겹치지 않는다. 서술이 아니라 상태값·수치값 전용"
+          },
+          "icon": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2,
+            "description": "칩 글리프(이모지 등) — 생략하면 카드 순번(1부터)이 자동으로 들어간다. 24px 로 렌더되므로 최소 폰트 규칙을 지킨다"
+          },
+          "tone": {
+            "type": "string",
+            "enum": ["positive", "caution", "info"],
+            "maxLength": 8,
+            "description": "배지 평가색 — 좋음(positive)/주의(caution)/중립(info). 카드 크기는 바꾸지 않는다"
+          }
+        }
+      }
+    },
+    "omitted": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "표시하지 못한 잔여 항목 수 — 그리드 아래 '…외 N건' 으로 표기 (23건 목록 → 9장 + 외 14건)"
+    },
+    "note": {
+      "type": "object",
+      "additionalProperties": false,
+      "x-read": true,
+      "description": "하단 중앙 풋노트 — 이 목록이 말하는 결론 한 줄",
+      "properties": {
+        "pre": { "type": "string", "maxLength": 18 },
+        "strong": { "type": "string", "maxLength": 12 },
+        "post": { "type": "string", "maxLength": 18 }
+      }
+    },
+    "frame": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "프레임 푸터 메타 — 없으면 푸터 숨김",
+      "properties": {
+        "brand": { "type": "string", "maxLength": 24 },
+        "idx": { "type": "string", "maxLength": 4 },
+        "total": { "type": "string", "maxLength": 4 }
+      }
+    }
+  }
+}

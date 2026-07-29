@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "wda:tpl.l-quote/schema@1.0.0",
+  "title": "tpl.l-quote 데이터 스키마",
+  "description": "핵심 문장 강조 — 선언·인용 한 문장을 화면 중앙에 크게(60~80px 3단) 놓고 출처/화자로 받친다. 챕터 전환이나 결론 각인용이며 간결함이 전부다. 글자 크기는 문장 길이에 따라 자동 하향(30자 이하 80px · 48자 이하 70px · 그 위 60px)하고 폭 1400px 안에서 최대 3행에 든다.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "quote"
+  ],
+  "properties": {
+    "kicker": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16,
+      "description": "상단 킥커 — 챕터 이름 등. 타이틀은 두지 않는다(문장 자체가 타이틀)"
+    },
+    "quote": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 70,
+      "x-read": true,
+      "description": "각인 문장 — 폭 1400px 기준 80px 17자/행 · 70px 20자/행 · 60px 23자/행, 3행 상한이므로 70자"
+    },
+    "speaker": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 20,
+      "x-read": true,
+      "description": "화자/출처 1행 — 1400px ÷ 36px(subtitle) ≈ 38자, 각인 구도상 20자 상한"
+    },
+    "role": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 26,
+      "description": "직함·맥락 1행 — 1400px ÷ 26px(body) ≈ 53자, 각인 구도상 26자 상한"
+    },
+    "texture": {
+      "enum": [
+        "none",
+        "rule",
+        "marks"
+      ],
+      "description": "배경 텍스처 — 'rule' 은 문장 위 청색 룰 120px, 'marks' 는 인용부호 도형 2쌍(텍스트 아님). 기본 'none'"
+    },
+    "frame": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "프레임 푸터 메타 — 없으면 푸터 숨김",
+      "properties": {
+        "brand": {
+          "type": "string",
+          "maxLength": 24
+        },
+        "idx": {
+          "type": "string",
+          "maxLength": 4
+        },
+        "total": {
+          "type": "string",
+          "maxLength": 4
+        }
+      }
+    }
+  }
+}

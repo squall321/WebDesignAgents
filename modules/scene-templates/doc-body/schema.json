@@ -1,0 +1,336 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "wda:tpl.doc-body/schema@1.0.0",
+  "title": "tpl.doc-body 데이터 스키마 (문서형 본체 2단 · 3무대 공용)",
+  "description": "문서형의 중심. 좌 본문(제목+리드+불릿 3~6+소결론) / 우 근거 1점(표·차트·이미지 택1). maxLength 는 지원 무대 3종(deck-doc-16x9 1920×1080 · deck-4x3 1440×1080 · print-a4 1240×1754)에서 flex 비율(좌 1.55 / 우 1)로 갈린 실측 열폭 역산이다 — 본문 폭 1752/1272/1072px(무대 폭 - 좌우 여백 84×2)이 좌열 981/689/567px, 우열 727/539/461px 로 갈린다. **자수 상한의 바닥은 가장 좁은 열(A4)이고 행 수 상한의 바닥은 가장 낮은 무대(4:3, 본문 가용 높이 약 730px)** 다. 영상 템플릿 값 재사용 없음: 불릿 26px(영상 item 31px)·본문 폭이 넓어 한 항목 42자로 영상 problem.failures 20자의 2.1배, 씬 전체 문자량은 2~3배다. x-read 는 실제 낭독 대상(제목·소결론)만 표시한다.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "title",
+    "bullets",
+    "evidence"
+  ],
+  "properties": {
+    "kicker": {
+      "type": "string",
+      "maxLength": 12,
+      "description": "머리말 좌측 위치 라벨(장 이름) — 25px + 자간 0.12em(≈28px/자) → 12자"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 30,
+      "x-read": true,
+      "description": "본문 제목 — 38px, 좌열 바닥 567px(A4) → 14.9자/줄, 4:3 689px → 18.1자/줄. 30자면 A4 에서도 2줄 이내"
+    },
+    "lead": {
+      "type": "string",
+      "maxLength": 42,
+      "description": "제목 아래 리드문 — 28px, 4:3 좌열 689px → 24.6자/줄. 42자면 4:3 2줄 · A4(567px, 20.2자/줄) 3줄 이내"
+    },
+    "bullets": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 6,
+      "description": "본문 불릿 3~6개. 계층은 한 층위뿐이다 — 2단 들여쓰기는 6개 최악 구성에서 4:3 무대 높이가 성립하지 않아 채택하지 않았다(실측)",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "text"
+        ],
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 42,
+            "description": "불릿 본문 — 26px, 마커 12 + 간격 14 를 뺀 텍스트 폭 663px(4:3) → 25.5자/줄. 42자면 태그 칩(첫 줄 148px 선점)이 붙어도 2줄 이내"
+          },
+          "tag": {
+            "type": "string",
+            "maxLength": 5,
+            "description": "본문 앞 분류 칩(선택) — 24px + 좌우 패딩 10, 5자면 칩 폭 148px"
+          }
+        }
+      }
+    },
+    "takeaway": {
+      "type": "string",
+      "maxLength": 44,
+      "description": "좌열 하단 소결론 상자 — 26px, 상자 내폭 643px(4:3) → 24.7자/줄, 44자면 2줄 이내"
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "우열 근거 슬롯 — table·chart·image 중 정확히 하나. kind 와 실제 블록이 어긋나면 검증에서 걸린다",
+      "required": [
+        "kind",
+        "caption"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "table",
+            "chart",
+            "image"
+          ],
+          "description": "근거 종류. 이 값이 렌더 분기와 필수 블록을 함께 결정한다"
+        },
+        "caption": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 26,
+          "description": "근거 카드 제목(그림·표 제목) — 25px, 카드 내폭 491px(4:3) → 19.6자/줄, 26자면 2줄 이내"
+        },
+        "source": {
+          "type": "string",
+          "maxLength": 30,
+          "description": "출처 표기 — 24px, 카드 내폭 491px → 20.5자/줄, 30자면 2줄 이내"
+        },
+        "table": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "headers",
+            "rows"
+          ],
+          "description": "표 근거 — 열 2~3 × 행 2~5. 4열 이상은 4:3/A4 우열(내폭 491/413px)에서 셀이 3줄이 되어 카드가 무너진다(실측 역산 결과 3열 상한)",
+          "properties": {
+            "headers": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 3,
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 6,
+                "description": "머리행 — 24px, 3열 시 2·3열 내폭 98px(A4) → 4자/줄, 6자면 2줄 이내"
+              }
+            },
+            "rows": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 5,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "cells"
+                ],
+                "properties": {
+                  "cells": {
+                    "type": "array",
+                    "minItems": 2,
+                    "maxItems": 3,
+                    "description": "셀 값 — 개수는 headers 와 같아야 한다",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 10,
+                      "description": "셀 — 24px, 첫 열 내폭 157px(A4)/190px(4:3), 나머지 98/120px → 10자면 4:3 2줄 · A4 3줄(A4 는 높이가 남아 성립)"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "chart": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "bars"
+          ],
+          "description": "가로 막대 근거 — 0 기준선, 폭은 최대값 대비 비례(왜곡 금지)",
+          "properties": {
+            "unit": {
+              "type": "string",
+              "maxLength": 3,
+              "description": "값 뒤 단위 — 24px, 값과 같은 줄"
+            },
+            "bars": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 5,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "label",
+                  "value"
+                ],
+                "properties": {
+                  "label": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 14,
+                    "description": "항목명 — 24px, 값·단위를 뺀 폭 399px(4:3) → 16.6자/줄, 14자면 1줄"
+                  },
+                  "value": {
+                    "type": "number",
+                    "description": "막대 값 — 최대값이 100% 폭. 음수는 0 으로 클램프된다"
+                  },
+                  "emphasis": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "강조 막대(진한 청색 + 굵은 라벨) — 주장의 주인공 1개에만"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "image": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "alt"
+          ],
+          "description": "도판 근거 — 16:10 상자에 contain 으로 넣는다(문서의 도판은 잘리면 근거가 아니다 — 영상 tpl.d-media 의 cover 규약과 반대). src 가 없으면 같은 상자에 alt 를 적은 자리표시자가 나온다",
+          "properties": {
+            "src": {
+              "type": "string",
+              "maxLength": 120,
+              "description": "이미지 경로 — 모듈 디렉터리 기준 상대(예: fixtures/assets/chart.png)"
+            },
+            "alt": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 40,
+              "description": "대체 텍스트 겸 자리표시자 문구 — 24px, 카드 내폭 491px → 자리표시자 상자에서 2줄 이내"
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "table"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "required": [
+              "table"
+            ],
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "chart"
+                  ]
+                },
+                {
+                  "required": [
+                    "image"
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "chart"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "required": [
+              "chart"
+            ],
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "table"
+                  ]
+                },
+                {
+                  "required": [
+                    "image"
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "image"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "required": [
+              "image"
+            ],
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "table"
+                  ]
+                },
+                {
+                  "required": [
+                    "chart"
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "page": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "머리말 우측 페이지 표시",
+      "required": [
+        "no"
+      ],
+      "properties": {
+        "no": {
+          "type": "string",
+          "maxLength": 4
+        },
+        "total": {
+          "type": "string",
+          "maxLength": 4
+        }
+      }
+    },
+    "footer": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "꼬리말 — 좌: 문서명·출처, 우: 배포 구분",
+      "properties": {
+        "left": {
+          "type": "string",
+          "maxLength": 40,
+          "description": "24px, 꼬리말 좌측 — 40자"
+        },
+        "right": {
+          "type": "string",
+          "maxLength": 14,
+          "description": "24px, 꼬리말 우측(줄바꿈 금지) — 14자"
+        }
+      }
+    }
+  }
+}

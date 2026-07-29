@@ -1,0 +1,29 @@
+{
+  "kicker": "권한 모델",
+  "title": "보고서 편집 권한 판정",
+  "nodes": [
+    { "id": "req", "label": "편집 요청", "level": 0, "kind": "start", "note": "보고서 편집 진입" },
+    { "id": "d_admin", "label": "관리자인가?", "level": 1, "kind": "decision" },
+    { "id": "bypass", "label": "우회 허용", "level": 2, "kind": "end", "tone": "positive", "note": "잠금도 무시" },
+    { "id": "d_lock", "label": "잠금 ON?", "level": 2, "kind": "decision" },
+    { "id": "deny", "label": "편집 거부", "level": 3, "kind": "end", "tone": "caution", "note": "작성자만 해제" },
+    { "id": "walk", "label": "정책대로 허용", "level": 3, "kind": "end", "tone": "positive", "note": "소유·편집자 walk" }
+  ],
+  "edges": [
+    { "from": "req", "to": "d_admin" },
+    { "from": "d_admin", "to": "bypass", "label": "예" },
+    { "from": "d_admin", "to": "d_lock", "label": "아니오" },
+    { "from": "d_lock", "to": "deny", "label": "예" },
+    { "from": "d_lock", "to": "walk", "label": "아니오" }
+  ],
+  "note": {
+    "pre": "판정은 ",
+    "strong": "잠금 우선",
+    "post": " — 관리자만 넘는다"
+  },
+  "frame": {
+    "brand": "ReportArchive",
+    "idx": "05",
+    "total": "07"
+  }
+}

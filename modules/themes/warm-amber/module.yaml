@@ -1,0 +1,46 @@
+# theme.warm-amber — 테마 모듈 SSOT (크림 배경 + 앰버/테라코타 강조, 부드러운 모션)
+id: theme.warm-amber
+type: theme
+name: "따뜻한 앰버 — 크림 지면 + 테라코타 강조"
+status: draft
+version: 1.0.0
+engine_compat: "animations-v2"
+origin: "web/tokens/hwax-blue.json (3층 구조 계승 — 값만 교체)"
+entry:
+  tokens: web/tokens/warm-amber.json
+  loader: "window.OMX.themes.load('warm-amber') | OMX.themes.fromGlobal() (OM_THEME 주입)"
+  previews:
+    - web/tokens/_previews/warm-amber/process.png
+    - web/tokens/_previews/warm-amber/proof.png
+    - web/tokens/_previews/warm-amber/closing.png
+base_theme: hwax-blue
+summary: "크림 지면과 따뜻한 백색 카드 위에 테라코타를 얹어, 사람을 다루는 이야기가 차갑게 읽히지 않게 하는 테마"
+personality:
+  color: "크림 배경(#F8F0E4)·웜 화이트 카드(#FFFDF9)·테라코타 강조(#9A4A12)·올리브 성공색. 파랑 계열을 전부 걷어냈다"
+  shadow: "가장 크고 부드러운 그림자(0 20px 48px / 0.10, 갈색 톤) — 종이 위 카드처럼"
+  motion: "easeOutSine 계열로 가·감속을 완만하게, 지속시간을 기준보다 약 20% 길게(0.85s) — 서두르지 않는 인상"
+in_scope:
+  - "인사·조직문화·복리후생·교육 과정 안내"
+  - "고객 사례·인터뷰 등 사람이 주인공인 서사"
+  - "장시간 시청하는 온보딩 영상 (저채도 난색이라 눈이 덜 피로하다)"
+out_of_scope:
+  - "재무·감사 등 중립성이 요구되는 보고 (neutral-slate 를 쓰라)"
+  - "기술 아키텍처·데이터 대시보드 (deep-dark·fresh-teal 을 쓰라)"
+quality:
+  contrast:
+    verdict: pass
+    standard: "WCAG 2.1 AA 4.5:1"
+    pairs_checked: 17
+    min_ratio: 4.81
+    median_ratio: 6.03
+    checked_at: "2026-07-29"
+  key_completeness:
+    verdict: pass
+    missing_vs_base: 0
+    extra_vs_base: 0
+  render:
+    verdict: pass
+    templates: [tpl.process, tpl.proof, tpl.closing]
+    console_errors: 0
+  gates_passed: []
+  reviews: []

@@ -1,0 +1,25 @@
+{
+  "kicker": "게시 실적",
+  "title": "월별 보고서 게시 추세",
+  "unit": "건",
+  "points": [
+    { "label": "25.12" },
+    { "label": "26.01" },
+    { "label": "26.02" },
+    { "label": "26.03" },
+    { "label": "26.04" },
+    { "label": "26.05" }
+  ],
+  "lines": [
+    { "label": "올해", "values": [42, 51, 63, 58, 74, 86], "fill": true },
+    { "label": "전년 동기", "values": [38, 40, 44, 41, 47, 52], "style": "dashed" }
+  ],
+  "readout": {
+    "value": "86건",
+    "desc": "5월 게시 건수",
+    "delta": { "text": "+16.2%", "direction": "up", "polarity": "good" },
+    "insight": { "text": "3개월 연속 상승 · 전년 동기 대비 65% 위" }
+  },
+  "source": { "text": "ReportArchive 게시 로그" },
+  "frame": { "brand": "WebDesignAgents", "idx": "05", "total": "12" }
+}

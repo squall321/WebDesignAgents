@@ -1,0 +1,31 @@
+# print-a4 — A4 세로 인쇄·배포용. 영상 없이 슬라이드만 뽑는다(outputs: [pptx]).
+id: print-a4
+name_ko: A4 세로 인쇄물
+stage: { w: 1240, h: 1754 }          # A4 210×297mm 를 150dpi 로 환산 (비 1.4145 vs A4 1.4142)
+# target 10 = 표지1 + 목차1 + 2섹션×(구분1+본문3) + 요약1. min 5 = 골격 1회 순회.
+slides: { target: 10, min: 5, max: 20 }
+skeleton: [cover, toc, section, body, summary]
+# 영상용 가로·세로 템플릿은 무대가 달라 재사용 불가(아래 lessons) — 문서형 템플릿 tpl.doc-*
+# 가 1순위이고, native.* 는 exporter 텍스트 조립 폴백이다.
+template_pool:
+  cover: [tpl.doc-cover, native.cover]
+  toc: [tpl.doc-toc, native.toc]
+  section: [tpl.doc-section, native.section]
+  body: [tpl.doc-body, native.body]
+  summary: [tpl.doc-summary, native.summary]
+narration: { enabled: false, rate: 5.5 }
+outputs: [pptx]
+pptx: { slide_w_in: 8.27, slide_h_in: 11.69 }      # A4 세로 (210×297mm)
+# 실측값 — safe_margin = min(mx 77, my 132), min_font = 0.020×1240 = 24.8px
+constraints: { min_font: 24, safe_margin: 77 }
+theme: hwax-blue
+
+status: draft
+usage_count: 0
+
+lessons:
+  - "가로 템플릿(tpl.*) 재사용은 5/7 씬에서 실측 기각이다 — delib_v2 를 1240×1754 무대에 올려 재보니 문제 540.0px(11요소)·개념 550.0px(17)·절차 540.0px(12)·차별점 540.0px(8)·실증 261.5px(16)이 무대 밖으로 나갔다. 4:3(340px)보다 200px 더 깨진다"
+  - "살아남은 것은 중앙 정렬 2씬뿐이다 — 오프닝 0px·클로징 26.0px 로 1920×1080 원 무대와 같았다"
+  - "세로 템플릿(vtpl.*)도 대안이 아니다 — 그쪽 무대는 1080×1920(비 0.5625)이고 A4 는 1240×1754(비 0.707)라 종횡비 자체가 다르다"
+  - "A4 는 EMU/px 가 축마다 다르다 — 8.27in/1240px = 6098.4, 11.69in/1754px = 6094.6 (0.06% 이방성). 인치를 1000 EMU 격자에 맞춘 결과이며 육안 왜곡은 없다"
+  - "150dpi 환산(1240×1754 = 비 1.4145)은 A4 비율(1.4142)을 0.02% 오차로 재현한다 — 인쇄 여백은 stage 여백(mx 77 · my 132)이 흡수한다"

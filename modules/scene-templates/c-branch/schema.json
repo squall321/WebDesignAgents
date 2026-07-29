@@ -1,0 +1,141 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "wda:tpl.c-branch/schema@1.0.0",
+  "title": "tpl.c-branch 데이터 스키마",
+  "description": "분기 흐름도 씬 — 조건 분기·병렬이 있는 절차를 담는 그릇. tpl.process(선형 6단계 그리드)로는 못 그리는 판단·갈림·재합류 전용이다. widgets.py 의 graph payload{nodes[{id,label,level,kind}], edges[{from,to,label}]} 를 그대로 받는다(flowchart 분기·mind_map·tree). 구조 왜곡 방지를 스키마가 강제한다: (1) level 은 0~3 정수 — 단계 수를 임의로 늘려 흐름을 길어 보이게 만들 수 없다. (2) 엣지는 반드시 앞 레벨→뒤 레벨(전진)만 그려진다 — 역류/순환을 그림으로 위장하지 못한다(렌더가 비전진 엣지를 그리지 않는다). (3) nodes 는 kind:'decision' 을 최소 1개 포함해야 한다 — 판단이 없는 선형 절차가 '분기 흐름도'로 둔갑하는 경로를 막는다. (4) 분기 라벨은 3자 이내 코드값(예/아니오)이라 판정 조건을 서술로 부풀릴 수 없다. 자수 상한은 최소 폰트 24px(type.caption) 전제로 최악 배치(4레벨·노드폭 320px)에서 역산했다.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["kicker", "title", "nodes", "edges"],
+  "properties": {
+    "kicker": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16,
+      "description": "상단 킥커 — 흐름의 범주 한 마디"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 26,
+      "x-read": true,
+      "description": "타이틀 1행 — 내용 폭 1640px ÷ 56px(sectionTitle) ≈ 29자, 안전 26자"
+    },
+    "nodes": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 12,
+      "description": "노드 3~12개. 레벨(깊이)이 곧 열이고 같은 레벨은 세로 균등 배치된다. 한 레벨에 4개를 넘게 몰면 노드 높이가 줄어 자수 역산이 깨지므로 레벨당 3개 이하를 권한다(4레벨 × 3개 = 12).",
+      "allOf": [
+        {
+          "contains": {
+            "type": "object",
+            "required": ["kind"],
+            "properties": { "kind": { "const": "decision" } }
+          },
+          "minContains": 1,
+          "description": "판단(마름모) 최소 1개 — 분기 없는 선형 절차는 tpl.process 로 간다"
+        }
+      ],
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "label", "level"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40,
+            "description": "엣지가 가리키는 식별자 — widgets.py graph payload 의 nodes[].id 를 그대로 쓴다"
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 22,
+            "description": "노드 문구 — 4레벨 시 노드 내폭 292px ÷ 24px ≈ 12자/행 × 2행 = 24자, 안전 22자 (kind=decision 이면 then 절이 12자로 조인다)"
+          },
+          "level": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3,
+            "description": "깊이 = 열 번호(좌→우). 0~3 네 단계 상한 — 더 깊은 흐름은 씬을 나눠야 한다(축소·폰트 감소 금지)"
+          },
+          "kind": {
+            "type": "string",
+            "enum": ["start", "process", "decision", "end"],
+            "maxLength": 8,
+            "default": "process",
+            "description": "시작/끝은 필(pill), 처리는 사각 카드, 판단은 마름모. 생략하면 처리(process)"
+          },
+          "tone": {
+            "type": "string",
+            "enum": ["positive", "caution", "neutral"],
+            "maxLength": 8,
+            "description": "kind=end 의 결과 평가 — 허용(positive)/거부(caution)/보류(neutral). 색만 바꾸고 크기는 바꾸지 않는다"
+          },
+          "note": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 20,
+            "description": "노드 보조 한 줄(flowchart 의 description) — 내폭 292px ÷ 24px ≈ 12자/행 × 2행 = 24자, 안전 20자. 있으면 라벨 행이 3줄→2줄로 준다"
+          }
+        },
+        "if": {
+          "required": ["kind"],
+          "properties": { "kind": { "const": "decision" } }
+        },
+        "then": {
+          "properties": {
+            "label": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 12,
+              "description": "판단 문구 — 마름모 내접 사각(0.54w × 0.44h)이 172.8×70.4px 이라 24px 기준 7자/행 × 2행 = 14자, 안전 12자"
+            }
+          }
+        }
+      }
+    },
+    "edges": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 14,
+      "description": "엣지 2개 이상 — 노드만 있고 연결이 없는 '흐름 없는 흐름도'를 막는다. from 의 레벨보다 to 의 레벨이 커야 그려진다(전진 계약). 인접 레벨은 거터(120px) 안의 ㄱ자 경로, 레벨을 건너뛰면 노드 띠 아래 우회 레인으로 돈다 — 어느 쪽도 노드를 관통하지 않는다.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["from", "to"],
+        "properties": {
+          "from": { "type": "string", "minLength": 1, "maxLength": 40, "description": "출발 노드 id" },
+          "to": { "type": "string", "minLength": 1, "maxLength": 40, "description": "도착 노드 id (반드시 더 큰 level)" },
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 3,
+            "description": "분기 라벨 — 거터 120px 안의 필(88px)에 들어가야 하므로 3자 상한. '예/아니오' 같은 판정 코드값 전용이며 조건 서술은 노드 note 로 간다"
+          }
+        }
+      }
+    },
+    "note": {
+      "type": "object",
+      "additionalProperties": false,
+      "x-read": true,
+      "description": "하단 중앙 풋노트 — 이 흐름이 말하는 결론 한 줄",
+      "properties": {
+        "pre": { "type": "string", "maxLength": 18 },
+        "strong": { "type": "string", "maxLength": 12 },
+        "post": { "type": "string", "maxLength": 18 }
+      }
+    },
+    "frame": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "프레임 푸터 메타 — 없으면 푸터 숨김",
+      "properties": {
+        "brand": { "type": "string", "maxLength": 24 },
+        "idx": { "type": "string", "maxLength": 4 },
+        "total": { "type": "string", "maxLength": 4 }
+      }
+    }
+  }
+}

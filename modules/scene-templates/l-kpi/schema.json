@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "wda:tpl.l-kpi/schema@1.0.0",
+  "title": "tpl.l-kpi 데이터 스키마",
+  "description": "KPI 대시보드 씬 — 지표 4~6개를 2×2(4개) / 3×2(5~6개) 그리드에 담는다. closing.stats 3개 상한이 못 담던 다지표 보고서를 위한 그릇. 폭 예산은 3열 타일 안쪽 461px(1640-2×32 gap ÷3 - 2×28 pad) 기준으로 역산했고 최소 폰트는 24px(type.caption)이다. 증감은 방향(dir)과 평가(tone)를 분리한다 — 감소가 곧 나쁨이 아니다.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["kicker", "title", "metrics"],
+  "properties": {
+    "kicker": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 26,
+      "x-read": true,
+      "description": "타이틀 1행 — 내용 폭 1640px ÷ 56px(sectionTitle) ≈ 29자, 안전 26자"
+    },
+    "metrics": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 6,
+      "description": "지표 4~6개. 4개는 2열×2행, 5~6개는 3열×2행 — 7개 이상은 omitted 로 계상한다",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["label", "value"],
+        "properties": {
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 14,
+            "description": "무엇을 재는가 — 타일 안폭 461px ÷ 26px(body) ≈ 17자, nowrap 안전 14자"
+          },
+          "value": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 6,
+            "pattern": "^-?[0-9][0-9.,]*$",
+            "description": "큰 수치는 숫자만 (단위는 unit 으로 분리) — 92px(display) 숫자 자폭 ≈0.55em 이라 6자 ≈304px"
+          },
+          "unit": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 3,
+            "description": "단위 접미 — 36px(subtitle) × 3자 = 108px, value 304 + gap 8 + 108 = 420 ≤ 461"
+          },
+          "delta": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["dir", "text", "tone"],
+            "description": "증감 배지 — **방향과 평가는 별개다**. dir 은 글리프(▲▼■)만 정하고 색은 tone 이 정한다",
+            "properties": {
+              "dir": {
+                "type": "string",
+                "maxLength": 4,
+                "enum": ["up", "down", "flat"],
+                "description": "증감 방향 — up ▲ · down ▼ · flat ■ (색과 무관)"
+              },
+              "text": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 8,
+                "description": "증감 폭 표기 (예: 62%p) — 26px × 8자 = 208px + 칩 여백 72 = 280 ≤ 461-스파크122"
+              },
+              "tone": {
+                "type": "string",
+                "maxLength": 8,
+                "enum": ["good", "bad", "neutral"],
+                "description": "평가 — good 녹색(successBg/Fg) · bad 적색(errorBg/Fg) · neutral 청색(infoBg/Fg). '오류율 ▼62%' 는 down + good 이다"
+              }
+            }
+          },
+          "spark": {
+            "type": "array",
+            "minItems": 3,
+            "maxItems": 8,
+            "description": "미니 스파크바 값 (비텍스트 장식) — 최댓값 정규화, 마지막 막대만 진한 청색. 8개 = 122px",
+            "items": {
+              "type": "number",
+              "minimum": 0
+            }
+          }
+        }
+      }
+    },
+    "omitted": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "표시하지 못한 잔여 지표 수 — 그리드 아래 '…외 N개 지표' 로 정직하게 표기"
+    },
+    "note": {
+      "type": "object",
+      "additionalProperties": false,
+      "x-read": true,
+      "description": "하단 중앙 풋노트 — 계기판이 말하는 결론 한 줄",
+      "properties": {
+        "pre": { "type": "string", "maxLength": 18 },
+        "strong": { "type": "string", "maxLength": 12 },
+        "post": { "type": "string", "maxLength": 18 }
+      }
+    },
+    "frame": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "프레임 푸터 메타 — 없으면 푸터 숨김",
+      "properties": {
+        "brand": { "type": "string", "maxLength": 24 },
+        "idx": { "type": "string", "maxLength": 4 },
+        "total": { "type": "string", "maxLength": 4 }
+      }
+    }
+  }
+}

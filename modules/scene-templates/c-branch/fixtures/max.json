@@ -1,0 +1,43 @@
+{
+  "kicker": "권한 판정 전체 경로",
+  "title": "편집 권한 판정 4단계 분기 전체도",
+  "nodes": [
+    { "id": "a1", "label": "보고서 편집 요청 접수 창구 A선 대기열", "level": 0, "kind": "start" },
+    { "id": "a2", "label": "외부 제출 직전 변동 차단 요청 일괄접수", "level": 0, "kind": "process" },
+    { "id": "a3", "label": "종합보고 취합 대상 보고서 자동 수집함", "level": 0, "kind": "process" },
+    { "id": "b1", "label": "시스템 관리자 우회인가", "level": 1, "kind": "decision" },
+    { "id": "b2", "label": "작성자 잠금 설정 여부", "level": 1, "kind": "decision" },
+    { "id": "b3", "label": "게시판 정책 조회 후 판정 준비 완료함", "level": 1, "kind": "process", "note": "mount edit_policy 확인" },
+    { "id": "c1", "label": "명시 편집자 목록 포함", "level": 2, "kind": "decision" },
+    { "id": "c2", "label": "상위 보직장 ancestor 트리 탐색함", "level": 2, "kind": "process", "note": "조직 트리 위로 거슬러 끝까지 올라감" },
+    { "id": "c3", "label": "공동 작성 멤버 전원 편집 허용 대상임", "level": 2, "kind": "process" },
+    { "id": "d1", "label": "편집 허용 · 감사 로그에 기록 남김함", "level": 3, "kind": "end", "tone": "positive" },
+    { "id": "d2", "label": "편집 거부 · 열람 권한만 부여 처리됨", "level": 3, "kind": "end", "tone": "caution" },
+    { "id": "d3", "label": "판정 보류 · 관리자 확인 요청 발송됨", "level": 3, "kind": "end", "tone": "neutral" }
+  ],
+  "edges": [
+    { "from": "a1", "to": "b1" },
+    { "from": "a2", "to": "b2" },
+    { "from": "a3", "to": "b3" },
+    { "from": "b1", "to": "c1", "label": "예" },
+    { "from": "b1", "to": "c2", "label": "아니오" },
+    { "from": "b2", "to": "c2", "label": "예" },
+    { "from": "b2", "to": "c3", "label": "아니오" },
+    { "from": "b3", "to": "c3" },
+    { "from": "c1", "to": "d1", "label": "예" },
+    { "from": "c1", "to": "d2", "label": "아니오" },
+    { "from": "c2", "to": "d2" },
+    { "from": "c3", "to": "d3" },
+    { "from": "a1", "to": "d3", "label": "우회" }
+  ],
+  "note": {
+    "pre": "경로가 갈려도 판정은 ",
+    "strong": "언제나 세 갈래",
+    "post": " 안에서 끝난다"
+  },
+  "frame": {
+    "brand": "ReportArchive",
+    "idx": "05",
+    "total": "07"
+  }
+}

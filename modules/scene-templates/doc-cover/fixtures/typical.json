@@ -1,0 +1,13 @@
+{
+  "logo": "ReportArchive",
+  "badge": "사용 설명서",
+  "title": "ReportArchive 플랫폼 사용 설명서",
+  "subtitle": "보고서 작성·게시·종합보고를 한 플랫폼에서 처리하는 조직 워크플로 도구",
+  "meta": [
+    { "label": "작성일", "value": "2026-05-27" },
+    { "label": "출처", "value": "report_sample.json v1" },
+    { "label": "분류", "value": "설명서 · 플랫폼 가이드" },
+    { "label": "대상", "value": "신규 온보딩 엔지니어" }
+  ],
+  "footer": "내부 배포용 — 외부 공유 전 게시판 관리자 승인 필요"
+}

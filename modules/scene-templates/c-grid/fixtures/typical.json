@@ -1,0 +1,49 @@
+{
+  "kicker": "위젯 카탈로그",
+  "title": "혼동하기 쉬운 위젯 여섯 쌍",
+  "cards": [
+    {
+      "label": "box / density",
+      "desc": "관측값 long-form 대 그룹별 원시 배열",
+      "badge": "혼동 1위",
+      "tone": "caution"
+    },
+    {
+      "label": "chart / scatter",
+      "desc": "x축이 카테고리면 chart, 수치면 scatter",
+      "badge": "축 기준"
+    },
+    {
+      "label": "tree / flowchart",
+      "desc": "parent 계층 대 parent 없는 순차 items",
+      "badge": "계층 여부"
+    },
+    {
+      "label": "표 3형제",
+      "desc": "table·comparison·raci 는 행 키가 다르다",
+      "badge": "행 키",
+      "tone": "caution"
+    },
+    {
+      "label": "treemap/packing",
+      "desc": "content 는 같고 사각·원형 시각만 다르다",
+      "badge": "시각만",
+      "tone": "positive"
+    },
+    {
+      "label": "key_value/table",
+      "desc": "보고서마다 다른 자유 카드 대 정형 표",
+      "badge": "정형 여부"
+    }
+  ],
+  "note": {
+    "pre": "여섯 쌍 모두 ",
+    "strong": "content 키",
+    "post": " 로 갈린다"
+  },
+  "frame": {
+    "brand": "ReportArchive",
+    "idx": "03",
+    "total": "07"
+  }
+}

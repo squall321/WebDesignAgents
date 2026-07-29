@@ -1,0 +1,45 @@
+# tpl.c-grid — 씬 템플릿 모듈 SSOT (카드 그리드 — 개수로 배치 자동 결정 · 밀집에서도 24px 유지)
+id: tpl.c-grid
+type: scene-template
+name: "카드 그리드 — 항목 4~9개 한 화면 (2×2 / 3×2 / 3×3)"
+status: draft
+version: 1.0.0
+engine_compat: "animations-v2"
+origin: "창작 모드 커버리지 1순위 2026-07-29"
+formats: [wide-16x9]
+stage: { w: 1920, h: 1080 }
+nat_default: 13
+scene_name_default: "목록"
+entry:
+  template: "web/templates/omx-layouts-d.jsx#GridScene"
+  schema: schema.json
+  fixtures:
+    - fixtures/min.json
+    - fixtures/typical.json
+    - fixtures/max.json
+  preview: preview.html
+  snapshots: fixtures/snapshots/
+metaphors:
+  - frame-chrome
+  - dot-grid
+theme_default: hwax-blue
+summary: "항목 4~9개가 좌상→우하 읽는 순서로 점등되는 카드 그리드 씬 — 열·행·카드 크기·제목 크기를 개수로 렌더가 계산하고(4=2×2, 5~6=3×2, 7~9=3×3) 스키마에는 배치 필드를 두지 않아 '많이 넣으면 글자가 준다'는 경로를 원천 차단"
+composition: "카드마다 [번호/아이콘 칩 + 상태 배지 + 제목 + 설명 1~2줄] · 좌상→우하 순차 등장 · '외 N건' 표기 + 하단 풋노트 — 은유: 진열대"
+in_scope:
+  - "사례·기능·항목 목록 4~9개 (record_table 행 · bulleted_list 다항목 · key_value 다수)"
+  - "pairs payload 배선: pairs.label → cards[].label, pairs.value → cards[].desc"
+  - "상태/수치 배지 8자 이내(positive/caution/info) · 칩은 순번 자동 또는 아이콘 글리프"
+  - "9개 초과 목록의 잔여분은 omitted('외 N건') 표기 — 고르는 판단은 심의 몫"
+out_of_scope:
+  - "10개 이상 (자동 축소·폰트 축소 금지 — 3×3 밀집에서도 제목 26px·설명 24px 유지)"
+  - "카드 내부 표·차트·이미지 (도판은 tpl.d-media, 수치 비교는 tpl.d-multi)"
+  - "데이터가 열 수를 지정하는 배치 (cols/rows/fontSize 필드 자체를 두지 않는다)"
+  - "카드 간 관계선·순서 화살표 (흐름은 tpl.process / tpl.c-branch)"
+quality:
+  reproducibility:
+    verdict: pass
+    max_diff_ratio: 0.00000000   # 독립 세션 2회 렌더 픽셀 diff (min/typical/max 3종 모두 0)
+    checked_at: "2026-07-29T02:26:00"
+  gates_passed:
+    - "20260729-022404-ee580d"  # 7게이트 클린 (error 0 · warning 0 · 분기/목록 2씬 빌드)
+  reviews: []

@@ -1,0 +1,17 @@
+{
+  "kicker": "진척률",
+  "title": "누적 진척률",
+  "points": [
+    { "label": "1주" },
+    { "label": "2주" },
+    { "label": "3주" },
+    { "label": "4주" }
+  ],
+  "lines": [
+    { "label": "누적", "values": [12, 34, 61, 88] }
+  ],
+  "readout": {
+    "value": "88%",
+    "desc": "4주차 누적 진척"
+  }
+}

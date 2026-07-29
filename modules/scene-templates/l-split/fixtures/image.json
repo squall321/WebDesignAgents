@@ -1,0 +1,37 @@
+{
+  "kicker": "구조 근거",
+  "title": "모듈 구조도로 본 계층 분리",
+  "ratio": "5:5",
+  "lead": "세 계층이 각자 한 가지만 맡는다",
+  "bullets": [
+    {
+      "text": "프론트엔드는 화면과 상태만 다룬다"
+    },
+    {
+      "text": "백엔드는 규약과 권한을 책임진다",
+      "em": true
+    },
+    {
+      "text": "데이터베이스는 사실만 보관한다"
+    }
+  ],
+  "conclusion": {
+    "pre": "계층이 갈리면 ",
+    "strong": "변경 반경",
+    "post": " 이 좁아진다"
+  },
+  "visual": {
+    "kind": "image",
+    "image": {
+      "src": "fixtures/assets/evidence.png",
+      "alt": "백엔드 FastAPI, 프론트엔드 React, PostgreSQL 3계층 모듈 구조와 연결 관계 도면 상한 표본 문장으로 여백을 채워 밀도를 확",
+      "caption": "삼계층 모듈 구조 설계도 캡션 상한 표본 문장으로 여백",
+      "source": "설계 문서 2판 출처 상한 표본 문장으로 여"
+    }
+  },
+  "frame": {
+    "brand": "ReportArchive",
+    "idx": "04",
+    "total": "07"
+  }
+}

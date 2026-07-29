@@ -35,6 +35,22 @@ PROMOTION_PATH: dict[str, str] = {"draft": "pilot", "pilot": "active"}
 PRODUCTION_MEETING_TYPES = frozenset({"scenario_build", "design_review"})
 GO_VERDICTS = frozenset({"Go", "Conditional-Go"})
 
+# 산출 종류. 선언 순서가 곧 렌더 실행 순서다(영상 → 슬라이드).
+OUTPUT_KINDS: tuple[str, ...] = ("video", "pptx")
+
+# template_pool 의 "native.*" 항목은 씬 캡처가 아니라 exporter 가 텍스트로 조립하는 슬라이드다.
+# (목차·섹션 구분처럼 이미지로 구울 이유가 없는 역할 — 씬 템플릿 모듈이 존재하지 않는다)
+NATIVE_TPL_PREFIX = "native."
+
+# 슬라이드 1장을 읽는 명목 시간(초). PPT 전용 포맷은 규격을 slides 로 적고 duration 은
+# 이 상수로 파생시킨다 — duration 은 공유 스키마의 영상 규격이라 슬라이드 예산의 정본이 아니다.
+NOMINAL_SECONDS_PER_SLIDE = 12.0
+
+
+def is_native_tpl(tpl_ref: str) -> bool:
+    """template_pool 항목이 네이티브 슬라이드 지시자("native.toc")인가."""
+    return tpl_ref.startswith(NATIVE_TPL_PREFIX)
+
 
 class FormatError(ValueError):
     """포맷 스펙 로드·검증 실패. 메시지는 원인 + 다음 행동을 담는다."""
@@ -81,6 +97,26 @@ class FormatDuration(StrictModel):
         if not (self.min <= self.target <= self.max):
             raise ValueError(
                 f"duration 범위 오류 — min({self.min}) ≤ target({self.target}) ≤ max({self.max}) 이어야 한다"
+            )
+        return self
+
+
+class FormatSlides(StrictModel):
+    """슬라이드 수 규격 — PPT 전용 포맷의 분량 정본.
+
+    영상은 초로 재지만 읽는 자료는 장수로 잰다. 낭독 예산·씬 dur 스케일이 존재하지 않는
+    포맷(outputs 에 video 없음)에서는 duration 이 뜻을 잃으므로 이 블록이 그 자리를 대신한다.
+    """
+
+    target: int = Field(gt=0)
+    min: int = Field(gt=0)
+    max: int = Field(gt=0)
+
+    @model_validator(mode="after")
+    def _ordered(self) -> "FormatSlides":
+        if not (self.min <= self.target <= self.max):
+            raise ValueError(
+                f"slides 범위 오류 — min({self.min}) ≤ target({self.target}) ≤ max({self.max}) 이어야 한다"
             )
         return self
 
@@ -164,6 +200,9 @@ class FormatSpec(StrictModel):
     name_ko: str = Field(min_length=1)
     stage: FormatStage
     duration: FormatDuration
+    slides: FormatSlides | None = Field(
+        default=None, description="슬라이드 수 규격 — PPT 전용 포맷의 분량 정본"
+    )
     skeleton: list[str] = Field(min_length=1, description="씬 역할 순서 (템플릿 id 아님)")
     template_pool: dict[str, list[str]] = Field(description="역할 → 사용 가능한 tpl id (우선순위 순)")
     narration: FormatNarration = Field(default_factory=FormatNarration)
@@ -179,6 +218,53 @@ class FormatSpec(StrictModel):
     presets: FormatPresets = Field(default_factory=FormatPresets)
     golden: FormatGolden = Field(default_factory=FormatGolden)
     lessons: list[str] = Field(default_factory=list, description="심의가 남긴 교훈 — 다음 회의가 인용한다")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _duration_from_slides(cls, data: object) -> object:
+        """duration 을 안 적은 PPT 전용 포맷은 slides 에서 파생시킨다.
+
+        duration 은 공유 스키마의 필수 필드이고 validate_scenario·조립기가 이미 소비하고
+        있다. 없애면 그쪽이 깨지므로, 슬라이드 규격에 명목 상수를 곱해 채운다
+        (slides.target 14 × 12초 = 168초). 이 파생값은 PPTX 산출에 쓰이지 않는다.
+        """
+        if not isinstance(data, dict) or data.get("duration") is not None:
+            return data
+        s = data.get("slides")
+        if not isinstance(s, dict) or not {"min", "target", "max"} <= set(s):
+            raise ValueError(
+                "duration 또는 slides 중 하나는 있어야 한다 — 영상 포맷은 duration{target,min,max}, "
+                "PPT 전용 포맷은 slides{target,min,max} 로 분량 규격을 적어라"
+            )
+        k = NOMINAL_SECONDS_PER_SLIDE
+        return dict(
+            data,
+            duration={
+                "target": float(s["target"]) * k,
+                "min": float(s["min"]) * k,
+                "max": float(s["max"]) * k,
+            },
+        )
+
+    @field_validator("outputs")
+    @classmethod
+    def _known_outputs(cls, v: list[str]) -> list[str]:
+        if not v:
+            raise ValueError(f"outputs 가 비었다 — {list(OUTPUT_KINDS)} 중 하나 이상을 선언하라")
+        unknown = [o for o in v if o not in OUTPUT_KINDS]
+        if unknown:
+            raise ValueError(f"알 수 없는 outputs {unknown} — 가능한 값은 {list(OUTPUT_KINDS)} 다")
+        return v
+
+    @model_validator(mode="after")
+    def _pptx_only_needs_slides(self) -> "FormatSpec":
+        """영상 산출이 없으면 분량 정본은 slides 다 — 초로만 적힌 규격을 거절한다."""
+        if "video" not in self.outputs and self.slides is None:
+            raise ValueError(
+                f"outputs={self.outputs} 는 영상이 없는 포맷이다 — 분량 규격을 "
+                "slides{target,min,max}(슬라이드 수) 로 명시하라. duration(초) 은 정본이 아니다"
+            )
+        return self
 
     @model_validator(mode="after")
     def _presets_match_skeleton(self) -> "FormatSpec":
@@ -214,13 +300,28 @@ class FormatSpec(StrictModel):
     # ── 파생 조회 ──────────────────────────────────────────────────────
 
     def tpl_ids(self) -> list[str]:
-        """template_pool 전체 tpl id (skeleton 순서, 중복 제거)."""
+        """template_pool 의 **씬 템플릿** id (skeleton 순서, 중복 제거).
+
+        native.* 지시자는 씬 템플릿 모듈이 아니므로 제외한다 — 레지스트리 조회·빌드
+        바인딩·포맷 지원 선언 검사가 전부 이 목록을 소비하기 때문이다.
+        """
         out: list[str] = []
         for role in self.skeleton:
             for tid in self.template_pool[role]:
-                if tid not in out:
+                if not is_native_tpl(tid) and tid not in out:
                     out.append(tid)
         return out
+
+    def native_roles(self) -> list[str]:
+        """native.* 지시자를 가진 역할 — exporter 가 브라우저 없이 텍스트로 조립할 수 있는 자리."""
+        return [
+            r for r in self.skeleton
+            if any(is_native_tpl(t) for t in self.template_pool[r])
+        ]
+
+    def wants(self, kind: str) -> bool:
+        """이 포맷이 해당 산출("video"/"pptx")을 내는가."""
+        return kind in self.outputs
 
     def allows_tpl(self, tpl_ref: str) -> bool:
         """씬의 tpl 참조("opening@1"·"vtpl.hook@1")가 이 포맷의 풀에 있는지."""
@@ -409,6 +510,8 @@ def check_format_templates(
     problems: list[str] = []
     for role in spec.skeleton:
         for tid in spec.template_pool[role]:
+            if is_native_tpl(tid):
+                continue  # 씬 템플릿이 아니다 — exporter 가 텍스트로 조립한다
             entry = registry.get(tid)
             if entry is None:
                 problems.append(
@@ -434,6 +537,40 @@ def check_format_templates(
                     f"module.yaml 에 formats: [{spec.id}] 를 추가하라"
                 )
     return problems
+
+
+# ── 렌더 타깃 (outputs 존중) ────────────────────────────────────────────
+
+
+def render_targets(
+    format_id: str | None,
+    *,
+    skip_video: bool = False,
+    formats_root: str | Path | None = None,
+    modules_root: str | Path | None = None,
+) -> list[str]:
+    """포맷의 outputs 를 실행할 렌더 타깃 목록으로 정규화한다 (OUTPUT_KINDS 선언 순서).
+
+    영상 없이 슬라이드만 뽑는 포맷(outputs: [pptx])에서 mp4 를 굽지 않게 하는 단일 판정점이다.
+    포맷을 못 읽으면 기존 동작(영상+슬라이드)으로 떨어진다 — 렌더가 스펙 오류로 멈추지 않게.
+    템플릿 실재 검사는 하지 않는다 — "무엇을 뽑는가"는 레지스트리 상태와 무관한 질문이고,
+    템플릿이 실제로 없으면 조립·빌드 단계에서 이미 걸린다.
+    """
+    outputs: list[str] = list(OUTPUT_KINDS)
+    if format_id:
+        try:
+            spec = load_format(
+                format_id, formats_root=formats_root, modules_root=modules_root,
+                check_templates=False,
+            )
+        except FormatError:
+            pass
+        else:
+            outputs = list(spec.outputs)
+    targets = [k for k in OUTPUT_KINDS if k in outputs]
+    if skip_video:
+        targets = [k for k in targets if k != "video"]
+    return targets
 
 
 # ── 사용 원장 (usage_count 자동 집계) ───────────────────────────────────
@@ -603,11 +740,20 @@ def format_presets_briefing(
     """이 장르의 노하우를 다음 심의가 인용할 수 있는 형태로 요약한다 (마크다운 문자열)."""
     spec = load_format(format_id, formats_root=formats_root, modules_root=modules_root)
     p = spec.presets
+    # 분량 규격은 산출에 따라 자로 바꾼다 — 영상은 초, 읽는 자료는 슬라이드 수.
+    if spec.slides is not None and not spec.wants("video"):
+        budget = (
+            f"목표 {spec.slides.target}장 (허용 {spec.slides.min}~{spec.slides.max})"
+        )
+    else:
+        budget = (
+            f"목표 {spec.duration.target:g}초 "
+            f"(허용 {spec.duration.min:g}~{spec.duration.max:g})"
+        )
     L: list[str] = [
         f"## 포맷 {spec.id} — {spec.name_ko} ({spec.status} · 산출물 {spec.usage_count}건)",
-        f"- 무대 {spec.stage.w}×{spec.stage.h} · 목표 {spec.duration.target:g}초 "
-        f"(허용 {spec.duration.min:g}~{spec.duration.max:g}) · 최소 폰트 {spec.constraints.min_font} "
-        f"· safe margin {spec.constraints.safe_margin}",
+        f"- 무대 {spec.stage.w}×{spec.stage.h} · {budget} · 산출 {'+'.join(spec.outputs)} "
+        f"· 최소 폰트 {spec.constraints.min_font} · safe margin {spec.constraints.safe_margin}",
         "- 골격 " + " → ".join(
             f"{r}({spec.primary_tpl(r)})" for r in spec.skeleton
         ),

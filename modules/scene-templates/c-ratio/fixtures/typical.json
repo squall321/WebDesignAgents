@@ -1,0 +1,17 @@
+{
+  "kicker": "위젯 카탈로그",
+  "title": "위젯 38종의 군별 구성",
+  "style": "donut",
+  "unit": "종",
+  "series": [
+    { "label": "수치군 — 차트·분포·비율", "value": 14, "display": "14종" },
+    { "label": "미디어군 — 이미지·문서", "value": 6, "display": "6종" },
+    { "label": "표군 — 표·비교·FMEA", "value": 5, "display": "5종" },
+    { "label": "다이어그램군 — 흐름·망", "value": 5, "display": "5종" },
+    { "label": "텍스트군 — 본문·목록", "value": 5, "display": "5종" }
+  ],
+  "total": { "value": 38, "label": "위젯 전체" },
+  "center": { "value": "38종", "label": "위젯 전체" },
+  "footnote": { "text": "ReportArchive 위젯 레지스트리 기준" },
+  "frame": { "brand": "WebDesignAgents", "idx": "04", "total": "12" }
+}

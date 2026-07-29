@@ -1,0 +1,41 @@
+# tpl.l-ba — 씬 템플릿 모듈 SSOT (Before/After 반반 화면 — 전체 상태 대비 + 중앙 개선폭 배지)
+id: tpl.l-ba
+type: scene-template
+name: "Before/After 반반 — AS-IS / TO-BE 전체 상태 대비"
+status: draft
+version: 1.0.0
+engine_compat: "animations-v2"
+origin: "창작 모드 레이아웃 확장 2026-07-29"
+formats: [wide-16x9]
+stage: { w: 1920, h: 1080 }
+nat_default: 14
+scene_name_default: "대비"
+entry:
+  template: "web/templates/omx-layouts-b.jsx#BaScene"
+  schema: schema.json
+  fixtures:
+    - fixtures/min.json
+    - fixtures/typical.json
+    - fixtures/max.json
+  preview: preview.html
+  snapshots: fixtures/snapshots/
+metaphors:
+  - frame-chrome
+  - dot-grid
+theme_default: hwax-blue
+summary: "무대를 x=960 에서 정확히 반으로 갈라 AS-IS / TO-BE 를 각각 [라벨 칩 + 제목 + 항목 3~5 + 요약 수치]로 세우고 중앙 화살표·개선폭 배지로 전환을 서사하는 씬 — 좌가 다 끝난 뒤 우가 등장해 순서가 곧 전환이 된다"
+composition: "좌 패널(AS-IS, 적색 톤) · 정확한 절반 분할선 · 중앙 화살표 + 개선폭 배지 · 우 패널(TO-BE, 청색 톤) + 하단 풋노트 — 은유: 강을 건너기"
+in_scope:
+  - "전체 상태 대비 (도입 전/후, 이관 전/후, 개선 전/후)"
+  - "각 상태의 항목 3~5개와 대표 수치 1개"
+  - "중앙 개선폭 배지 1개 (예: -62%)"
+out_of_scope:
+  - "행 단위 짝 비교 — 그건 tpl.compare 의 몫이다 (쟁점별 A/B 대응)"
+  - "3안 이상 비교 (반반 분할이 전제)"
+  - "좌우 항목 개수가 서로 크게 다른 구성 (반반의 균형이 깨진다)"
+quality:
+  reproducibility:
+    verdict: unverified
+    checked_at: null
+  gates_passed: []
+  reviews: []

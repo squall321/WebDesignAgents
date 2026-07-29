@@ -1,0 +1,43 @@
+# tpl.doc-section — 문서형 씬 템플릿 모듈 SSOT (문서형 섹션 구분 — 큰 번호 + 섹션명 + 한 줄 요지)
+id: tpl.doc-section
+type: scene-template
+name: "문서형 섹션 구분 — 큰 번호 + 섹션명 + 한 줄 요지"
+status: draft
+version: 1.0.0
+engine_compat: "animations-v2"
+origin: "창작 모드 문서형 2026-07-29"
+formats: [deck-doc-16x9, deck-4x3, print-a4]
+# stage = 골든 스냅샷·재현력 검증의 기준 무대(deck-doc-16x9). 나머지 두 무대는 stages 에 명시하고
+# 레이아웃은 좌표가 아니라 flex 비율이라 같은 코드가 셋 다 성립한다(실측: tests/test_templates_doc_render.py).
+stage: { w: 1920, h: 1080 }
+stages:
+  deck-doc-16x9: { w: 1920, h: 1080 }
+  deck-4x3: { w: 1440, h: 1080 }
+  print-a4: { w: 1240, h: 1754 }
+nat_default: 5
+scene_name_default: "섹션"
+entry:
+  template: "web/templates/omx-templates-doc.jsx#DocSectionScene"
+  schema: schema.json
+  fixtures:
+    - fixtures/min.json
+    - fixtures/typical.json
+    - fixtures/max.json
+  preview: preview.html
+  snapshots: fixtures/snapshots/
+metaphors:
+  - doc-page
+  - doc-rule
+theme_default: hwax-blue
+summary: "108px 번호와 섹션명·룰·한 줄 요지로 장이 바뀌었음을 알리는 저밀도 간지 씬 (다룰 항목 예고 칩은 선택)"
+composition: "세로 중앙 정렬 좌우 2블록 — 좌: 번호 108px(청색), 우: 섹션명 46px + 룰 108px + 요지 28px + 예고 칩 24px 최대 4개"
+in_scope:
+  - "장·부 구분 간지"
+  - "이 장에서 다룰 항목 예고(칩 최대 4개)"
+out_of_scope:
+  - "본문 서술 (tpl.doc-body 사용)"
+  - "번호 없는 구분 장 — no 는 필수다"
+  - "영상 전환 씬 — 모션 연출이 필요하면 가로/세로 템플릿을 쓴다"
+quality:
+  gates_passed: []
+  reviews: []

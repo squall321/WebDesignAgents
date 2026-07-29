@@ -1,0 +1,73 @@
+{
+  "kicker": "설명 열 상한 확인 킥커 상한",
+  "title": "설명 열 상한과 근거 막대를 함께 확인한다 상한",
+  "ratio": "6:4",
+  "lead": "설명 열 리드 문장이 두 행을 채우는 상한 표본 문장으",
+  "bullets": [
+    {
+      "text": "첫 불릿이 한 행을 가득 채운 상한 표본",
+      "em": true
+    },
+    {
+      "text": "둘째 불릿도 같은 길이로 한 행을 상한함"
+    },
+    {
+      "text": "셋째 불릿 역시 같은 상한을 그대로 상한"
+    },
+    {
+      "text": "넷째 불릿도 한 행 상한을 정확히 상한함"
+    },
+    {
+      "text": "다섯째 불릿까지 상한을 채워 상한 표본함"
+    }
+  ],
+  "conclusion": {
+    "pre": "좌측 열 하단에 고정 ",
+    "strong": "소결론 상한값 표본",
+    "post": " 이 바닥을 잡아 준다"
+  },
+  "visual": {
+    "kind": "bars",
+    "bars": {
+      "unit": "%",
+      "axisMax": 100,
+      "items": [
+        {
+          "label": "첫 항목 라벨이 한 행 상한 표본 문",
+          "value": 92,
+          "tone": "primary"
+        },
+        {
+          "label": "둘째 항목 라벨도 같은 상한 표본 문",
+          "value": 78,
+          "tone": "secondary"
+        },
+        {
+          "label": "셋째 항목 라벨 역시 상한 표본 문장",
+          "value": 64,
+          "tone": "positive"
+        },
+        {
+          "label": "넷째 항목 라벨도 한 행 상한 표본함",
+          "value": 51,
+          "tone": "caution"
+        },
+        {
+          "label": "다섯째 항목 라벨까지 상한 표본 문장",
+          "value": 37,
+          "tone": "primary"
+        },
+        {
+          "label": "여섯째 항목 라벨로 상한 표본 문장으",
+          "value": 18,
+          "tone": "secondary"
+        }
+      ]
+    }
+  },
+  "frame": {
+    "brand": "ReportArchive 표본 상한 표본 문",
+    "idx": "99",
+    "total": "99"
+  }
+}

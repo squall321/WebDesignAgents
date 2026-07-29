@@ -1,0 +1,77 @@
+{
+  "kicker": "위젯 38종 군 분류표",
+  "title": "구조 payload 로 정규화되는 아홉 군",
+  "cards": [
+    {
+      "icon": "▦",
+      "label": "표군 · table 다섯 계열",
+      "desc": "table·comparison·raci·fmea·record 다섯",
+      "badge": "5종",
+      "tone": "info"
+    },
+    {
+      "icon": "◇",
+      "label": "다이어그램 · graph 계열",
+      "desc": "flowchart·tree·network·sankey 등 다섯",
+      "badge": "5종",
+      "tone": "info"
+    },
+    {
+      "icon": "▲",
+      "label": "수치군 · series 계열",
+      "desc": "chart·pie·waffle·treemap 등 열넷이 한 군으로",
+      "badge": "14종",
+      "tone": "caution"
+    },
+    {
+      "icon": "◷",
+      "label": "일정군 · timeline",
+      "desc": "milestone 하나뿐이지만 마일스톤 3태를 가진다",
+      "badge": "1종"
+    },
+    {
+      "icon": "≡",
+      "label": "키값군 · pairs",
+      "desc": "key_value·record 둘, 보고서마다 항목이 다르다",
+      "badge": "2종"
+    },
+    {
+      "icon": "▣",
+      "label": "미디어군 · media",
+      "desc": "image·video·attachment·cad_3d 등 여섯",
+      "badge": "6종",
+      "tone": "info"
+    },
+    {
+      "icon": "¶",
+      "label": "텍스트군 · 무구조",
+      "desc": "heading·rich_text·card 등 다섯은 조각으로 간다",
+      "badge": "5종"
+    },
+    {
+      "icon": "✓",
+      "label": "구조 추출 성공률",
+      "desc": "실물 report_sample 기준 구조군 전 블록 추출됨",
+      "badge": "100%",
+      "tone": "positive"
+    },
+    {
+      "icon": "!",
+      "label": "미지 타입 감시선",
+      "desc": "registry 신규 위젯은 unknown_types 로 뜬다",
+      "badge": "0건",
+      "tone": "positive"
+    }
+  ],
+  "omitted": 14,
+  "note": {
+    "pre": "아홉 군 어디에도 없는 위젯은 ",
+    "strong": "커버리지 공백",
+    "post": " 이다"
+  },
+  "frame": {
+    "brand": "ReportArchive",
+    "idx": "03",
+    "total": "07"
+  }
+}

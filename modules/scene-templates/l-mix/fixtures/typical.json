@@ -1,0 +1,43 @@
+{
+  "kicker": "구현 현황",
+  "title": "Phase 진척 — 표와 막대",
+  "stats": [
+    { "value": "7", "unit": "개", "label": "전체 Phase" },
+    { "value": "3", "unit": "개", "label": "완료 Phase" },
+    { "value": "60", "unit": "%", "label": "평균 진척" }
+  ],
+  "table": {
+    "columns": [
+      { "label": "단계" },
+      { "label": "진척" },
+      { "label": "상태" },
+      { "label": "다음 고비" }
+    ],
+    "rows": [
+      { "label": "Phase 0/1", "cells": [{ "v": "100%" }, { "v": "완료" }, { "v": "—" }] },
+      { "label": "Phase 1.7", "cells": [{ "v": "100%" }, { "v": "완료" }, { "v": "—" }] },
+      { "label": "Phase 2", "cells": [{ "v": "100%" }, { "v": "완료" }, { "v": "—" }] },
+      { "label": "Phase 3", "cells": [{ "v": "70%", "em": true }, { "v": "진행" }, { "v": "권한 함수" }] },
+      { "label": "Phase 4", "cells": [{ "v": "30%" }, { "v": "진행" }, { "v": "허브 UI" }] }
+    ]
+  },
+  "chart": {
+    "axisMax": 100,
+    "bars": [
+      { "label": "Phase 0/1", "value": 100, "display": "100%" },
+      { "label": "Phase 2", "value": 100, "display": "100%" },
+      { "label": "Phase 3", "value": 70, "display": "70%", "em": true },
+      { "label": "Phase 4", "value": 30, "display": "30%" }
+    ]
+  },
+  "note": {
+    "pre": "같은 수치를 숫자와 길이로 ",
+    "strong": "두 번",
+    "post": " 읽힌다"
+  },
+  "frame": {
+    "brand": "ReportArchive",
+    "idx": "06",
+    "total": "07"
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "kicker": "배포 구성",
+  "title": "독립 배포와 결합 배포",
+  "ratio": "5:5",
+  "lead": "배포 형태는 두 갈래로 갈린다",
+  "bullets": [
+    { "text": "독립 배포는 프론트를 CDN 으로 캐싱할 수 있다" },
+    { "text": "결합 배포는 동일 origin 이라 CORS 가 없다", "em": true },
+    { "text": "운영 단순화가 목표면 결합이 유리하다" },
+    { "text": "멀티 프론트 계획이 있으면 독립을 고른다" }
+  ],
+  "conclusion": { "pre": "사내 단일 서버는 ", "strong": "결합 배포", "post": " 를 권장한다" },
+  "visual": {
+    "kind": "table",
+    "table": {
+      "columns": [
+        { "label": "항목" },
+        { "label": "A. 독립" },
+        { "label": "B. 결합" }
+      ],
+      "rows": [
+        { "label": "호스트 구성", "cells": [{ "v": "백엔드+프론트" }, { "v": "단일 호스트", "em": true }] },
+        { "label": "CORS", "cells": [{ "v": "origin 지정" }, { "v": "불필요", "em": true }] },
+        { "label": "프론트 API base", "cells": [{ "v": "절대 URL" }, { "v": "상대 /api" }] },
+        { "label": "백엔드 .env", "cells": [{ "v": "빈 값" }, { "v": "dist 경로" }] },
+        { "label": "추천 상황", "cells": [{ "v": "인프라 분리" }, { "v": "사내 단일" }] }
+      ]
+    }
+  },
+  "frame": { "brand": "ReportArchive", "idx": "03", "total": "07" }
+}

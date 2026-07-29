@@ -1,0 +1,29 @@
+{
+  "kicker": "5. 향후 계획",
+  "title": "협업 개선 도입 진행도",
+  "lead": "Phase 3 까지는 운영에 반영됐고 4 이후가 남은 일이다",
+  "bullets": [
+    { "tag": "완료", "text": "작성자 owner check 와 게시(Mount) 경로 확정" },
+    { "tag": "완료", "text": "시스템 관리자 권한을 조직 보직장과 분리" },
+    { "tag": "진행", "text": "can_edit() 풀 함수 — 의사결정 4건 확정 후 검증" },
+    { "tag": "대기", "text": "내 공간 hub 와 종합보고 탭 분리는 설계 단계" }
+  ],
+  "takeaway": "Phase 4 부터는 화면 재설계가 함께 걸려 일정이 길다",
+  "evidence": {
+    "kind": "chart",
+    "caption": "Phase 별 진척률",
+    "chart": {
+      "unit": "%",
+      "bars": [
+        { "label": "P0/1 게시", "value": 100 },
+        { "label": "P1.7 관리자", "value": 100 },
+        { "label": "P2 잠금", "value": 100 },
+        { "label": "P3 권한 함수", "value": 70, "emphasis": true },
+        { "label": "P4 내 공간", "value": 30 }
+      ]
+    },
+    "source": "설명서 5장 progress_bar 위젯"
+  },
+  "page": { "no": "26", "total": "28" },
+  "footer": { "left": "ReportArchive 사용 설명서 · 5장", "right": "내부 배포용" }
+}

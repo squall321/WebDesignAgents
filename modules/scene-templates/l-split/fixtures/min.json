@@ -1,0 +1,15 @@
+{
+  "kicker": "요약",
+  "title": "결합 배포를 기본으로",
+  "ratio": "5:5",
+  "bullets": [
+    { "text": "한 서버가 API 와 화면을 함께 낸다" },
+    { "text": "동일 origin 이라 CORS 설정이 없다" },
+    { "text": "운영 대상이 하나로 줄어든다" }
+  ],
+  "conclusion": { "pre": "사내 단일 서버는 ", "strong": "결합 배포", "post": " 가 기본" },
+  "visual": {
+    "kind": "note",
+    "note": { "headline": "기본값은 결합 배포다" }
+  }
+}

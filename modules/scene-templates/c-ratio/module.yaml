@@ -1,0 +1,54 @@
+# tpl.c-ratio — 씬 템플릿 모듈 SSOT (비율·구성비 — 도넛/와플 + 지분 범례)
+id: tpl.c-ratio
+type: scene-template
+name: "비율·구성비 — 도넛/와플 + 지분 범례"
+status: draft
+version: 1.0.0
+engine_compat: "animations-v2"
+origin: "창작 모드 커버리지 1순위 2026-07-29"
+formats: [wide-16x9]
+stage: { w: 1920, h: 1080 }
+nat_default: 12
+scene_name_default: "비율"
+entry:
+  template: "web/templates/omx-layouts-c.jsx#RatioScene"
+  schema: schema.json
+  fixtures:
+    - fixtures/min.json
+    - fixtures/typical.json
+    - fixtures/max.json
+  preview: preview.html
+  snapshots: fixtures/snapshots/
+metaphors:
+  - frame-chrome
+  - dot-grid
+theme_default: hwax-blue
+summary: "전체를 100 으로 놓고 구성 비중을 도넛(또는 10×10 와플)과 지분 범례로 보여주는 비율 씬 — 백분율을 저작 불가로 만들어(값에서 파생) 각도 합 360° 를 구조로 보장"
+composition: "좌측 원환(중앙 총계 대형 수치, 큰 조각부터 시계 방향) + 우측 범례 4~7행(색 칩·항목명·100% 기준 트랙·지분%·절대값) + 하단 각주(자동 편입·출처) — 은유: 하나의 원을 나눠 갖는다"
+in_scope:
+  - "구성 항목 4~7개의 점유율·예산 배분·유형별 분포"
+  - "total 선언 시 미표기 잔량을 '기타(미표기)' 조각으로 자동 편입하고 각주에 명시"
+  - "style=waffle — 10×10 100칸 격자(최대잔여법으로 칸 합 정확히 100)"
+out_of_scope:
+  - "시간에 따른 비중 변화 (tpl.c-trend 사용)"
+  - "8개 이상 항목·계층형 구성(treemap 의 parent 계층은 평탄화해 받는다)"
+  - "3D 파이·기울임·폭발형 조각 — 면적 왜곡을 만드는 표현 일체"
+  - "음수 지분"
+distortion_guards:
+  - "percent/share/angle 필드 부재 — 화면 비율은 value/Σvalue 파생, 각도 합 = 360°±0.5 (렌더 테스트가 실측)"
+  - "value minimum 0 — 음수 조각 불가"
+  - "정렬·등장 순서를 렌더러가 값에서 정한다 — 저작 순서로 위계 왜곡 불가"
+  - "범례 트랙은 100% 기준 — 최대값 정규화(상대 막대) 금지"
+  - "지분 5% 미만은 링 밖 라벨 생략, 범례로만 — 겹침 오독 방지"
+widget_intake:
+  payload_kind: series
+  widgets: [pie, waffle, treemap, packing]
+  mapping: "payload.series[{label,value}] → series, payload.unit → unit"
+quality:
+  reproducibility:
+    verdict: pass          # 독립 컨텍스트 2회 렌더 × 3픽스처 — 스틸 PNG 바이트 동일
+    max_diff_ratio: 0.00000000
+    checked_at: "2026-07-29T02:21:22"
+  gates_passed:
+    - "20260729-022145-925be3"   # 게이트 1~7 error 0 · warning 0 (scenario 주입, x-read 자막 예산 포함)
+  reviews: []

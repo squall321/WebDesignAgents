@@ -16,7 +16,7 @@ dependencies = [
 [project.optional-dependencies]
 mcp = ["mcp>=1.0"]
 llm = ["openai>=1.0"]
-render = ["playwright", "python-pptx", "pillow", "numpy"]
+render = ["playwright", "python-pptx", "pillow", "numpy", "python-docx", "pypdf"]
 web = ["fastapi>=0.110", "uvicorn>=0.30", "python-multipart"]
 dev = ["pytest", "pytest-asyncio"]
 

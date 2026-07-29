@@ -1,0 +1,24 @@
+{
+  "kicker": "인력 배분",
+  "title": "부문별 인력 비중",
+  "style": "waffle",
+  "unit": "명",
+  "series": [
+    {
+      "label": "개발",
+      "value": 45
+    },
+    {
+      "label": "운영",
+      "value": 25
+    },
+    {
+      "label": "영업",
+      "value": 20
+    },
+    {
+      "label": "관리",
+      "value": 10
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "kicker": "구현 현황",
+  "title": "핵심 지표 넷",
+  "metrics": [
+    { "label": "전체 Phase", "value": "7", "unit": "개" },
+    { "label": "완료 Phase", "value": "3", "unit": "개" },
+    { "label": "평균 진척", "value": "60", "unit": "%" },
+    { "label": "미착수", "value": "1", "unit": "개" }
+  ]
+}

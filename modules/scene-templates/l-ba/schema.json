@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "wda:tpl.l-ba/schema@1.0.0",
+  "title": "tpl.l-ba 데이터 스키마",
+  "description": "Before/After 반반 화면 씬 — 무대를 x=960 에서 정확히 반으로 갈라 AS-IS / TO-BE **전체 상태**를 대비한다. tpl.compare(행 짝 비교)와 다르다: 여기서는 좌우가 각각 하나의 완결된 상태 서술(라벨 칩 + 제목 + 항목 3~5 + 요약 수치)이다. 폭 예산은 패널 740px 안쪽 668px(pad 36) 기준 실측 역산.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["kicker", "title", "before", "after"],
+  "$defs": {
+    "side": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "title", "items", "summary"],
+      "properties": {
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 10,
+          "description": "상태 칩 (AS-IS / TO-BE 등) — 26px × 10자 = 260 + 칩 여백 40 = 300 ≤ 668"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 30,
+          "description": "상태 한 줄 요약 — 33px(cardTitle) 안폭 668 ≈ 20자/행 × 2행 = 40자, 안전 30자 (상자 높이 88px)"
+        },
+        "items": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 5,
+          "description": "상태를 이루는 항목 3~5개 — 행 피치 40px × 5 = 200px",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["text"],
+            "properties": {
+              "text": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 22,
+                "description": "한 줄 항목 — 불릿 24px 제외 644px ÷ 25px(note) ≈ 25자, nowrap 안전 22자"
+              }
+            }
+          }
+        },
+        "summary": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["value", "desc"],
+          "description": "상태를 대표하는 수치 한 개 — 좌는 회색(sub), 우는 청색(blue) 강조",
+          "properties": {
+            "value": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 6,
+              "pattern": "^-?[0-9][0-9.,]*$",
+              "description": "숫자만 (단위는 desc 로) — 92px(display) × 6자 ≈ 304px"
+            },
+            "desc": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 10,
+              "description": "수치 설명 — 26px × 10자 = 260px, value 304 + gap 20 + 260 = 584 ≤ 668"
+            }
+          }
+        }
+      }
+    }
+  },
+  "properties": {
+    "kicker": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 26,
+      "x-read": true,
+      "description": "타이틀 1행 — 내용 폭 1640px ÷ 56px(sectionTitle) ≈ 29자, 안전 26자"
+    },
+    "before": { "$ref": "#/$defs/side", "description": "좌측 AS-IS — 적색 톤 칩, 요약 수치는 회색" },
+    "after": { "$ref": "#/$defs/side", "description": "우측 TO-BE — 청색 톤 칩, 요약 수치는 청색 강조" },
+    "gain": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 6,
+      "description": "중앙 개선폭 배지 (예: -62%) — 30px(lead) × 6자 = 180 + 여백 44 = 224px, 화면 중앙 960±112 이라 양 패널 글자(≤844 / ≥1076)와 겹치지 않는다"
+    },
+    "note": {
+      "type": "object",
+      "additionalProperties": false,
+      "x-read": true,
+      "description": "하단 중앙 풋노트 — 이 전환이 말하는 결론 한 줄",
+      "properties": {
+        "pre": { "type": "string", "maxLength": 18 },
+        "strong": { "type": "string", "maxLength": 12 },
+        "post": { "type": "string", "maxLength": 18 }
+      }
+    },
+    "frame": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "프레임 푸터 메타 — 없으면 푸터 숨김",
+      "properties": {
+        "brand": { "type": "string", "maxLength": 24 },
+        "idx": { "type": "string", "maxLength": 4 },
+        "total": { "type": "string", "maxLength": 4 }
+      }
+    }
+  }
+}

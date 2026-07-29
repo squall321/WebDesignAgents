@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "wda:tpl.l-tree/schema@1.0.0",
+  "title": "tpl.l-tree 데이터 스키마",
+  "description": "계층 구조도(조직도·아키텍처) — 3단 위계를 상하 트리로 그린다. tpl.concept 의 방사형(동등한 참여자)과 달리 이것은 위계를 그린다. wdpipeline structured graph(shape=tree) payload 의 nodes/edges 를 그대로 받는다(caption 은 title 로 옮긴다). 용량은 스키마가 강제한다 — 루트 1 · 중간 2~4 · 리프 ≤8, 초과분은 omitted 로 계상.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["kicker", "title", "nodes", "edges"],
+  "properties": {
+    "kicker": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 26,
+      "x-read": true,
+      "description": "타이틀 1행 — 내용 폭 1640px ÷ 56px(sectionTitle) ≈ 29자, 안전 26자 (graph payload 의 caption 이 여기로 온다)"
+    },
+    "nodes": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 13,
+      "description": "graph payload 의 nodes 그대로 — {id, label, level, note?}. 최대 13 = 루트 1 + 중간 4 + 리프 8",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "label", "level"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 60,
+            "description": "edges 가 참조하는 식별자 — 화면에 표시되지 않는다(파이프라인은 라벨을 id 로 쓴다)"
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 22,
+            "description": "레벨별 상한은 아래 allOf 가 조인다 — 리프(level 2) 기준 22자가 기본"
+          },
+          "level": {
+            "type": "integer",
+            "enum": [0, 1, 2],
+            "description": "0=루트 · 1=중간 · 2=리프. 4단 이상은 이 템플릿 범위 밖"
+          },
+          "note": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 13,
+            "description": "중간 노드 부연 1행 — 4가지 시 내폭 343px ÷ 24px(caption) ≈ 14자, 안전 13자 (루트·리프에서는 렌더하지 않는다)"
+          }
+        },
+        "allOf": [
+          {
+            "description": "루트 — 560px 박스 내폭 512px ÷ 33px(cardTitle) ≈ 15자, nowrap 안전 14자",
+            "if": { "properties": { "level": { "const": 0 } }, "required": ["level"] },
+            "then": { "properties": { "label": { "maxLength": 14 } } }
+          },
+          {
+            "description": "중간 — 4가지 시 열폭 383px 내폭 343px ÷ 25px(note) ≈ 13자/행 × 2행 = 27자, 안전 18자",
+            "if": { "properties": { "level": { "const": 1 } }, "required": ["level"] },
+            "then": { "properties": { "label": { "maxLength": 18 } } }
+          }
+        ]
+      }
+    },
+    "edges": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 12,
+      "description": "graph payload 의 edges 그대로 — {from, to}. 리프의 소속 가지를 여기서 읽는다",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["from", "to"],
+        "properties": {
+          "from": { "type": "string", "minLength": 1, "maxLength": 60 },
+          "to": { "type": "string", "minLength": 1, "maxLength": 60 }
+        }
+      }
+    },
+    "omitted": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "담지 못한 노드 수 — 루트 우측에 '…외 N개 노드' 로 표기 (15노드 트리 → 12노드 + 외 3개)"
+    },
+    "frame": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "프레임 푸터 메타 — 없으면 푸터 숨김",
+      "properties": {
+        "brand": { "type": "string", "maxLength": 24 },
+        "idx": { "type": "string", "maxLength": 4 },
+        "total": { "type": "string", "maxLength": 4 }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "description": "루트는 정확히 1개",
+      "properties": {
+        "nodes": {
+          "contains": { "properties": { "level": { "const": 0 } }, "required": ["level"] },
+          "minContains": 1,
+          "maxContains": 1
+        }
+      }
+    },
+    {
+      "description": "중간 노드 2~4 — 4가지를 넘으면 열폭이 383px 아래로 내려가 리프 라벨이 깨진다",
+      "properties": {
+        "nodes": {
+          "contains": { "properties": { "level": { "const": 1 } }, "required": ["level"] },
+          "minContains": 2,
+          "maxContains": 4
+        }
+      }
+    },
+    {
+      "description": "리프 ≤8 — 가지당 4개(세로 예산 650~948px)가 상한이고 총합도 8을 넘지 않는다",
+      "properties": {
+        "nodes": {
+          "contains": { "properties": { "level": { "const": 2 } }, "required": ["level"] },
+          "minContains": 0,
+          "maxContains": 8
+        }
+      }
+    }
+  ]
+}

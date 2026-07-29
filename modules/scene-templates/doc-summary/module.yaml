@@ -1,0 +1,44 @@
+# tpl.doc-summary — 문서형 씬 템플릿 모듈 SSOT (문서형 요약·결론 — 핵심 3~5줄 + 다음 행동)
+id: tpl.doc-summary
+type: scene-template
+name: "문서형 요약·결론 — 핵심 3~5줄 + 다음 행동"
+status: draft
+version: 1.0.0
+engine_compat: "animations-v2"
+origin: "창작 모드 문서형 2026-07-29"
+formats: [deck-doc-16x9, deck-4x3, print-a4]
+# stage = 골든 스냅샷·재현력 검증의 기준 무대(deck-doc-16x9). 나머지 두 무대는 stages 에 명시하고
+# 레이아웃은 좌표가 아니라 flex 비율이라 같은 코드가 셋 다 성립한다(실측: tests/test_templates_doc_render.py).
+stage: { w: 1920, h: 1080 }
+stages:
+  deck-doc-16x9: { w: 1920, h: 1080 }
+  deck-4x3: { w: 1440, h: 1080 }
+  print-a4: { w: 1240, h: 1754 }
+nat_default: 8
+scene_name_default: "요약"
+entry:
+  template: "web/templates/omx-templates-doc.jsx#DocSummaryScene"
+  schema: schema.json
+  fixtures:
+    - fixtures/min.json
+    - fixtures/typical.json
+    - fixtures/max.json
+  preview: preview.html
+  snapshots: fixtures/snapshots/
+metaphors:
+  - doc-page
+  - doc-rule
+theme_default: hwax-blue
+summary: "좌측 핵심 3~5줄(번호·보조 근거)과 우측 다음 행동 카드(체크박스·담당·기한)로 문서를 닫는 씬"
+composition: "제목 38px + 룰 / 2단 flex(좌 1.3 · 우 1, 간격 44) — 좌: 번호판 38px + 핵심 26px + 보조 24px, 우: 카드(제목 25px + 체크박스 22px + 행동 26px + 담당/기한 칩 24px) / 맺음 한 줄 + 꼬리말"
+in_scope:
+  - "문서형 덱의 마지막 장"
+  - "핵심 3~5줄 + 다음 행동 1~4건(담당·기한)"
+  - "맺음 한 줄"
+out_of_scope:
+  - "영상 클로징 CTA (tpl.closing·vtpl.cta 사용)"
+  - "행동 5건 이상 — 우측 카드 높이 상한"
+  - "새로운 근거 제시 — 요약은 본문을 되짚는다"
+quality:
+  gates_passed: []
+  reviews: []

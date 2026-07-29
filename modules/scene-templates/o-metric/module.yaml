@@ -1,0 +1,44 @@
+# tpl.o-metric — 씬 템플릿 모듈 SSOT (수치 충격형 오프닝 — 핵심 숫자를 먼저 던진다)
+id: tpl.o-metric
+type: scene-template
+name: "오프닝 · 수치 충격형 — 숫자가 먼저, 제목은 나중"
+status: draft
+version: 1.0.0
+engine_compat: "animations-v2"
+origin: "창작 모드 오프닝 변주 2026-07-29"
+formats: [wide-16x9]
+stage: { w: 1920, h: 1080 }
+nat_default: 8
+scene_name_default: "오프닝"
+entry:
+  template: "web/templates/omx-openings.jsx#MetricOpeningScene"
+  schema: schema.json
+  fixtures:
+    - fixtures/min.json
+    - fixtures/typical.json
+    - fixtures/max.json
+  preview: preview.html
+  snapshots: fixtures/snapshots/
+metaphors:
+  - frame-chrome
+  - dot-grid
+theme_default: hwax-blue
+summary: "화면 중앙 220px 수치가 0에서 목표값까지 카운트업(localTime 순수 함수)한 뒤 그 수치의 의미 한 줄, 마지막에 제목이 26px 킥커로 작게 붙는 오프닝 — 크기 위계를 뒤집어 제목을 조연으로 만든다"
+composition: "초대형 수치(220px, blue) + 단위(110px, ink) + 의미 한 줄(36px) + 제목 킥커(26px) + 하단 출처 — 은유: 먼저 던지는 숫자"
+imprint_strategy: "수치 충격 — tpl.opening 이 '무엇에 관한 영상인가'를 먼저 말한다면 이 오프닝은 '얼마나 큰 문제인가'를 먼저 던진다. 카운트업이 끝날 때까지 시청자는 제목을 모른다."
+in_scope:
+  - "충격 수치가 있는 보고서의 오프닝 (1,240건 · 97.4% · 3.2배)"
+  - "0~999,999 정수 또는 소수 1자리 + 단위 3자 이내"
+  - "수치의 의미 한 줄(34자) + 보고서 제목(24자) + 출처"
+out_of_scope:
+  - "수치가 둘 이상인 오프닝 (수치 3개 비교는 tpl.closing 의 stat-trio)"
+  - "1,000,000 이상 또는 소수 2자리 (무대 폭은 남지만 한눈에 안 읽힌다 — 단위를 바꿔 '124.0만' 처럼 표기하라)"
+  - "수치보다 제목이 앞서야 하는 격식 보고 (tpl.o-statement / tpl.opening)"
+quality:
+  reproducibility:
+    verdict: pass
+    max_diff_ratio: 0.00000000   # 독립 세션 2회 렌더 픽셀 해시 동일 (min/typical/max 3종 모두)
+    checked_at: "2026-07-29T03:01:00"
+  gates_passed:
+    - "20260729-030132-364be9"  # 7게이트 클린 (error 0 · warning 0 · info 0 · 오프닝 3씬 빌드)
+  reviews: []

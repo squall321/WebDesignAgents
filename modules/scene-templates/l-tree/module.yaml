@@ -1,0 +1,45 @@
+# tpl.l-tree — 씬 템플릿 모듈 SSOT (계층 구조도 — 방사형이 아니라 위계를 그린다)
+id: tpl.l-tree
+type: scene-template
+name: "계층 — 3단 상하 트리(조직도·아키텍처)"
+status: draft
+version: 1.0.0
+engine_compat: "animations-v2"
+origin: "창작 모드 레이아웃 확장 2026-07-29"
+formats: [wide-16x9]
+stage: { w: 1920, h: 1080 }
+nat_default: 12
+scene_name_default: "계층"
+entry:
+  template: "web/templates/omx-layouts-a.jsx#TreeScene"
+  schema: schema.json
+  fixtures:
+    - fixtures/min.json
+    - fixtures/typical.json
+    - fixtures/max.json
+    - fixtures/deep.json   # 가로 상한(4가지)과 별개의 세로 상한 — 2가지 × 리프 4개
+  preview: preview.html
+  snapshots: fixtures/snapshots/
+metaphors:
+  - frame-chrome
+  - dot-grid
+theme_default: hwax-blue
+summary: "루트 1 · 중간 2~4 · 리프 ≤8 의 3단 위계를 직교(ㄱ자) 연결선으로 잇는 계층 구조도 씬 — 레벨별 순차 등장이 계층을 설명하고, wdpipeline structured graph(shape=tree) 의 nodes/edges 를 그대로 받는다"
+composition: "루트 카드(중앙 560×100, 청색 면) → 수직 스텁 → 가로 버스(470px) → 가지 스텁 → 중간 노드(2~4열, 116px) → 가지별 세로 레일 + ㄱ자 스텁 → 리프(가지당 ≤4, pitch 78px) — 은유: 조직도"
+in_scope:
+  - "조직도·시스템 아키텍처·메뉴 트리 등 위계 3단"
+  - "structured graph(shape=tree) payload 직결 — nodes[{id,label,level,note}] + edges[{from,to}]"
+  - "담지 못한 노드는 omitted('…외 N개 노드')로 정직하게 표기"
+out_of_scope:
+  - "동등한 참여자의 방사형 네트워크 (tpl.concept 소관 — 그쪽은 위계가 없다)"
+  - "선형 흐름도 (shape=flow 는 tpl.process 소관)"
+  - "4단 이상 깊이·리프 9개 이상 (자동 축소 금지 — 최소 폰트 24px 준수)"
+  - "노드 간 자유 배선(교차 엣지) — 이 템플릿은 부모 1개 트리만 그린다"
+quality:
+  reproducibility:
+    verdict: pass
+    max_diff_ratio: 0.00000000
+    checked_at: "2026-07-29T02:20:56"
+  gates_passed:
+    - "20260729-022139-96b16a"  # 7게이트 클린 (error 0 · warning 0 · info 0, typical)
+  reviews: []

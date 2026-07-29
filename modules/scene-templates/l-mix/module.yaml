@@ -1,0 +1,41 @@
+# tpl.l-mix — 씬 템플릿 모듈 SSOT (표 + 차트 혼합 — 상단 요약 40% / 하단 표·막대 60%)
+id: tpl.l-mix
+type: scene-template
+name: "표 + 차트 혼합 — 요약 띠 + 간이표 + 막대"
+status: draft
+version: 1.0.0
+engine_compat: "animations-v2"
+origin: "창작 모드 레이아웃 확장 2026-07-29"
+formats: [wide-16x9]
+stage: { w: 1920, h: 1080 }
+nat_default: 15
+scene_name_default: "혼합"
+entry:
+  template: "web/templates/omx-layouts-b.jsx#MixScene"
+  schema: schema.json
+  fixtures:
+    - fixtures/min.json
+    - fixtures/typical.json
+    - fixtures/max.json
+  preview: preview.html
+  snapshots: fixtures/snapshots/
+metaphors:
+  - frame-chrome
+  - dot-grid
+theme_default: hwax-blue
+summary: "상단 40%(요약 수치 2~3개 또는 한 줄 결론)와 하단 60%(좌 간이표 ≤4열×≤5행 / 우 막대 3~4개)를 한 화면에 세워 같은 데이터를 숫자와 길이 두 방식으로 동시에 읽히는 실무 패턴 씬"
+composition: "상단 요약 패널 + 하단 좌 표 패널(헤더 → 행 순차) + 하단 우 막대 패널(라벨·판독값 + 트랙 성장) + 하단 풋노트 — 은유: 같은 사실의 두 얼굴"
+in_scope:
+  - "structured table 과 structured series 를 한 씬에 동시 수용 (유일한 템플릿)"
+  - "요약 수치 2~3개 또는 한 줄 결론 (oneOf 배타)"
+  - "라벨이 겹치는 행과 막대는 같은 수치를 가리킨다 (교차 배열 제약 — 테스트가 지킨다)"
+out_of_scope:
+  - "5열 이상 표·5개 이상 막대 (그건 tpl.d-matrix / tpl.d-multi 의 몫)"
+  - "표와 차트가 서로 다른 사실을 말하는 구성 (혼합의 이유가 사라진다)"
+  - "축 눈금·그리드 (막대는 상대 길이 비교용 트랙이다)"
+quality:
+  reproducibility:
+    verdict: unverified
+    checked_at: null
+  gates_passed: []
+  reviews: []

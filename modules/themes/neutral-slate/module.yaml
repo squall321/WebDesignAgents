@@ -1,0 +1,46 @@
+# theme.neutral-slate — 테마 모듈 SSOT (중립 슬레이트 + 딥 슬레이트 네이비 단일 강조, 격식)
+id: theme.neutral-slate
+type: theme
+name: "중립 슬레이트 — 채도 낮은 회색 + 딥 슬레이트 네이비 단일 강조"
+status: draft
+version: 1.0.0
+engine_compat: "animations-v2"
+origin: "web/tokens/hwax-blue.json (3층 구조 계승 — 값만 교체)"
+entry:
+  tokens: web/tokens/neutral-slate.json
+  loader: "window.OMX.themes.load('neutral-slate') | OMX.themes.fromGlobal() (OM_THEME 주입)"
+  previews:
+    - web/tokens/_previews/neutral-slate/process.png
+    - web/tokens/_previews/neutral-slate/proof.png
+    - web/tokens/_previews/neutral-slate/closing.png
+base_theme: hwax-blue
+summary: "무채색 회색 지면에 딥 슬레이트 네이비 하나만 강조로 쓰는 격식 테마 — 장식을 줄이고 규율로 읽히게 한다"
+personality:
+  color: "무채색 배경(#F1F1F3)·순백 카드·단일 강조(#26334D). 강조색 채도를 낮춰 '주장'보다 '기록'으로 읽힌다"
+  shadow: "가장 얕고 짧은 그림자(0 10px 24px / 0.07) — 카드가 뜨지 않고 지면에 눌러 붙는다"
+  motion: "전 구간 easeOutCubic(팝 포함 — 오버슈트 없음), 지속시간·스태거 모두 기준보다 짧다"
+in_scope:
+  - "재무·감사·규정·리스크 보고 (수치와 근거가 주인공인 자리)"
+  - "브랜드 색을 드러내면 안 되는 대외 제출물"
+  - "인쇄·흑백 출력 병행이 예상되는 자료 (무채색이라 회색조 변환 손실이 적다)"
+out_of_scope:
+  - "제품 런칭·캠페인 등 정서적 고양이 필요한 발표 (warm-amber·fresh-teal 을 쓰라)"
+  - "대형 스크린 암전 상영 (deep-dark 을 쓰라)"
+quality:
+  contrast:
+    verdict: pass
+    standard: "WCAG 2.1 AA 4.5:1"
+    pairs_checked: 17
+    min_ratio: 4.75
+    median_ratio: 7.36
+    checked_at: "2026-07-29"
+  key_completeness:
+    verdict: pass
+    missing_vs_base: 0
+    extra_vs_base: 0
+  render:
+    verdict: pass
+    templates: [tpl.process, tpl.proof, tpl.closing]
+    console_errors: 0
+  gates_passed: []
+  reviews: []

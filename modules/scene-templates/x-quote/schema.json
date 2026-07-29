@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "wda:tpl.x-quote/schema@1.0.0",
+  "title": "tpl.x-quote 데이터 스키마 — 한 문장 각인형 클로징",
+  "description": "결론을 한 문장으로 압축해 92px(theme.type.display)로 남긴다. 배경에는 킥커·타이틀·푸터를 두지 않는다 — 남길 것이 하나뿐이라는 선언이다. 오프닝 선언형(tpl.o-statement, 96~120px)과 같은 타이포 층위에서 한 계단 아래에 앉아 수미상관이 성립한다.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "quote",
+    "source"
+  ],
+  "properties": {
+    "quote": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "x-read": true,
+      "description": "{pre, accent, post} — accent 만 blue 로 갈라진다. 합계 38자 상한(92px · 폭 1560px 기준 최대 3줄)",
+      "properties": {
+        "pre": {
+          "type": "string",
+          "maxLength": 14
+        },
+        "accent": {
+          "type": "string",
+          "maxLength": 10
+        },
+        "post": {
+          "type": "string",
+          "maxLength": 14
+        }
+      }
+    },
+    "source": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 24,
+      "description": "출처 — 문장 아래 26px"
+    },
+    "date": {
+      "type": "string",
+      "maxLength": 16,
+      "description": "일자 — 출처 오른쪽 26px"
+    }
+  }
+}

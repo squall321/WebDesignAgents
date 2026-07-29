@@ -1,0 +1,41 @@
+# tpl.l-quad — 씬 템플릿 모듈 SSOT (4분면 매트릭스 — 정규화 좌표 배치 · 판=번호 / 범례=이름)
+id: tpl.l-quad
+type: scene-template
+name: "4분면 매트릭스 — 두 축 · 항목 4~10개 좌표 배치"
+status: draft
+version: 1.0.0
+engine_compat: "animations-v2"
+origin: "창작 모드 레이아웃 확장 2026-07-29"
+formats: [wide-16x9]
+stage: { w: 1920, h: 1080 }
+nat_default: 13
+scene_name_default: "사분면"
+entry:
+  template: "web/templates/omx-layouts-b.jsx#QuadScene"
+  schema: schema.json
+  fixtures:
+    - fixtures/min.json
+    - fixtures/typical.json
+    - fixtures/max.json
+  preview: preview.html
+  snapshots: fixtures/snapshots/
+metaphors:
+  - frame-chrome
+  - dot-grid
+theme_default: hwax-blue
+summary: "x·y 두 축으로 나뉜 4분면에 항목 4~10개를 0~1 정규화 좌표로 배치하는 포지셔닝 씬 — 좌표판에는 번호 점, 우측 범례에 같은 번호와 이름을 두어 라벨 충돌을 원천 제거했다"
+composition: "좌표판(축 이름 · 끝 라벨 · 중앙 십자 · 사분면 이름 · 강조 틴트 · 번호 점) + 우측 번호 범례 + 하단 풋노트 — 은유: 좌표 위의 자리다툼"
+in_scope:
+  - "포지셔닝·우선순위 논증 (중요도×긴급도, 효과×난이도, 시장×역량)"
+  - "structured series 의 quadrant 모드(entries {label, x, value}) 수용 — 축 범위로 0~1 정규화"
+  - "강조 사분면 1칸 틴트 (예: 우상=핵심)"
+out_of_scope:
+  - "11개 이상 항목 (범례 행이 최소 폰트 24px 를 못 지킨다)"
+  - "버블 크기·3축 표현 (점 크기는 고정)"
+  - "축 눈금·수치 판독 (여기는 상대 위치의 논증이지 계측이 아니다)"
+quality:
+  reproducibility:
+    verdict: unverified
+    checked_at: null
+  gates_passed: []
+  reviews: []

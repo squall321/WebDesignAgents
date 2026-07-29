@@ -1,0 +1,45 @@
+# tpl.x-next — 씬 템플릿 모듈 SSOT (클로징 변주 — 다음 단계형 · 누가 언제 무엇을)
+id: tpl.x-next
+type: scene-template
+name: "클로징 · 다음 단계 — 결정 요약 + [시점·담당·내용] 카드 3~4장"
+status: draft
+version: 1.0.0
+engine_compat: "animations-v2"
+origin: "창작 모드 클로징 변주 2026-07-29"
+formats: [wide-16x9]
+stage: { w: 1920, h: 1080 }
+nat_default: 14
+scene_name_default: "다음 단계"
+entry:
+  template: "web/templates/omx-closings.jsx#NextScene"
+  schema: schema.json
+  fixtures:
+    - fixtures/min.json
+    - fixtures/typical.json
+    - fixtures/max.json
+  preview: preview.html
+  snapshots: fixtures/snapshots/
+metaphors:
+  - frame-chrome
+  - dot-grid
+theme_default: hwax-blue
+summary: "좌측에 이 자리에서 확정된 결정을, 우측에 다음 단계 3~4개를 [시점 + 담당 + 내용] 카드로 두는 실무형 클로징 씬 — tpl.closing 의 CTA 필과 달리 when·owner 를 스키마가 필수로 요구해 주체 없는 권유를 구조적으로 거른다"
+composition: "좌 580px 결정 패널(라벨 필 → 결정문 38px 2줄 → 구분선 → 근거 1~3줄 → 확정 메타) · 우 1020px 단계 카드(채운 필 시점 + 내용 31px 2줄 + 윤곽 칩 담당) — 은유: 인수인계(왼쪽은 닫힌 것, 오른쪽은 열린 것)"
+closing_strategy: "이관 — 화면이 곧 액션아이템 표다. 마지막 프레임을 캡처하면 회의록 부속이 된다"
+in_scope:
+  - "회의·심의·보고 종료 화면 (결정 1건 + 다음 단계 3~4건)"
+  - "시점(when) · 담당(owner) · 내용(what) 3필드 필수 — 하나라도 비면 스키마가 거른다"
+  - "단계 수가 카드 높이를 정한다 — 3장 172px / 4장 124px (시점 필·담당 칩은 고정 폭 190px, 내용 폭 560px 은 그 잔여)"
+out_of_scope:
+  - "5건 이상 (마무리가 아니라 일정표 — tpl.timeline·tpl.c-grid 로 보낸다)"
+  - "담당·시점 없는 행동 유도 (그 필은 tpl.closing 의 CTA 다)"
+  - "간트·의존관계 표기 (선후 관계는 tpl.process, 분기는 tpl.c-branch)"
+  - "결정문 15자 이상 (길면 결정이 아니라 설명 — 14자 상한이 2줄을 산술적으로 보장한다)"
+quality:
+  reproducibility:
+    verdict: pass
+    max_diff_ratio: 0.00000000   # 독립 브라우저 세션 2회 렌더 픽셀 diff (min/typical/max 3종 모두 0)
+    checked_at: "2026-07-29T03:03:00"
+  gates_passed:
+    - "20260729-031020-fe0f62"  # 7게이트 클린 (error 0 · warning 0 · 클로징 3씬 38초 빌드)
+  reviews: []

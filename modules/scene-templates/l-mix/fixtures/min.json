@@ -1,0 +1,20 @@
+{
+  "kicker": "구현 현황",
+  "title": "표와 막대로 함께 읽기",
+  "lead": "잠금·권한 축은 끝났고 남은 고비는 허브와 종합보고 화면이다",
+  "table": {
+    "columns": [{ "label": "단계" }, { "label": "진척" }, { "label": "상태" }],
+    "rows": [
+      { "label": "Phase 0/1", "cells": [{ "v": "100%" }, { "v": "완료" }] },
+      { "label": "Phase 3", "cells": [{ "v": "70%" }, { "v": "진행" }] },
+      { "label": "Phase 4", "cells": [{ "v": "30%" }, { "v": "진행" }] }
+    ]
+  },
+  "chart": {
+    "bars": [
+      { "label": "Phase 0/1", "value": 100, "display": "100%" },
+      { "label": "Phase 3", "value": 70, "display": "70%" },
+      { "label": "Phase 4", "value": 30, "display": "30%" }
+    ]
+  }
+}

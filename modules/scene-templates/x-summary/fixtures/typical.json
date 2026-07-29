@@ -1,0 +1,32 @@
+{
+  "kicker": "요약",
+  "title": "오늘 심의가 남긴 넷",
+  "points": [
+    {
+      "text": "단일 모델 답변은 반증 절차가 없다",
+      "metric": "0건",
+      "metricLabel": "킬 조건 명시"
+    },
+    {
+      "text": "교차 심의가 결론의 근거를 갈라놓는다",
+      "metric": "6~8",
+      "metricLabel": "참여 분야"
+    },
+    {
+      "text": "반박 라운드가 초안을 두 번 뒤집었다",
+      "metric": "2회",
+      "metricLabel": "R2 수정"
+    },
+    {
+      "text": "모든 발언은 소수의견까지 추적된다",
+      "metric": "100%",
+      "metricLabel": "회의록 보존"
+    }
+  ],
+  "standby": "질문을 받겠습니다 — 근거는 회의록에",
+  "frame": {
+    "brand": "HWAX 협업진단",
+    "idx": "07",
+    "total": "07"
+  }
+}

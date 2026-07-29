@@ -1,0 +1,46 @@
+# tpl.doc-body — 문서형 씬 템플릿 모듈 SSOT (문서형 본체 — 좌 본문(불릿 3~6) / 우 근거(표·차트·이미지 택1))
+id: tpl.doc-body
+type: scene-template
+name: "문서형 본체 — 좌 본문(불릿 3~6) / 우 근거(표·차트·이미지 택1)"
+status: draft
+version: 1.0.0
+engine_compat: "animations-v2"
+origin: "창작 모드 문서형 2026-07-29"
+formats: [deck-doc-16x9, deck-4x3, print-a4]
+# stage = 골든 스냅샷·재현력 검증의 기준 무대(deck-doc-16x9). 나머지 두 무대는 stages 에 명시하고
+# 레이아웃은 좌표가 아니라 flex 비율이라 같은 코드가 셋 다 성립한다(실측: tests/test_templates_doc_render.py).
+stage: { w: 1920, h: 1080 }
+stages:
+  deck-doc-16x9: { w: 1920, h: 1080 }
+  deck-4x3: { w: 1440, h: 1080 }
+  print-a4: { w: 1240, h: 1754 }
+nat_default: 9
+scene_name_default: "본문"
+entry:
+  template: "web/templates/omx-templates-doc.jsx#DocBodyScene"
+  schema: schema.json
+  fixtures:
+    - fixtures/min.json
+    - fixtures/typical.json
+    - fixtures/max.json
+    - fixtures/chart.json
+    - fixtures/image.json
+  preview: preview.html
+  snapshots: fixtures/snapshots/
+metaphors:
+  - doc-page
+  - doc-rule
+theme_default: hwax-blue
+summary: "좌측 본문(제목+리드+불릿 3~6+소결론)과 우측 근거 슬롯(표·차트·이미지 중 택1)의 2단 본체 씬 — 문서형 밀도의 중심"
+composition: "머리말(장 라벨 + 페이지) / 2단 flex(좌 1.55 · 우 1, 간격 44) — 좌: 제목 38px + 리드 28px + 불릿 26px(마커 12px·태그 칩 24px) + 소결론 상자 26px, 우: 근거 카드(제목 25px + 표/막대/도판 + 출처 24px) / 꼬리말"
+in_scope:
+  - "읽는 자료의 본문 한 장 — 주장 3~6개 + 근거 1점"
+  - "표(2~3열 × 2~5행)·가로 막대(2~5)·도판 중 택1"
+  - "장 라벨·페이지·출처 표기"
+out_of_scope:
+  - "근거 2점 이상 — 우열은 한 점만 받는다"
+  - "불릿 2단 들여쓰기 — 6개 최악 구성이 4:3 무대 높이에 들어가지 않는다(실측)"
+  - "영상용 저밀도 화면 (tpl.problem·tpl.concept 등)"
+quality:
+  gates_passed: []
+  reviews: []

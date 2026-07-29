@@ -1,0 +1,59 @@
+{
+  "kicker": "구현 현황",
+  "title": "ReportArchive 지표판",
+  "metrics": [
+    {
+      "label": "위젯 종류",
+      "value": "35",
+      "unit": "종",
+      "delta": { "dir": "up", "text": "+12종", "tone": "good" },
+      "spark": [18, 23, 29, 35]
+    },
+    {
+      "label": "완료 Phase",
+      "value": "3",
+      "unit": "개",
+      "delta": { "dir": "up", "text": "+2단계", "tone": "good" },
+      "spark": [1, 1, 2, 3]
+    },
+    {
+      "label": "평균 진척",
+      "value": "60",
+      "unit": "%",
+      "delta": { "dir": "up", "text": "+18%p", "tone": "good" },
+      "spark": [22, 35, 48, 60]
+    },
+    {
+      "label": "미착수 Phase",
+      "value": "1",
+      "unit": "개",
+      "delta": { "dir": "down", "text": "-2개", "tone": "good" },
+      "spark": [3, 3, 2, 1]
+    },
+    {
+      "label": "지연 Phase",
+      "value": "2",
+      "unit": "개",
+      "delta": { "dir": "up", "text": "+1개", "tone": "bad" },
+      "spark": [0, 1, 1, 2]
+    },
+    {
+      "label": "잔여 작업",
+      "value": "4",
+      "unit": "개",
+      "delta": { "dir": "down", "text": "-1개", "tone": "good" },
+      "spark": [6, 5, 5, 4]
+    }
+  ],
+  "omitted": 1,
+  "note": {
+    "pre": "감소가 곧 나쁨은 아니다 — ",
+    "strong": "미착수 ▼",
+    "post": " 는 녹색이다"
+  },
+  "frame": {
+    "brand": "ReportArchive",
+    "idx": "03",
+    "total": "07"
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "kicker": "구조",
+  "title": "두 갈래 워크스페이스",
+  "nodes": [
+    {
+      "id": "root",
+      "label": "ReportArchive",
+      "level": 0
+    },
+    {
+      "id": "personal",
+      "label": "개인 작업공간",
+      "level": 1,
+      "note": "보고서가 나는 곳"
+    },
+    {
+      "id": "org",
+      "label": "조직 워크스페이스",
+      "level": 1,
+      "note": "팀 · 본부 트리"
+    },
+    {
+      "id": "draft",
+      "label": "초안 / 메모",
+      "level": 2
+    },
+    {
+      "id": "mount",
+      "label": "조직 게시판",
+      "level": 2
+    }
+  ],
+  "edges": [
+    {
+      "from": "root",
+      "to": "personal"
+    },
+    {
+      "from": "root",
+      "to": "org"
+    },
+    {
+      "from": "personal",
+      "to": "draft"
+    },
+    {
+      "from": "org",
+      "to": "mount"
+    }
+  ]
+}

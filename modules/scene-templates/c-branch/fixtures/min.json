@@ -1,0 +1,13 @@
+{
+  "kicker": "판정",
+  "title": "최소 분기 흐름",
+  "nodes": [
+    { "id": "n1", "label": "요청 접수", "level": 0, "kind": "start" },
+    { "id": "n2", "label": "승인 대상?", "level": 1, "kind": "decision" },
+    { "id": "n3", "label": "처리 완료", "level": 2, "kind": "end", "tone": "positive" }
+  ],
+  "edges": [
+    { "from": "n1", "to": "n2" },
+    { "from": "n2", "to": "n3", "label": "예" }
+  ]
+}

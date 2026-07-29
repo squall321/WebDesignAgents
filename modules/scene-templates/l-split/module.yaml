@@ -1,0 +1,46 @@
+# tpl.l-split — 씬 템플릿 모듈 SSOT (좌 설명 + 우 근거 2단 — 실무 발표자료 최다 사용 배치)
+id: tpl.l-split
+type: scene-template
+name: "2단 — 좌측 설명 + 우측 시각물(근거 슬롯)"
+status: draft
+version: 1.0.0
+engine_compat: "animations-v2"
+origin: "창작 모드 레이아웃 확장 2026-07-29"
+formats: [wide-16x9]
+stage: { w: 1920, h: 1080 }
+nat_default: 14
+scene_name_default: "2단"
+entry:
+  template: "web/templates/omx-layouts-a.jsx#SplitScene"
+  schema: schema.json
+  fixtures:
+    - fixtures/min.json
+    - fixtures/typical.json
+    - fixtures/max.json
+    - fixtures/image.json
+    - fixtures/note.json
+  preview: preview.html
+  snapshots: fixtures/snapshots/
+metaphors:
+  - frame-chrome
+  - dot-grid
+theme_default: hwax-blue
+summary: "좌측 설명(리드 + 불릿 3~5 + 하단 고정 소결론)이 먼저 서고 우측 근거 슬롯(간이표/막대/도판/강조 박스)이 뒤따르는 2단 씬 — 설명하고 근거를 보여주는 순서가 등장 순서다"
+composition: "좌 열(330~955px, 6:4 시 637px · 5:5 시 796px): 리드 → 불릿 → 하단 고정 소결론 / 우 열(카드 패널 625px): visual.kind 로 분기한 근거 하나 — 은유: 말하고 나서 증거를 내민다"
+in_scope:
+  - "설명 + 근거 한 화면 배치 (기술 선택 근거·정책 판단·비교 결론 등 발표자료 주력 패턴)"
+  - "근거 슬롯 4종 — table(2~3열×3~6행 간이표) · bars(3~6 가로 막대) · image(도판) · note(강조 박스)"
+  - "좌우 비율 2안 — '6:4'(시각물 60%) · '5:5'(균형). 데이터가 고르는 값이 아니다"
+out_of_scope:
+  - "전체 표(4열 이상·7행 이상) — tpl.d-matrix 소관"
+  - "다계열 그룹 막대·꺾은선 — tpl.d-multi·tpl.dataviz 소관"
+  - "도판 2~3장 대조 — tpl.d-media 소관 (여기는 1장)"
+  - "좌우 비율의 자유 지정 (임의 비율은 판형을 무너뜨린다)"
+quality:
+  reproducibility:
+    verdict: pass
+    max_diff_ratio: 0.00000000
+    checked_at: "2026-07-29T02:20:35"
+  gates_passed:
+    - "20260729-022133-0a0716"  # 7게이트 클린 (error 0 · warning 0 · info 0, typical)
+  reviews: []

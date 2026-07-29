@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "wda:tpl.x-next/schema@1.0.0",
+  "title": "tpl.x-next 데이터 스키마 — 다음 단계형 클로징",
+  "description": "좌측에 확정된 결정, 우측에 다음 단계 3~4개를 [시점 + 담당 + 내용] 카드로 둔다. tpl.closing 의 CTA 와 달리 각 항목에 일정(when)과 책임(owner)이 필수다 — 주체 없는 권유를 스키마가 거른다. maxLength 는 실측 폭 역산값이다.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "kicker",
+    "title",
+    "decision",
+    "steps"
+  ],
+  "properties": {
+    "kicker": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 12
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 22,
+      "x-read": true
+    },
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "headline",
+        "points"
+      ],
+      "description": "좌측 패널 — 이 자리에서 닫힌 것",
+      "properties": {
+        "label": {
+          "type": "string",
+          "maxLength": 8,
+          "description": "패널 라벨 필 — 기본값 '결정 사항'(24px)"
+        },
+        "headline": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 14,
+          "x-read": true,
+          "description": "결정문 — 38px 2줄 고정(폭 524px · 줄당 13자). 14자 상한이 3줄 넘침을 산술적으로 불가능하게 만든다."
+        },
+        "points": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 3,
+          "description": "결정의 근거·전제 1~3줄",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 26
+          }
+        },
+        "meta": {
+          "type": "string",
+          "maxLength": 20,
+          "description": "확정 메타(일자·의결 방식) — 패널 하단 24px 1줄"
+        }
+      }
+    },
+    "steps": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 4,
+      "description": "다음 단계 3~4개. 2개는 마무리가 아니고 5개는 일정표다.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "when",
+          "owner",
+          "what"
+        ],
+        "properties": {
+          "when": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 7,
+            "description": "시점 — 채운 필(24px · 폭 190px)"
+          },
+          "owner": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 7,
+            "description": "담당 — 윤곽 칩(24px · 폭 190px)"
+          },
+          "what": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 28,
+            "x-read": true,
+            "description": "내용 — 31px 2줄 고정(폭 560px · 줄당 18자)"
+          }
+        }
+      }
+    },
+    "note": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "pre": {
+          "type": "string",
+          "maxLength": 20
+        },
+        "strong": {
+          "type": "string",
+          "maxLength": 14
+        },
+        "post": {
+          "type": "string",
+          "maxLength": 20
+        }
+      }
+    },
+    "frame": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "brand": {
+          "type": "string",
+          "maxLength": 20
+        },
+        "idx": {
+          "type": "string",
+          "maxLength": 4
+        },
+        "total": {
+          "type": "string",
+          "maxLength": 4
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "wda:tpl.o-question/schema@1.0.0",
+  "title": "tpl.o-question 데이터 스키마 — 질문형 오프닝(답을 비워 두고 예고한다)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "question",
+    "promise",
+    "topics"
+  ],
+  "properties": {
+    "question": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 2,
+      "description": "상단 대형 질문 1~2행. 행 자수 상한 18자는 92px 기준 역산 — 18자 × 0.98em × 92px = 1623px < 1720px",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 18,
+        "x-read": true
+      }
+    },
+    "promise": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 24,
+      "x-read": true,
+      "description": "답을 예고하는 한 줄 (\"이 보고서가 답합니다\" 류)"
+    },
+    "topics": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "description": "다룰 항목 3개 칩. 3개 고정 — 2개는 예고가 되지 않고, 4개 이상은 예고가 아니라 목차가 된다(목록은 tpl.c-grid)",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 10,
+        "x-read": true
+      }
+    },
+    "source": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 30,
+      "description": "하단 출처 한 줄"
+    }
+  }
+}

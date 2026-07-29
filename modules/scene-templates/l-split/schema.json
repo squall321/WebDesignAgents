@@ -1,0 +1,421 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "wda:tpl.l-split/schema@1.0.0",
+  "title": "tpl.l-split 데이터 스키마",
+  "description": "좌측 설명 + 우측 시각물 2단 — 실무 발표자료의 최다 사용 배치. 좌: 리드 + 불릿 3~5 + 하단 고정 소결론, 우: 근거 슬롯(visual.kind 로 table/bars/image/note 중 하나). 좌우 비율은 데이터가 아니라 스키마 고정값 2안. 상한은 1920×1080 실측 역산 — 설명 열 최소폭 637px(6:4), 근거 열 최소폭 796px(5:5), 최소 폰트 24px 전제.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "kicker",
+    "title",
+    "bullets",
+    "visual"
+  ],
+  "properties": {
+    "kicker": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 26,
+      "x-read": true,
+      "description": "타이틀 1행 — 내용 폭 1640px ÷ 56px(sectionTitle) ≈ 29자, 안전 26자"
+    },
+    "ratio": {
+      "enum": [
+        "6:4",
+        "5:5"
+      ],
+      "description": "우측 시각물 : 좌측 설명 비율 — '6:4' 는 시각물 60%(955px) · 설명 40%(637px) 로 기본값, '5:5' 는 균형(796px/796px). 데이터가 고르는 값이 아니라 2안 중 선택이며 기본은 '6:4'."
+    },
+    "lead": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 30,
+      "x-read": true,
+      "description": "설명 열 첫 문장 — 637px ÷ 30px(lead) ≈ 21자/행 × 2행 = 42자, 여백 확보해 30자 상한"
+    },
+    "bullets": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 5,
+      "description": "불릿 3~5 — 5개일 때는 세로 예산(소결론 하단 고정분 137px 제외 488px)이 1행짜리만 허용하므로 아래 allOf 가 22자로 조인다",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "text"
+        ],
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40,
+            "description": "불릿 본문 — 텍스트 폭 603px ÷ 26px(body) ≈ 23자/행 × 2행 = 46자, 안전 40자"
+          },
+          "em": {
+            "type": "boolean",
+            "description": "강조 불릿 — 잉크색 800 (기본은 보조색 600)"
+          }
+        }
+      }
+    },
+    "conclusion": {
+      "type": "object",
+      "additionalProperties": false,
+      "x-read": true,
+      "description": "소결론 — 설명 열 하단에 고정(불릿이 길어져도 바닥이 흔들리지 않는다). 3부분 합 34자 = 2행(113px)이 세로 예산의 전제",
+      "required": [
+        "pre"
+      ],
+      "properties": {
+        "pre": {
+          "type": "string",
+          "maxLength": 12
+        },
+        "strong": {
+          "type": "string",
+          "maxLength": 10,
+          "description": "청색 800 강조 — 588px ÷ 27px(emphasis) ≈ 21자/행 기준의 배분"
+        },
+        "post": {
+          "type": "string",
+          "maxLength": 12
+        }
+      }
+    },
+    "visual": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind"
+      ],
+      "description": "근거 슬롯 — kind 하나만 렌더한다. 좌측 설명이 끝난 뒤 등장(설명하고 근거를 보여주는 순서)",
+      "properties": {
+        "kind": {
+          "enum": [
+            "table",
+            "bars",
+            "image",
+            "note"
+          ]
+        },
+        "table": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "columns",
+            "rows"
+          ],
+          "description": "간이표 — 전체 표는 tpl.d-matrix 소관, 여기는 2~3열 × 3~6행 요약",
+          "properties": {
+            "columns": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 3,
+              "description": "헤더(첫 열 = 행 라벨 열 포함)",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "label"
+                ],
+                "properties": {
+                  "label": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 12,
+                    "description": "3열 시 데이터 열폭 217px ÷ 24px(caption) ≈ 9자/행 × 2행 — 12자 상한"
+                  }
+                }
+              }
+            },
+            "rows": {
+              "type": "array",
+              "minItems": 3,
+              "maxItems": 6,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "label",
+                  "cells"
+                ],
+                "properties": {
+                  "label": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 20,
+                    "description": "행 라벨 — 첫 열 내폭 302px ÷ 24px ≈ 12자/행 × 2행 = 25자, 안전 20자"
+                  },
+                  "cells": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 2,
+                    "description": "데이터 셀 — 개수는 columns-1",
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "v"
+                      ],
+                      "properties": {
+                        "v": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 14,
+                          "description": "셀 값 — 201px ÷ 24px ≈ 8자/행 × 2행 = 16자, 안전 14자"
+                        },
+                        "em": {
+                          "type": "boolean"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "bars": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "items"
+          ],
+          "description": "가로 막대 3~6 — 라벨/값 한 줄 위에 트랙이 좌→우로 자란다. 0 기준선 고정",
+          "properties": {
+            "unit": {
+              "type": "string",
+              "maxLength": 4
+            },
+            "axisMax": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "description": "축 상한 — 부재 시 데이터 최댓값에서 자동 승격(막대 절단 금지)"
+            },
+            "items": {
+              "type": "array",
+              "minItems": 3,
+              "maxItems": 6,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "label",
+                  "value"
+                ],
+                "properties": {
+                  "label": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 20,
+                    "description": "항목명 1행 — 값 표기 영역 170px 을 뺀 570px ÷ 24px ≈ 23자, 안전 20자"
+                  },
+                  "value": {
+                    "type": "number",
+                    "minimum": 0,
+                    "description": "음수 금지 — 0 기준선을 지킨다"
+                  },
+                  "tone": {
+                    "enum": [
+                      "primary",
+                      "secondary",
+                      "positive",
+                      "caution"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "image": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "src",
+            "alt"
+          ],
+          "description": "도판 — cover 로 채우고(레터박스 금지) 캡션이 있으면 하단 100px 스트립",
+          "properties": {
+            "src": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "alt": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80,
+              "description": "접근성 대체 텍스트 — 화면에 표시되지 않는다"
+            },
+            "caption": {
+              "type": "string",
+              "maxLength": 30,
+              "description": "748px ÷ 25px(note) ≈ 29자/행 — 30자 상한(최대 2행, 스트립 100px 안)"
+            },
+            "source": {
+              "type": "string",
+              "maxLength": 24,
+              "description": "'출처 · ' 접두 포함 748px ÷ 24px ≈ 31자 — 24자 상한"
+            }
+          }
+        },
+        "note": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "headline"
+          ],
+          "description": "강조 박스 — 근거가 수치도 표도 아닐 때(정책·판정·인용) 쓰는 슬롯",
+          "properties": {
+            "headline": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 34,
+              "description": "724px ÷ 36px(subtitle) ≈ 20자/행 × 2행 = 40자, 안전 34자"
+            },
+            "lines": {
+              "type": "array",
+              "maxItems": 4,
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 24,
+                "description": "부연 1행 — 700px ÷ 26px(body) ≈ 26자, 안전 24자"
+              }
+            },
+            "tone": {
+              "enum": [
+                "info",
+                "success",
+                "caution"
+              ]
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "table"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "required": [
+              "table"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "bars"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "required": [
+              "bars"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "image"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "required": [
+              "image"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "note"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "required": [
+              "note"
+            ]
+          }
+        }
+      ]
+    },
+    "frame": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "프레임 푸터 메타 — 없으면 푸터 숨김",
+      "properties": {
+        "brand": {
+          "type": "string",
+          "maxLength": 24
+        },
+        "idx": {
+          "type": "string",
+          "maxLength": 4
+        },
+        "total": {
+          "type": "string",
+          "maxLength": 4
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "description": "밀도 조임 — 불릿 5개면 세로 예산상 1행짜리만 담긴다(603px ÷ 26px ≈ 23자)",
+      "if": {
+        "properties": {
+          "bullets": {
+            "minItems": 5
+          }
+        },
+        "required": [
+          "bullets"
+        ]
+      },
+      "then": {
+        "properties": {
+          "bullets": {
+            "items": {
+              "properties": {
+                "text": {
+                  "maxLength": 22
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

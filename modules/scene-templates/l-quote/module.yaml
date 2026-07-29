@@ -1,0 +1,43 @@
+# tpl.l-quote — 씬 템플릿 모듈 SSOT (핵심 문장 강조 — 챕터 전환·결론 각인)
+id: tpl.l-quote
+type: scene-template
+name: "각인 — 핵심 문장 한 줄 + 출처/화자"
+status: draft
+version: 1.0.0
+engine_compat: "animations-v2"
+origin: "창작 모드 레이아웃 확장 2026-07-29"
+formats: [wide-16x9]
+stage: { w: 1920, h: 1080 }
+nat_default: 8
+scene_name_default: "각인"
+entry:
+  template: "web/templates/omx-layouts-a.jsx#QuoteScene"
+  schema: schema.json
+  fixtures:
+    - fixtures/min.json
+    - fixtures/typical.json
+    - fixtures/max.json
+  preview: preview.html
+  snapshots: fixtures/snapshots/
+metaphors:
+  - frame-chrome
+  - dot-grid
+theme_default: hwax-blue
+summary: "선언·인용 한 문장을 화면 중앙에 60~80px 3단으로 놓고 룰과 화자로 받치는 각인 씬 — 밀도를 비우는 것이 이 템플릿의 일이며 글자 크기는 문장 길이에 따라 자동 하향한다"
+composition: "무대 52% 지점을 기준으로 세로 중앙 정렬 — (선택) 청색 룰 120px → 문장(폭 1400px, 30자 이하 80px · 48자 이하 70px · 그 위 60px, 최대 3행) → 룰 90px → 화자(36px 청색) → 직함(26px 보조) — 은유: 각인"
+in_scope:
+  - "챕터 전환·결론 각인용 한 문장"
+  - "인용(화자·출처 표기) 또는 선언(화자 생략)"
+  - "배경 텍스처 3안 — none · rule(청색 룰) · marks(인용부호 도형, 텍스트 아님)"
+out_of_scope:
+  - "두 문장 이상·불릿 (한 문장이 아니면 tpl.l-split)"
+  - "수치 각인 (tpl.dataviz·tpl.closing 소관)"
+  - "타이틀 병기 — 문장 자체가 타이틀이라 title 필드를 두지 않는다"
+quality:
+  reproducibility:
+    verdict: pass
+    max_diff_ratio: 0.00000000
+    checked_at: "2026-07-29T02:21:04"
+  gates_passed:
+    - "20260729-022141-0a82aa"  # 7게이트 클린 (error 0 · warning 0 · info 0, typical)
+  reviews: []

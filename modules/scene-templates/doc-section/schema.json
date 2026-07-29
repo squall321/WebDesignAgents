@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "wda:tpl.doc-section/schema@1.0.0",
+  "title": "tpl.doc-section 데이터 스키마 (문서형 섹션 구분 · 3무대 공용)",
+  "description": "maxLength 는 지원 무대 3종(deck-doc-16x9 1920×1080 · deck-4x3 1440×1080 · print-a4 1240×1754) 실측 역산이다. 가장 좁은 본문 폭은 A4 1072px(1240 - 좌우 여백 84×2)이고, 여기서 번호 블록(108px, 3자 ≈ 195px) + 간격 52 를 뺀 **오른쪽 텍스트 열의 바닥은 825px**. 문서형 5종 중 유일한 저밀도 장(장이 바뀌었다는 신호만 전달)이라 자수를 일부러 낮게 잡았다. 영상 템플릿 값 재사용 없음.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "no",
+    "name",
+    "lead"
+  ],
+  "properties": {
+    "no": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 3,
+      "description": "섹션 번호 — 108px, 3자면 블록 폭 약 195px 로 A4 825px 텍스트 열을 침범하지 않는다"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 20,
+      "x-read": true,
+      "description": "섹션명 — 46px, 텍스트 열 바닥 825px(A4) → 17.9자/줄, 20자면 2줄 이내"
+    },
+    "lead": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 54,
+      "description": "이 장의 한 줄 요지 — 28px, 825px → 29.4자/줄, 54자면 2줄 이내"
+    },
+    "points": {
+      "type": "array",
+      "maxItems": 4,
+      "description": "이 장에서 다룰 항목 예고 칩 (선택) — 없어도 장 구분은 성립한다",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 16,
+        "description": "칩 문구 — 24px + 좌우 패딩 20, 16자면 칩 폭 424px 로 A4 에서 한 줄에 2개가 든다"
+      }
+    },
+    "footer": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "꼬리말 — 좌: 문서명, 우: 페이지·배포 구분",
+      "properties": {
+        "left": {
+          "type": "string",
+          "maxLength": 40,
+          "description": "24px, 꼬리말 좌측 — 40자"
+        },
+        "right": {
+          "type": "string",
+          "maxLength": 14,
+          "description": "24px, 꼬리말 우측(줄바꿈 금지) — 14자"
+        }
+      }
+    }
+  }
+}

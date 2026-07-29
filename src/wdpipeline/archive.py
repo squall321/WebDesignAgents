@@ -346,6 +346,575 @@ def build_archive_draft(run_dir: Path, *, meeting_dir: Path | None = None,
 
 
 # ---------------------------------------------------------------------------
+# 완성 보고서 역기록 — 심의가 정리한 내용 자체를 ReportArchive 보고서로 되돌린다
+#
+# build_archive_draft 가 만드는 것은 "어떻게 만들었나"(메타 문서)이고, 여기서
+# 만드는 것은 "무엇을 정리했나"(본 문서)다. 원 보고서 → 심의 → 더 나은 보고서.
+#   씬 narration      → 섹션 본문(rich_text)
+#   fragments.structured → 근거 위젯(원 위젯 타입으로 복원)
+#   meta.core_message → 표지 요약
+#   minutes.md        → 부록(결정·미해결 쟁점)
+#   조각 source{page,block_id} → 부록 출처 표(각주)
+# ---------------------------------------------------------------------------
+
+REPORT_STYLES = ("report",)
+
+# 근거 배정 점수용 토큰 — 한글/영숫자 2자 이상
+_TOKEN_RE = re.compile(r"[0-9A-Za-z가-힣]{2,}")
+
+# 원 위젯 타입을 그대로 되살리는 수치군 (content.rows[{label,value}] 스키마 공유)
+_PIE_FAMILY = ("pie", "waffle", "treemap", "packing")
+
+# chart 위젯 props.chart_type 이 실제로 받는 값 (그 밖의 계열은 bar 로 낮춘다)
+_CHART_TYPES_OK = ("bar", "line", "pie", "doughnut")
+
+
+def _tokens(text: str) -> set[str]:
+    return set(_TOKEN_RE.findall(text))
+
+
+def _strings(node: Any, acc: list[str]) -> None:
+    """중첩 dict/list 에서 문자열 값을 전부 모은다 (씬 카피 평탄화)."""
+    if isinstance(node, str):
+        if node.strip():
+            acc.append(node.strip())
+    elif isinstance(node, dict):
+        for v in node.values():
+            _strings(v, acc)
+    elif isinstance(node, list):
+        for v in node:
+            _strings(v, acc)
+
+
+def _scene_node(scenario: dict, scene: dict) -> dict:
+    """씬의 data_ref 가 가리키는 content 노드."""
+    node: Any = scenario
+    for part in str(scene.get("data_ref", "")).split("."):
+        if isinstance(node, dict) and part in node:
+            node = node[part]
+        else:
+            return {}
+    return node if isinstance(node, dict) else {}
+
+
+def _flat_title(value: Any) -> str:
+    """title 이 문자열이거나 {pre,accent,post} 조각일 수 있다."""
+    if isinstance(value, dict):
+        return "".join(str(value.get(k, "")) for k in ("pre", "accent", "post")).strip()
+    return str(value or "").strip()
+
+
+# ── 근거 위젯 복원 — structured payload → 원 위젯의 props/content ───────────
+# 스키마는 examples/reportarchive/report_sample.json 실물 블록을 역산한 것이다
+# (comparison=props.cases+content.rows[].values, raci_matrix=content.roles+
+#  rows[].assignments, tree=content.rows[{label,parent,subtitle}], …).
+
+
+def _restore_table(widget: str, payload: dict, caption: str) -> tuple[str, dict, dict] | None:
+    cols = payload.get("columns") or []
+    rows = payload.get("rows") or []
+    if not cols or not rows:
+        return None
+    if widget == "comparison" and cols[0]["key"] == "__aspect":
+        cases = [{"key": c["key"], "label": c["label"]} for c in cols[1:]]
+        # 이미지 셀은 payload 에서 alt(없으면 caption) 텍스트로 낮춰지고 file_id 는 files 로
+        # 승격된다. 그 텍스트가 정확히 일치하는 셀만 이미지 참조로 되돌려 file_id 를 지킨다.
+        by_text: dict[str, dict] = {}
+        for f in payload.get("files") or []:
+            key = f.get("alt") or f.get("caption")
+            if key:
+                by_text.setdefault(str(key), f)
+        out = []
+        for i, r in enumerate(rows, start=1):
+            values: dict[str, Any] = {}
+            for c in cases:
+                cell = r.get(c["key"], "")
+                f = by_text.get(cell)
+                values[c["key"]] = (
+                    {"file_id": f["file_id"], "alt": f.get("alt", ""),
+                     "caption": f.get("caption", "")} if f else cell
+                )
+            out.append({"key": f"r{i}", "label": r.get("__aspect", ""), "values": values})
+        return "comparison", {"label": caption, "cases": cases}, {"rows": out}
+    if widget == "raci_matrix" and cols[0]["key"] == "__task":
+        roles = [{"key": c["key"], "label": c["label"]} for c in cols[1:]]
+        out = [
+            {
+                "label": r.get("__task", ""),
+                "assignments": {c["key"]: r.get(c["key"], "") for c in roles},
+            }
+            for r in rows
+        ]
+        return "raci_matrix", {"label": caption}, {"roles": roles, "rows": out}
+    columns = [{"key": c["key"], "label": c["label"], "type": "text"} for c in cols]
+    return "table", {"label": caption, "columns": columns}, {"rows": [dict(r) for r in rows]}
+
+
+def _restore_graph(widget: str, payload: dict, caption: str) -> tuple[str, dict, dict] | None:
+    nodes = payload.get("nodes") or []
+    edges = payload.get("edges") or []
+    if not nodes:
+        return None
+    if payload.get("shape") == "flow":
+        items = []
+        for n in nodes:
+            item = {"label": n.get("label", "")}
+            if n.get("note"):
+                item["description"] = n["note"]
+            items.append(item)
+        props = {"label": caption}
+        if payload.get("orientation"):
+            props["orientation"] = payload["orientation"]
+        return "flowchart", props, {"items": items}
+    label_of = {n["id"]: n.get("label", n["id"]) for n in nodes}
+    if payload.get("shape") == "tree":
+        parent_of = {e["to"]: label_of.get(e["from"], "") for e in edges}
+        rows = []
+        for n in nodes:
+            row = {"label": n.get("label", "")}
+            if parent_of.get(n["id"]):
+                row["parent"] = parent_of[n["id"]]
+            if n.get("note"):
+                row["subtitle"] = n["note"]
+            rows.append(row)
+        return ("mind_map" if widget == "mind_map" else "tree"), {"label": caption}, {"rows": rows}
+    # network · sankey — 노드 배치 스키마를 지어내지 않고 연결 목록 표로 보존한다
+    if not edges:
+        return None
+    columns = [
+        {"key": "from", "label": "출발", "type": "text"},
+        {"key": "to", "label": "도착", "type": "text"},
+        {"key": "rel", "label": "관계", "type": "text"},
+    ]
+    rows = [
+        {
+            "from": label_of.get(e["from"], e["from"]),
+            "to": label_of.get(e["to"], e["to"]),
+            "rel": str(e.get("label", "")),
+        }
+        for e in edges
+    ]
+    return "table", {"label": caption, "columns": columns}, {"rows": rows}
+
+
+def _restore_series(widget: str, payload: dict, caption: str) -> tuple[str, dict, dict] | None:
+    entries = payload.get("series") or []
+    if not entries:
+        return None
+    unit = str(payload.get("unit") or "")
+    ctype = str(payload.get("chart_type") or "")
+    axis = payload.get("axis") or {}
+
+    if ctype == "progress_bar":
+        props: dict = {"label": caption, "unit": unit or "%"}
+        default_max = axis.get("max")
+        if default_max is not None:
+            props["default_max"] = default_max
+        items = []
+        for e in entries:
+            item: dict = {"label": e["label"], "value": e.get("value")}
+            if e.get("max") is not None and e["max"] != default_max:
+                item["max"] = e["max"]
+            for k in ("note", "status"):
+                if e.get(k):
+                    item[k] = e[k]
+            items.append(item)
+        return "progress_bar", props, {"items": items}
+
+    if widget in _PIE_FAMILY:
+        props = {"label": caption}
+        if unit:
+            props["unit"] = unit
+        rows = []
+        for e in entries:
+            row: dict = {"label": e["label"], "value": e.get("value")}
+            if e.get("parent"):
+                row["parent"] = e["parent"]
+            rows.append(row)
+        content: dict = {"rows": rows}
+        if ctype:
+            content["chart_type"] = ctype
+        return widget, props, content
+
+    scalar = [e for e in entries if e.get("value") is not None]
+    if not scalar:
+        # box · density 의 원시 분포 — 차트 스키마로 되살릴 수 없다. 값을 표로 보존해
+        # 블록이 조용히 사라지는 것만은 막는다.
+        columns = [
+            {"key": "group", "label": "그룹", "type": "text"},
+            {"key": "n", "label": "표본수", "type": "text"},
+            {"key": "values", "label": "값", "type": "text"},
+        ]
+        rows = [
+            {
+                "group": str(e.get("label", "")),
+                "n": str(e.get("n") if e.get("n") is not None else len(e.get("values") or [])),
+                "values": ", ".join(f"{v:g}" for v in (e.get("values") or [])),
+            }
+            for e in entries
+        ]
+        return "table", {"label": caption, "columns": columns}, {"rows": rows}
+
+    # chart — 계열(group)이 곧 수치 열이다. 다계열도 열 분리로 그대로 되살린다.
+    groups: list[str] = []
+    for e in scalar:
+        g = str(e.get("group") or "")
+        if g not in groups:
+            groups.append(g)
+    key_of = {g: f"v{i}" for i, g in enumerate(groups, start=1)}
+    columns = [{"key": "label", "label": "항목", "type": "text"}] + [
+        {"key": key_of[g], "label": g or unit or "값", "type": "number"} for g in groups
+    ]
+    rows_by_x: dict[str, dict] = {}
+    order: list[str] = []
+    for e in scalar:
+        x = str(e["label"])
+        if x not in rows_by_x:
+            rows_by_x[x] = {"label": x}
+            order.append(x)
+        rows_by_x[x][key_of[str(e.get("group") or "")]] = e["value"]
+    props = {
+        "label": caption,
+        "columns": columns,
+        "x_column_key": "label",
+        "chart_type": ctype if ctype in _CHART_TYPES_OK else "bar",
+    }
+    for prop_key, axis_key in (("y_min", "min"), ("y_max", "max")):
+        if axis.get(axis_key) is not None:
+            props[prop_key] = axis[axis_key]
+    return "chart", props, {"rows": [rows_by_x[x] for x in order]}
+
+
+def _restore_timeline(payload: dict, caption: str) -> tuple[str, dict, dict] | None:
+    ms = payload.get("milestones") or []
+    if not ms:
+        return None
+    items = []
+    for m in ms:
+        item = {"label": m.get("label", ""), "date": m.get("date", ""), "status": m.get("status", "")}
+        if m.get("note"):
+            item["note"] = m["note"]
+        items.append(item)
+    props = {"label": caption}
+    for k, v in (payload.get("range") or {}).items():
+        props[f"{k}_date"] = v
+    return "milestone", props, {"items": items}
+
+
+def _restore_pairs(payload: dict, caption: str) -> tuple[str, dict, dict] | None:
+    pairs = payload.get("pairs") or []
+    if not pairs:
+        return None
+    content = _kv([(p["key"], p.get("label") or p["key"], p.get("value", "")) for p in pairs])
+    return "key_value", {"label": caption}, content
+
+
+def _restore_media(payload: dict, caption: str) -> tuple[str, dict, dict] | None:
+    """미디어는 file_id 를 그대로 유지한다 — 원 보고서 자산을 다시 쓰는 것이 목적."""
+    files = [f for f in (payload.get("files") or []) if f.get("file_id")]
+    if not files:
+        return None
+    content: dict = {
+        "files": [
+            {"file_id": f["file_id"], "caption": f.get("caption", ""), "alt": f.get("alt", "")}
+            for f in files
+        ]
+    }
+    if caption:
+        content["caption"] = caption
+    return str(payload.get("media_type") or "image"), {"label": caption}, content
+
+
+def restore_widget(widget: str, payload: dict) -> tuple[str, dict, dict] | None:
+    """structured payload → (위젯 타입, props, content). 되살릴 수 없으면 None.
+
+    `widget`(원 보고서의 위젯 타입)을 최대한 그대로 되살린다 — comparison/raci_matrix/
+    tree 처럼 payload 가 table·graph 로 평탄화된 위젯도 원형으로 복원한다.
+
+    무손실(payload 재추출이 원본과 동일) 23종: table·comparison·raci_matrix·fmea·
+    record_table·flowchart·tree·mind_map·chart·pie·waffle·treemap·packing·
+    progress_bar·milestone·key_value·record·image·video·attachment·cad_3d·
+    doc_viewer·html_embed.
+    나머지 10종(network·sankey·scatter·scatter3d·heatmap·contour·radar·box·
+    density·quadrant)은 좌표/격자 스키마가 payload 에 남지 않아 chart 또는 표로
+    낮춘다 — 값은 보존하되 위젯 타입은 바뀐다.
+    """
+    if not isinstance(payload, dict):
+        return None
+    kind = payload.get("kind")
+    caption = str(payload.get("caption") or "")
+    if kind == "table":
+        return _restore_table(widget, payload, caption)
+    if kind == "graph":
+        return _restore_graph(widget, payload, caption)
+    if kind == "series":
+        return _restore_series(widget, payload, caption)
+    if kind == "timeline":
+        return _restore_timeline(payload, caption)
+    if kind == "pairs":
+        return _restore_pairs(payload, caption)
+    if kind == "media":
+        return _restore_media(payload, caption)
+    return None
+
+
+# ── 근거 수집·배정 ────────────────────────────────────────────────────────
+
+
+def _collect_evidence(norm: dict, fragments: list[dict]) -> list[dict]:
+    """정규화 보고서의 구조 블록 → 근거 항목 목록 (문서 순서 유지).
+
+    payload 는 조각의 structured 를 우선 쓰고, 없으면(구버전 fragments.json) 블록에서
+    다시 뽑는다. frag_id 는 조각의 source.block_id 로 이어 붙여 각주 추적을 유지한다.
+    """
+    from .ingest import block_text
+    from .widgets import extract_structured, structured_summary
+
+    frag_of: dict[str, dict] = {}
+    for f in fragments:
+        bid = str((f.get("source") or {}).get("block_id") or "")
+        if bid and bid not in frag_of:
+            frag_of[bid] = f
+
+    out: list[dict] = []
+    for page in norm.get("pages", []):
+        pname = page.get("name", "")
+        for block in page.get("blocks", []):
+            bid = str(block.get("id") or "")
+            frag = frag_of.get(bid) or {}
+            payload = frag.get("structured")
+            if not isinstance(payload, dict):
+                payload = extract_structured(block)
+            if not isinstance(payload, dict):
+                continue
+            widget = str(block.get("type") or "")
+            restored = restore_widget(widget, payload)
+            if restored is None:
+                continue
+            summary = structured_summary(payload)
+            out.append(
+                {
+                    "block_id": bid,
+                    "page": pname,
+                    "widget": widget,
+                    "frag_id": str(frag.get("frag_id") or ""),
+                    "summary": summary,
+                    "restored": restored,
+                    "tokens": _tokens(f"{summary} {block_text(widget, block.get('content'))}"),
+                }
+            )
+    return out
+
+
+def _assign_evidence(evidence: list[dict], scene_tokens: list[set[str]]) -> list[list[dict]]:
+    """근거를 씬에 배정한다 — 토큰 겹침 최대 씬으로, 겹침이 0이면 문서 순서 비례 배분."""
+    n = len(scene_tokens)
+    buckets: list[list[dict]] = [[] for _ in range(n)]
+    if n == 0:
+        return buckets
+    for i, ev in enumerate(evidence):
+        scores = [len(ev["tokens"] & st) for st in scene_tokens]
+        best = max(scores)
+        idx = scores.index(best) if best > 0 else (i * n) // max(len(evidence), 1)
+        buckets[min(idx, n - 1)].append(ev)
+    return buckets
+
+
+def _still_files(stills_dir: Path | None, index: int, scene_name: str) -> list[Path]:
+    """씬 스틸 파일 — 파일명에 씬 이름이 있으면 그것, 없으면 `{index:02d}_` 접두 매칭."""
+    if stills_dir is None or not Path(stills_dir).is_dir():
+        return []
+    files = sorted(p for p in Path(stills_dir).iterdir() if p.suffix.lower() in (".png", ".jpg"))
+    named = [p for p in files if scene_name and scene_name in p.stem]
+    return named or [p for p in files if p.stem.startswith(f"{index:02d}_")]
+
+
+# ── 페이지 조립 ──────────────────────────────────────────────────────────
+
+
+def _report_cover_page(norm: dict, scenario: dict, meeting_meta: dict | None,
+                       n_scenes: int, n_evidence: int, n_turns: int) -> dict:
+    meta = scenario.get("meta", {})
+    core = str(meta.get("core_message", ""))
+    items = [
+        ("source_report", "원 보고서",
+         f"{norm.get('title', '')} ({norm.get('report_date', '')}, doc {norm.get('doc_id', '')})"),
+        ("audience", "대상 독자", str(meta.get("audience", "")) or "-"),
+        ("sections", "본문 섹션", f"{n_scenes}개"),
+        ("evidence", "근거 위젯", f"{n_evidence}개"),
+    ]
+    if meeting_meta:
+        items.append((
+            "deliberation", "심의 회의",
+            f"{meeting_meta.get('topic', '')} — 참가 {len(meeting_meta.get('participants', []))}인 · {n_turns}턴",
+        ))
+    lines = [f"**{core or '심의가 확정한 핵심 메시지가 기록되지 않았다.'}**"]
+    if meeting_meta:
+        lines.append(
+            f"이 보고서는 원 보고서 「{norm.get('title', '')}」 를 전문가 심의 "
+            f"`{str(meeting_meta.get('id', ''))[:8]}` 로 다시 정리한 것이다. "
+            f"본문 문장은 심의가 집필한 내레이션 정본이고, 각 절의 근거 위젯은 원 보고서 블록을 "
+            f"타입 그대로 되살린 것이다(출처는 부록 표 참조)."
+        )
+    else:
+        lines.append("본문 문장은 심의가 집필한 내레이션 정본이고, 근거 위젯은 원 보고서 블록을 타입 그대로 되살린 것이다.")
+    return _page("개요", [
+        ("h1_cover", "heading", {"level": 1, "default_text": norm.get("title", "")},
+         {"text": norm.get("title", "")}, None),
+        ("kv_cover", "key_value", {"label": "보고 개요"}, _kv(items), "current_state"),
+        ("rt_cover", "rich_text", {}, {"markdown": "\n\n".join(lines)}, "background"),
+    ])
+
+
+def _report_section_page(idx: int, scene: dict, node: dict, evidence: list[dict],
+                         stills: list[Path]) -> tuple[dict, list[dict]]:
+    """씬 1개 → 섹션 페이지 1장. (페이지, 업로드 대기 자산 목록) 반환."""
+    name = str(scene.get("name", "")) or f"섹션 {idx}"
+    title = _flat_title(node.get("title")) or name
+    body = [str(scene.get("narration", "")).strip() or f"{title} 절이다."]
+    for key in ("conclusion", "subtitle", "footnote"):
+        extra = node.get(key)
+        if isinstance(extra, str) and extra.strip():
+            body.append(extra.strip())
+        elif isinstance(extra, dict):
+            flat = _flat_title({"pre": extra.get("pre", ""), "accent": extra.get("strong", ""),
+                                "post": extra.get("post", "")})
+            if flat:
+                body.append(flat)
+
+    blocks: list[tuple[str, str, dict, dict, str | None]] = [
+        ("h1_section", "heading", {"level": 1, "default_text": title}, {"text": title}, None),
+        ("rt_body", "rich_text", {}, {"markdown": "\n\n".join(body)}, "background"),
+    ]
+    pending: list[dict] = []
+    for k, path in enumerate(stills, start=1):
+        bid = f"img_still_{k}"
+        caption = f"{name} 씬 스틸 — 업로드 필요: {path}"
+        blocks.append((bid, "image", {"label": f"{name} 화면"},
+                       {"caption": caption, "alt": f"{name} 씬 화면"}, "reference"))
+        pending.append({"page": f"{idx}. {name}", "block_id": bid,
+                        "local_path": str(path), "scene": name})
+    for ev in evidence:
+        wtype, props, content = ev["restored"]
+        props = dict(props)
+        # 각주 — 근거가 원 보고서 어느 블록에서 왔는지 라벨에 박는다
+        label = props.get("label") or ev["summary"]
+        ref = f"{ev['page']} · {ev['block_id']}"
+        props["label"] = _clip(f"{label} (출처: {ref})", 90)
+        blocks.append((f"ev_{ev['block_id']}", wtype, props, content, "reference"))
+    return _page(f"{idx}. {name}", blocks), pending
+
+
+def _report_appendix_page(minutes_md: str, evidence: list[dict],
+                          meeting_meta: dict | None) -> dict:
+    decisions = _minutes_bullets(minutes_md, "결론") or ["(심의 결정 기록 없음)"]
+    open_issues = _minutes_bullets(minutes_md, "미해결 쟁점") or ["(미해결 쟁점 없음)"]
+    rows = [
+        {
+            "frag": ev["frag_id"] or "-",
+            "page": ev["page"],
+            "block": ev["block_id"],
+            "widget": ev["widget"],
+            "gist": _clip(ev["summary"], 120),
+        }
+        for ev in evidence
+    ]
+    intro = "본문 각 절의 근거 위젯은 아래 원 보고서 블록에서 왔다. 결정·미해결 쟁점은 심의 회의록 정본이다."
+    if meeting_meta:
+        intro += f" (회의 {meeting_meta.get('id', '')} · 폐회 {str(meeting_meta.get('closed_at', ''))[:10]})"
+    blocks: list[tuple[str, str, dict, dict, str | None]] = [
+        ("h1_appendix", "heading", {"level": 1, "default_text": "부록 — 심의 근거"},
+         {"text": "부록 — 심의 근거"}, None),
+        ("rt_appendix", "rich_text", {}, {"markdown": intro}, "background"),
+        ("bl_decisions", "bulleted_list", {"label": "심의 결정"}, {"items": decisions}, "decision"),
+        ("bl_open_issues", "bulleted_list", {"label": "미해결 쟁점"},
+         {"items": open_issues}, "constraint"),
+    ]
+    if rows:
+        blocks.append(("tbl_sources", "table", {
+            "label": f"근거 출처 ({len(rows)}건)",
+            "columns": [
+                {"key": "frag", "label": "조각", "type": "text"},
+                {"key": "page", "label": "원 보고서 페이지", "type": "text"},
+                {"key": "block", "label": "블록 id", "type": "text"},
+                {"key": "widget", "label": "위젯", "type": "text"},
+                {"key": "gist", "label": "요지", "type": "text"},
+            ],
+        }, {"rows": rows}, "reference"))
+    return _page("부록 — 심의 근거", blocks)
+
+
+def build_report_draft(run_dir: Path, *, meeting_dir: Path | None = None,
+                       style: str = "report", stills_dir: Path | None = None) -> dict:
+    """실행 산출물 → report_archive_draft_v1 **완성 보고서** 초안.
+
+    build_archive_draft 가 제작기록(메타 문서)을 만드는 것과 달리, 이쪽은 심의가
+    정리한 내용 자체를 되돌린다 — 원 보고서 → 심의 → 더 나은 보고서.
+
+    페이지 = 표지 격 개요 1장 + 씬 1개당 섹션 1장 + 부록 1장.
+    본문은 씬 narration(심의 집필 정본), 근거 위젯은 원 보고서 블록을 위젯 타입
+    그대로 복원한 것이며, 부록은 회의록의 결정·미해결 쟁점과 출처 표다.
+
+    stills_dir 를 주면 씬 스틸을 image 위젯으로 얹고 로컬 경로를 캡션에 박은 뒤
+    반환 dict 의 `pending_assets` 로 업로드 필요 목록을 함께 낸다.
+    """
+    if style not in REPORT_STYLES:
+        raise ValueError(f"알 수 없는 style={style!r} — 지원: {', '.join(REPORT_STYLES)}")
+
+    run_dir = Path(run_dir)
+    norm = _load_json(run_dir / "report.norm.json")
+    scenario = _load_json(run_dir / "scenario.json")
+    frags_path = run_dir / "fragments.json"
+    fragments = _load_json(frags_path) if frags_path.is_file() else []
+
+    meeting_meta: dict | None = None
+    minutes_md = ""
+    n_turns = 0
+    if meeting_dir is not None:
+        meeting_dir = Path(meeting_dir)
+        if (meeting_dir / "meta.json").is_file():
+            meeting_meta = _load_json(meeting_dir / "meta.json")
+        if (meeting_dir / "minutes.md").is_file():
+            minutes_md = (meeting_dir / "minutes.md").read_text(encoding="utf-8")
+        if (meeting_dir / "turns.jsonl").is_file():
+            n_turns = sum(
+                1 for line in (meeting_dir / "turns.jsonl").read_text(encoding="utf-8").splitlines()
+                if line.strip()
+            )
+
+    scenes = scenario.get("scenes", []) or []
+    nodes = [_scene_node(scenario, s) for s in scenes]
+    scene_tokens = []
+    for scene, node in zip(scenes, nodes):
+        acc: list[str] = [str(scene.get("name", "")), str(scene.get("narration", ""))]
+        _strings(node, acc)
+        scene_tokens.append(_tokens(" ".join(acc)))
+
+    evidence = _collect_evidence(norm, fragments)
+    buckets = _assign_evidence(evidence, scene_tokens)
+
+    pages = [_report_cover_page(norm, scenario, meeting_meta, len(scenes), len(evidence), n_turns)]
+    pending: list[dict] = []
+    for i, (scene, node) in enumerate(zip(scenes, nodes), start=1):
+        stills = _still_files(stills_dir, i, str(scene.get("name", "")))
+        page, waiting = _report_section_page(i, scene, node, buckets[i - 1], stills)
+        pages.append(page)
+        pending.extend(waiting)
+    pages.append(_report_appendix_page(minutes_md, evidence, meeting_meta))
+
+    closed_at = (meeting_meta or {}).get("closed_at", "")
+    report_date = closed_at[:10] if closed_at else datetime.date.today().isoformat()
+    return {
+        "_type": DRAFT_TYPE,
+        "title": f"{norm.get('title', '')} (심의 정리본)",
+        "report_date": report_date,
+        "tags": ["webdesignagents", "심의정리본"],
+        "pages": pages,
+        "pending_assets": pending,
+    }
+
+
+# ---------------------------------------------------------------------------
 # 업로드 (선택) — ReportArchive REST 역추적 경로
 #   mcp_server/server.py 의 create_report_draft 가 POST /api/reports/ai-draft 를
 #   호출한다. 인증은 POST /api/auth/login(JWT) + X-Workspace-Slug 헤더.

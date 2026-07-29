@@ -1,0 +1,121 @@
+{
+  "kicker": "시스템 계층",
+  "title": "시스템 계층 구조",
+  "nodes": [
+    {
+      "id": "ReportArchive",
+      "label": "ReportArchive",
+      "level": 0
+    },
+    {
+      "id": "개인 작업공간 (personal)",
+      "label": "개인 작업공간",
+      "level": 1,
+      "note": "보고서가 나는 곳"
+    },
+    {
+      "id": "초안 / 메모 / 시험 작성",
+      "label": "초안 / 메모 / 시험 작성",
+      "level": 2
+    },
+    {
+      "id": "폴더 정리 (진행 중 / 종결 / 보관)",
+      "label": "폴더 정리 (진행/종결)",
+      "level": 2
+    },
+    {
+      "id": "조직 워크스페이스 (org)",
+      "label": "조직 워크스페이스",
+      "level": 1,
+      "note": "팀 · 본부 트리"
+    },
+    {
+      "id": "조직 게시판 (Report Mount)",
+      "label": "조직 게시판 (Mount)",
+      "level": 2
+    },
+    {
+      "id": "종합보고 (CompositeReport)",
+      "label": "종합보고 (Composite)",
+      "level": 2
+    },
+    {
+      "id": "멤버 · 설정",
+      "label": "멤버 · 설정",
+      "level": 2
+    },
+    {
+      "id": "공통 메뉴",
+      "label": "공통 메뉴",
+      "level": 1,
+      "note": "모든 부서 공유"
+    },
+    {
+      "id": "내 공간",
+      "label": "내 공간",
+      "level": 2
+    },
+    {
+      "id": "알림 인박스",
+      "label": "알림 인박스",
+      "level": 2
+    },
+    {
+      "id": "템플릿 관리",
+      "label": "템플릿 관리",
+      "level": 2
+    }
+  ],
+  "edges": [
+    {
+      "from": "ReportArchive",
+      "to": "개인 작업공간 (personal)"
+    },
+    {
+      "from": "개인 작업공간 (personal)",
+      "to": "초안 / 메모 / 시험 작성"
+    },
+    {
+      "from": "개인 작업공간 (personal)",
+      "to": "폴더 정리 (진행 중 / 종결 / 보관)"
+    },
+    {
+      "from": "ReportArchive",
+      "to": "조직 워크스페이스 (org)"
+    },
+    {
+      "from": "조직 워크스페이스 (org)",
+      "to": "조직 게시판 (Report Mount)"
+    },
+    {
+      "from": "조직 워크스페이스 (org)",
+      "to": "종합보고 (CompositeReport)"
+    },
+    {
+      "from": "조직 워크스페이스 (org)",
+      "to": "멤버 · 설정"
+    },
+    {
+      "from": "ReportArchive",
+      "to": "공통 메뉴"
+    },
+    {
+      "from": "공통 메뉴",
+      "to": "내 공간"
+    },
+    {
+      "from": "공통 메뉴",
+      "to": "알림 인박스"
+    },
+    {
+      "from": "공통 메뉴",
+      "to": "템플릿 관리"
+    }
+  ],
+  "omitted": 3,
+  "frame": {
+    "brand": "ReportArchive",
+    "idx": "01",
+    "total": "07"
+  }
+}

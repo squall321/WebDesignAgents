@@ -1,0 +1,45 @@
+# tpl.x-summary — 씬 템플릿 모듈 SSOT (클로징 변주 — 요약 회수형 · 다룬 것을 되짚어 전부 남긴다)
+id: tpl.x-summary
+type: scene-template
+name: "클로징 · 요약 회수 — 핵심 3~5줄을 되짚어 한 화면에 남긴다"
+status: draft
+version: 1.0.0
+engine_compat: "animations-v2"
+origin: "창작 모드 클로징 변주 2026-07-29"
+formats: [wide-16x9]
+stage: { w: 1920, h: 1080 }
+nat_default: 14
+scene_name_default: "요약"
+entry:
+  template: "web/templates/omx-closings.jsx#SummaryScene"
+  schema: schema.json
+  fixtures:
+    - fixtures/min.json
+    - fixtures/typical.json
+    - fixtures/max.json
+  preview: preview.html
+  snapshots: fixtures/snapshots/
+metaphors:
+  - frame-chrome
+  - dot-grid
+theme_default: hwax-blue
+summary: "본문에서 다룬 핵심을 [번호 + 한 문장 + 근거 수치] 3~5행으로 되짚고 어느 행도 퇴장시키지 않아 마지막 프레임이 곧 정리된 요약표가 되는 클로징 씬 — 발표 후 질의응답 대기 화면으로 그대로 세워둘 수 있다"
+composition: "행마다 [번호 칩(활성 블루) + 회수 문장 31px 1줄 + 근거 수치(38px, 5행이면 31px) + 수치 라벨] · 위→아래 순차 등장 · 하단 대기 문구 필 — 은유: 회의록"
+closing_strategy: "누적 — 등장만 있고 퇴장이 없다. 마지막 상태 = 다룬 근거 전부가 남은 화면"
+in_scope:
+  - "본문 3~5개 대목의 회수 (각 줄 = 주장 한 문장 + 그 근거 수치 하나)"
+  - "발표 종료 후 질의응답 대기 화면 (마지막 프레임을 정지 화면으로 오래 세워둠)"
+  - "행 수가 행 높이·수치 글자 크기를 정한다 — 3행 166.7px / 4행 120.5px / 5행 92.8px (수치는 5행에서만 38px→31px)"
+out_of_scope:
+  - "6줄 이상 (요약이 아니라 본문 — tpl.c-grid·tpl.l-list 로 보낸다)"
+  - "근거 수치 없는 줄 (metric 필수 — 주장만 되짚는 슬로건형은 tpl.x-quote)"
+  - "CTA·연락처·행동 유도 (권유는 tpl.closing, 일정·책임은 tpl.x-next)"
+  - "최대 밀도(5행 최대 자수)를 12초에 밀어 넣기 (자막 9자/초 기준 13.7초 필요 — nat 14 가 그 근거다)"
+quality:
+  reproducibility:
+    verdict: pass
+    max_diff_ratio: 0.00000000   # 독립 브라우저 세션 2회 렌더 픽셀 diff (min/typical/max 3종 모두 0)
+    checked_at: "2026-07-29T03:03:00"
+  gates_passed:
+    - "20260729-031020-fe0f62"  # 7게이트 클린 (error 0 · warning 0 · 클로징 3씬 38초 빌드)
+  reviews: []

@@ -1,0 +1,44 @@
+# tpl.l-list — 씬 템플릿 모듈 SSOT (목록형 상세 5~8행 — 많은 항목을 읽히게)
+id: tpl.l-list
+type: scene-template
+name: "목록 — 번호/아이콘 + 제목 + 설명 5~8행"
+status: draft
+version: 1.0.0
+engine_compat: "animations-v2"
+origin: "창작 모드 레이아웃 확장 2026-07-29"
+formats: [wide-16x9]
+stage: { w: 1920, h: 1080 }
+nat_default: 14
+scene_name_default: "목록"
+entry:
+  template: "web/templates/omx-layouts-a.jsx#ListScene"
+  schema: schema.json
+  fixtures:
+    - fixtures/min.json
+    - fixtures/typical.json
+    - fixtures/max.json
+  preview: preview.html
+  snapshots: fixtures/snapshots/
+metaphors:
+  - frame-chrome
+  - dot-grid
+theme_default: hwax-blue
+summary: "행마다 번호/아이콘 배지 + 제목 + 설명(+상태 칩)이 위→아래로 순차 등장하는 목록 씬 — 홀짝 배경 교차로 스캔성을 확보하고, 행 수가 늘면 스키마가 설명을 1행으로 조여 최소 폰트 24px 을 지킨다"
+composition: "콘텐츠 대역 330~955px 을 행 수로 균등 분할(8행 시 pitch 78px) — 짝수 행 흰 카드 · 홀수 행 투명(스테이지 도트 노출), 좌 56px 배지 · 중앙 제목/설명 · 우 180px 상태 칩 — 은유: 점검표 훑기"
+in_scope:
+  - "5~8개 항목의 목록형 상세 (기술 스택·기능 목록·점검 항목·메뉴 구성 등)"
+  - "항목별 상태 칩 4톤 (info · success · caution · active)"
+  - "번호 자동 채번 또는 icon/num 지정"
+out_of_scope:
+  - "3~6단계 절차 (순서 자체가 메시지면 tpl.process)"
+  - "실증 사례 카드 2~3장 (tpl.proof)"
+  - "9행 이상 — 행 높이가 최소 폰트를 깨므로 스키마가 거부한다 (추리기는 심의 몫)"
+  - "설명 3행 이상 — 항목 하나가 길면 tpl.l-split 로 옮긴다"
+quality:
+  reproducibility:
+    verdict: pass
+    max_diff_ratio: 0.00000000
+    checked_at: "2026-07-29T02:20:43"
+  gates_passed:
+    - "20260729-022136-81d6f3"  # 7게이트 클린 (error 0 · warning 0 · info 0, typical)
+  reviews: []

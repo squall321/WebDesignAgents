@@ -1,0 +1,24 @@
+{
+  "kicker": "보고 방식",
+  "title": "파일 공유에서 게시로",
+  "before": {
+    "label": "AS-IS",
+    "title": "보고서가 개인 파일로 흩어진다",
+    "items": [
+      { "text": "개인 PC 에 파일로 보관" },
+      { "text": "취합은 수작업 복사" },
+      { "text": "원본을 고쳐도 사본 그대로" }
+    ],
+    "summary": { "value": "1", "desc": "곳에만 존재" }
+  },
+  "after": {
+    "label": "TO-BE",
+    "title": "게시판에 live link 로 걸린다",
+    "items": [
+      { "text": "개인 공간에서 한 번 작성" },
+      { "text": "여러 게시판에 동시 게시" },
+      { "text": "원본 수정이 즉시 반영" }
+    ],
+    "summary": { "value": "3", "desc": "곳에 동시 노출" }
+  }
+}

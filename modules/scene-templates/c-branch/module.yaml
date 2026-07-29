@@ -1,0 +1,45 @@
+# tpl.c-branch — 씬 템플릿 모듈 SSOT (분기 흐름도 — 판단 마름모 · 직교 엣지 · 레벨별 순차 등장)
+id: tpl.c-branch
+type: scene-template
+name: "분기 흐름도 — 조건 분기·병렬 절차 (노드 3~12 · 레벨 4)"
+status: draft
+version: 1.0.0
+engine_compat: "animations-v2"
+origin: "창작 모드 커버리지 1순위 2026-07-29"
+formats: [wide-16x9]
+stage: { w: 1920, h: 1080 }
+nat_default: 14
+scene_name_default: "분기"
+entry:
+  template: "web/templates/omx-layouts-d.jsx#BranchScene"
+  schema: schema.json
+  fixtures:
+    - fixtures/min.json
+    - fixtures/typical.json
+    - fixtures/max.json
+  preview: preview.html
+  snapshots: fixtures/snapshots/
+metaphors:
+  - frame-chrome
+  - dot-grid
+theme_default: hwax-blue
+summary: "노드가 레벨(열)별로 순차 등장하고 판단 마름모에서 두 경로가 동시에 뻗는 분기 흐름도 씬 — 엣지 세로 구간을 거터(120px)와 우회 레인에 가둬 노드 관통을 구조적으로 차단, 판단 노드 최소 1개를 스키마가 강제해 선형 절차의 둔갑을 막는다"
+composition: "레벨 0~3 = 열 4개(좌→우) · 같은 레벨은 세로 균등 + 중앙 정렬 · 같은 부모의 자식을 인접 슬롯에 모아 교차 최소화 · 직교(ㄱ자) 엣지 + 거터 안 분기 라벨 필 + 하단 풋노트 — 은유: 갈림길"
+in_scope:
+  - "조건 분기·병렬이 있는 절차 6~12노드 (flowchart 분기형 · mind_map · tree — graph payload 그대로)"
+  - "노드 3태: 시작/끝 필(pill) · 처리 사각 카드 · 판단 마름모"
+  - "분기 라벨 3자 이내 판정 코드값(예/아니오) — 조건 서술은 노드 note 로"
+  - "레벨 건너뛰기 엣지 — 노드 띠 아래 우회 레인으로 돌아 관통을 피한다"
+out_of_scope:
+  - "선형 절차 (판단 없는 6단계는 tpl.process 로 — 스키마가 decision 1개를 요구해 거른다)"
+  - "5레벨 이상·레벨당 4개 초과 (자동 축소·폰트 축소 금지 — 최소 폰트 24px 준수)"
+  - "역류/순환 엣지 (from.level < to.level 만 그려진다) · 가중치 있는 엣지(sankey 는 별도 그릇)"
+  - "스윔레인(담당자 축) 표현"
+quality:
+  reproducibility:
+    verdict: pass
+    max_diff_ratio: 0.00000000   # 독립 세션 2회 렌더 픽셀 diff (min/typical/max 3종 모두 0)
+    checked_at: "2026-07-29T02:26:00"
+  gates_passed:
+    - "20260729-022404-ee580d"  # 7게이트 클린 (error 0 · warning 0 · 분기/목록 2씬 빌드)
+  reviews: []

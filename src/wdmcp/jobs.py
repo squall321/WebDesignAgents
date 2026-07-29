@@ -151,14 +151,20 @@ def _run_job(job_id: str, renders_root: Path, build_root: Path) -> None:
         _update_job(job_id, status="rendering")
         outputs: dict[str, str] = {}
         detail: dict = {}
-        if "video" in job.targets:
+        # 포맷의 outputs 가 실제 산출을 지배한다 — PPT 전용 포맷(outputs: [pptx])에서
+        # mp4 를 굽다 실패하지 않게, wda render 와 같은 단일 판정점을 쓴다.
+        from wdpipeline.format import render_targets
+
+        allowed = set(render_targets(_format_of(root)))
+        job_targets = [t for t in job.targets if t in allowed]
+        if "video" in job_targets:
             out = out_dir / "video.mp4"
             detail["video"] = export_video(
                 root, rel, out, config=cfg, resources=resources,
                 format_id=_format_of(root), log=lambda m: None,
             )
             outputs["video"] = str(out)
-        if "pptx" in job.targets:
+        if "pptx" in job_targets:
             out = out_dir / "slides.pptx"
             detail["pptx"] = export_pptx(
                 root, rel, out, config=cfg, resources=resources,

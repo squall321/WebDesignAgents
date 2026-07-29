@@ -1,0 +1,261 @@
+{
+  "id": "fresh-teal",
+  "name": "Fresh Teal",
+  "version": "1.0.0",
+  "description": "화이트 + 틸/민트 강조 — 신사업·혁신·제안용 신선한 테마. hwax-blue 와 키 집합·semantic.layout·semantic.radius·semantic.type 동일, palette·shadow·motion·contrastPairs 만 교체. 모션은 탄력(등장에 easeOutBack 오버슈트, 지속시간은 짧게).",
+  "raw": {
+    "palette": {
+      "bg": "#E4F5F0",
+      "ink": "#0F2A2E",
+      "sub": "#46626A",
+      "faint": "#55707A",
+      "line": "#C6E2DB",
+      "blue": "#0B7168",
+      "blue2": "#0E6E86",
+      "blueSoft": "#D3EEE8",
+      "blueBorder": "#9CD3C7",
+      "card": "#FFFFFF",
+      "red": "#A63A32",
+      "redSoft": "#FAECEA",
+      "green": "#2C7A3F",
+      "greenSoft": "#E4F2E7",
+      "skel": "#C8E0D9",
+      "chatGray": "#E1F2EE"
+    },
+    "extra": {
+      "white": "#FFFFFF",
+      "dot": "#B4D9CF",
+      "badgeBg": "#FFFFFFB8",
+      "typingBg": "#DEF0EB"
+    },
+    "font": {
+      "base": "'Pretendard Variable', Pretendard, 'Noto Sans KR', sans-serif"
+    },
+    "shadow": {
+      "card": "0 16px 40px rgba(11,113,104,0.10)",
+      "cardSoft": "0 8px 20px rgba(11,113,104,0.06)",
+      "blue": "0 16px 34px rgba(11,113,104,0.32)",
+      "blueSoft": "0 16px 34px rgba(11,113,104,0.26)",
+      "active": "0 18px 40px rgba(11,113,104,0.16)"
+    }
+  },
+  "semantic": {
+    "type": {
+      "iconCheck": 17,
+      "caption": 24,
+      "note": 25,
+      "body": 26,
+      "emphasis": 27,
+      "chat": 28,
+      "lead": 30,
+      "item": 31,
+      "cardTitle": 33,
+      "chipLg": 34,
+      "claim": 35,
+      "subtitle": 36,
+      "caseTitle": 38,
+      "arrow": 44,
+      "sectionTitle": 56,
+      "display": 92,
+      "hero": 112
+    },
+    "layout": {
+      "stageW": 1920,
+      "stageH": 1080,
+      "marginX": 140,
+      "kickerTop": 108,
+      "kickerRuleW": 46,
+      "kickerRuleH": 5,
+      "kickerGap": 18,
+      "titleTop": 162,
+      "contentTop": 330,
+      "footerBottom": 56,
+      "footerPadTop": 22
+    },
+    "radius": {
+      "card": 24,
+      "panel": 22,
+      "box": 20,
+      "chip": 16,
+      "tag": 14,
+      "bar": 8,
+      "pill": 999
+    },
+    "motion": {
+      "rise": { "dur": 0.62, "dy": 28, "ease": "easeOutBack" },
+      "riseSm": { "dur": 0.52, "dy": 18, "ease": "easeOutBack" },
+      "pop": { "dur": 0.42, "ease": "easeOutBack" },
+      "tag": { "dur": 0.46, "dy": 12, "ease": "easeOutBack" },
+      "exit": { "dur": 0.6, "dy": -26, "ease": "easeInCubic" },
+      "fill": { "ease": "linear" },
+      "stagger": {
+        "micro": 0.14,
+        "icon": 0.15,
+        "bar": 0.32,
+        "row": 1.0,
+        "block": 1.2,
+        "step": 2.2,
+        "panel": 3.4
+      }
+    },
+    "contrastPairs": [
+      { "fg": "{palette.ink}", "bg": "{palette.bg}", "role": "본문 텍스트 / 민트 화이트 배경" },
+      { "fg": "{palette.sub}", "bg": "{palette.bg}", "role": "보조 텍스트 / 민트 화이트 배경" },
+      { "fg": "{palette.faint}", "bg": "{palette.bg}", "role": "푸터·캡션 / 민트 화이트 배경" },
+      { "fg": "{palette.blue}", "bg": "{palette.bg}", "role": "킥커·강조(딥 틸) / 민트 화이트 배경" },
+      { "fg": "{palette.ink}", "bg": "{palette.card}", "role": "본문 텍스트 / 카드" },
+      { "fg": "{palette.sub}", "bg": "{palette.card}", "role": "보조 텍스트 / 카드" },
+      { "fg": "{palette.faint}", "bg": "{palette.card}", "role": "메타 텍스트 / 카드" },
+      { "fg": "{palette.blue}", "bg": "{palette.card}", "role": "강조·이니셜 / 카드" },
+      { "fg": "{palette.blue}", "bg": "{palette.blueSoft}", "role": "칩·배지 텍스트 / 소프트 민트" },
+      { "fg": "{palette.blue2}", "bg": "{palette.blueSoft}", "role": "대기 상태 번호(틸 블루) / 소프트 민트" },
+      { "fg": "{palette.ink}", "bg": "{palette.blueSoft}", "role": "질문 말풍선 텍스트 / 소프트 민트" },
+      { "fg": "{extra.white}", "bg": "{palette.blue}", "role": "활성 칩·결정 박스 텍스트 / 딥 틸" },
+      { "fg": "{extra.white}", "bg": "{palette.green}", "role": "체크마크·수렴 배지 텍스트 / 그린" },
+      { "fg": "{palette.red}", "bg": "{palette.redSoft}", "role": "오류 태그 텍스트 / 소프트 레드" },
+      { "fg": "{palette.green}", "bg": "{palette.greenSoft}", "role": "성공 배지 텍스트 / 소프트 그린" },
+      { "fg": "{palette.blue}", "bg": "{extra.badgeBg}", "role": "오프닝 배지 텍스트 / 반투명 화이트" },
+      { "fg": "{palette.sub}", "bg": "{extra.typingBg}", "role": "판정 필 텍스트 / 타이핑 민트" }
+    ]
+  },
+  "component": {
+    "frame": {
+      "bg": "{palette.bg}",
+      "ink": "{palette.ink}",
+      "kicker": "{palette.blue}",
+      "rule": "{palette.blue}",
+      "line": "{palette.line}",
+      "footerInk": "{palette.faint}",
+      "dot": "{extra.dot}",
+      "glow": "radial-gradient(1400px 700px at 50% -12%, rgba(11,113,104,0.08), transparent)"
+    },
+    "card": {
+      "bg": "{palette.card}",
+      "border": "{palette.line}",
+      "shadow": "{shadow.card}",
+      "shadowSoft": "{shadow.cardSoft}"
+    },
+    "chip": {
+      "infoBg": "{palette.blueSoft}",
+      "infoFg": "{palette.blue2}",
+      "accentBg": "{palette.blueSoft}",
+      "accentFg": "{palette.blue}",
+      "activeBg": "{palette.blue}",
+      "activeFg": "{extra.white}",
+      "successBg": "{palette.greenSoft}",
+      "successFg": "{palette.green}",
+      "errorBg": "{palette.redSoft}",
+      "errorFg": "{palette.red}"
+    },
+    "tag": {
+      "errorBg": "{palette.redSoft}",
+      "errorFg": "{palette.red}",
+      "acceptBg": "{palette.blueSoft}",
+      "acceptFg": "{palette.blue}",
+      "successBg": "{palette.green}",
+      "successFg": "{extra.white}",
+      "infoBg": "{palette.blueSoft}",
+      "infoFg": "{palette.blue}"
+    },
+    "chat": {
+      "panelBg": "{palette.card}",
+      "panelBorder": "{palette.line}",
+      "headerDot": "{palette.skel}",
+      "headerFg": "{palette.faint}",
+      "questionBg": "{palette.blueSoft}",
+      "questionFg": "{palette.ink}",
+      "answerBg": "{palette.chatGray}",
+      "skelBar": "{palette.skel}",
+      "verdictBg": "{extra.typingBg}",
+      "verdictBorder": "{palette.line}",
+      "verdictFg": "{palette.sub}",
+      "verdictDot": "{palette.faint}"
+    },
+    "network": {
+      "line": "{palette.blueBorder}",
+      "travelDot": "{palette.blue2}",
+      "nodeBg": "{palette.card}",
+      "nodeBorder": "{palette.blueBorder}",
+      "nodeFg": "{palette.blue}",
+      "nameFg": "{palette.sub}",
+      "centerBg": "{palette.blue}",
+      "centerFg": "{extra.white}",
+      "centerShadow": "{shadow.blue}",
+      "r": 246,
+      "lineTrim": 118,
+      "centerW": 156,
+      "centerH": 92,
+      "nodeSize": 100,
+      "travelDotSize": 11
+    },
+    "stepGrid": {
+      "cardW": 516,
+      "cardH": 256,
+      "colPitch": 562,
+      "rowPitch": 292,
+      "top": 344,
+      "railTop": 296,
+      "railH": 5,
+      "railW": 1640,
+      "railBase": "{palette.line}",
+      "railFill": "{palette.blue}",
+      "activeBorder": "{palette.blue2}",
+      "idleBorder": "{palette.line}",
+      "activeShadow": "{shadow.active}",
+      "idleShadow": "{shadow.cardSoft}",
+      "numActiveBg": "{palette.blue}",
+      "numActiveFg": "{extra.white}",
+      "numIdleBg": "{palette.blueSoft}",
+      "numIdleFg": "{palette.blue2}"
+    },
+    "flow": {
+      "cardW": 508,
+      "colPitch": 566,
+      "top": 356,
+      "minH": 330,
+      "arrowY": 500,
+      "arrowFg": "{palette.faint}",
+      "noteTop": 782
+    },
+    "caseTrio": {
+      "cardW": 508,
+      "cardH": 520,
+      "colPitch": 566,
+      "top": 350,
+      "noteTop": 906
+    },
+    "processNote": { "top": 952 },
+    "converge": {
+      "avatarBg": "{palette.blueSoft}",
+      "avatarBorder": "{palette.blueBorder}",
+      "avatarFg": "{palette.blue}",
+      "checkBg": "{palette.green}",
+      "checkFg": "{extra.white}",
+      "avatarSize": 58,
+      "checkSize": 27
+    },
+    "statTrio": { "itemW": 480, "gap": 90, "valueFg": "{palette.blue}", "descFg": "{palette.sub}" },
+    "ctaPill": {
+      "bg": "{palette.card}",
+      "border": "{palette.blueBorder}",
+      "fg": "{palette.ink}",
+      "accent": "{palette.blue}",
+      "shadow": "{shadow.card}"
+    },
+    "decision": {
+      "bg": "{palette.blue}",
+      "fg": "{extra.white}",
+      "shadow": "{shadow.blueSoft}"
+    },
+    "badge": {
+      "bg": "{extra.badgeBg}",
+      "border": "{palette.blueBorder}",
+      "fg": "{palette.blue}"
+    },
+    "xList": {
+      "iconBg": "{palette.redSoft}",
+      "iconFg": "{palette.red}",
+      "iconSize": 50
+    }
+  }
+}
