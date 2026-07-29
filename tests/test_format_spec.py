@@ -311,12 +311,18 @@ def test_vertical_shell_validates_and_builds(tmp_path: Path):
     assert '"vtpl.hook"' in scenes_jsx and '"vtpl.cta"' in scenes_jsx
 
 
-def test_assemble_rejects_format_without_builders():
-    """세로 포맷은 규칙 기반 조립 휴리스틱이 아직 없다 — 조용히 깨지지 말고 명확히 거절한다."""
+def test_assemble_supports_vertical_format():
+    """세로 포맷 규칙 기반 조립 — vtpl 4종 빌더가 붙어 거절 대신 검증 통과한다.
+
+    (과거: 빌더 부재로 NotImplementedError 를 명확히 던지는지 검증했다. 빌더가
+    생긴 뒤에는 조립 결과가 스키마 검증을 통과하는지가 같은 자리의 방어선이다 —
+    세부 조립 품질은 tests/test_scenario_vertical.py 가 본다.)
+    """
     norm = ingest_report_file(SAMPLE)
-    with pytest.raises(NotImplementedError) as e:
-        assemble_demo_scenario(norm, fragmentize(norm), format="short-9x16")
-    assert "short-9x16" in str(e.value) and "hook" in str(e.value)
+    doc = assemble_demo_scenario(norm, fragmentize(norm), format="short-9x16")
+    assert doc.format == "short-9x16"
+    assert [s.tpl for s in doc.scenes] == ["hook@1", "stack@1", "stack@1", "metric@1", "cta@1"]
+    assert validate_scenario(doc, modules_root=MODULES) == []
 
 
 # ── 렌더 설정 연동 ──────────────────────────────────────────────────────

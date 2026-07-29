@@ -298,7 +298,7 @@ def _single_series(payload: dict) -> bool:
     """dataviz.bars / closing.stats 가 받을 수 있는 단일 계열인가.
 
     다계열(group)·분포형(values/n)은 가로 막대 하나로 환원하면 수치를 지어내는 셈이라
-    받지 않는다 — 격자·분포 슬롯은 카탈로그에 아직 없다(§9 #4, #7).
+    받지 않는다 — 다계열은 tpl.d-multi 가 받는다(§9 #4 해소, 분포형은 §9 #7 잔존).
     """
     entries = payload.get("series") or []
     if len(entries) < 2 or any(e.get("group") for e in entries):
@@ -306,11 +306,71 @@ def _single_series(payload: dict) -> bool:
     return all(e.get("value") is not None for e in entries)
 
 
-def _candidates(fragments: list[dict]) -> dict:
+def _multi_grid(payload: dict) -> tuple[list[str], list[str], dict] | None:
+    """다계열 series payload → (계열 이름들, 공통 항목들, 값맵). d-multi 부적격이면 None.
+
+    d-multi 는 그룹 막대라 모든 계열이 같은 항목 축을 공유해야 한다 — 값이 빠진 항목을
+    0 으로 지어내지 않고 **모든 계열에 값이 있는 항목만** 공통 축으로 남긴다.
+    음수는 스키마(0 기준선)가 금지하므로 하나라도 있으면 부적격.
+    """
+    entries = [e for e in payload.get("series") or [] if e.get("group")]
+    if not entries:
+        return None
+    groups: list[str] = []
+    cats: list[str] = []
+    val: dict[tuple[str, str], float] = {}
+    for e in entries:
+        g, lb, v = str(e["group"]), str(e.get("label") or ""), e.get("value")
+        if not lb or v is None:
+            continue
+        if float(v) < 0:
+            return None                      # 음수 — 0 기준선 스키마로 못 싣는다
+        if g not in groups:
+            groups.append(g)
+        if lb not in cats:
+            cats.append(lb)
+        val.setdefault((g, lb), float(v))
+    common = [c for c in cats if all((g, c) in val for g in groups)]
+    if len(groups) < 2 or len(common) < 3:
+        return None                          # 계열 2·항목 3 미만 — d-multi 스키마 하한
+    return groups, common, val
+
+
+def _media_records(norm: dict | None) -> list[dict]:
+    """d-media 후보 — 해결된 이미지 자산만 (file_id 중복 제거, 등장 순서 유지).
+
+    미디어군은 텍스트 조각을 만들지 않으므로(fragmentize 정책) 후보의 원천은
+    fragments 가 아니라 norm 의 collect_media 채널이다. 미해결·비이미지 자산은
+    화면에 실을 파일이 없어 제외한다(collect_media 가 사유와 함께 계상한다).
+    """
+    if not norm:
+        return []
+    from .widgets import collect_media
+
+    out: list[dict] = []
+    seen: set[str] = set()
+    for m in collect_media(norm):
+        asset = m.get("asset") or {}
+        if asset.get("status") != "resolved" or asset.get("media_type") != "image":
+            continue
+        if m["file_id"] in seen:
+            continue
+        seen.add(m["file_id"])
+        out.append(m)
+    return out
+
+
+def _candidates(fragments: list[dict], norm: dict | None = None) -> dict:
     """구조 payload → 슬롯 후보 색인 (조립기와 slot_fit_report 의 공용 1차 정본).
 
     같은 종류가 여럿이면 정보량이 가장 많은 것(흐름도=노드 수, 표=행 수)을 대표로 뽑고
     동수면 먼저 등장한 것을 남긴다 — 기존 `_flow_items` 의 선택 규칙과 같다.
+
+    d-* 후보 3종(§9 #1·#2·#4 해소분).
+      matrix_table — **달리 갈 곳 없는 격자**(비교 표도 그룹 요약도 못 되는 3열 이상 표)
+                     중 셀 수 최대. 다른 표는 기존 경로(compare/proof)가 우선이다.
+      multi        — 다계열 공통 축 격자로 정리되는 series (음수·축 불일치는 부적격)
+      media        — 해결된 이미지 자산 (원천은 fragments 가 아니라 norm — _media_records)
     """
     def most(xs: list[tuple[dict, dict]], size) -> tuple[dict, dict] | None:
         return max(xs, key=lambda x: size(x[1]), default=None)
@@ -323,6 +383,10 @@ def _candidates(fragments: list[dict]) -> dict:
     compare_table = (comp or three or [None])[0]
     rest = [x for x in tables if x is not compare_table]
     grouped = [x for x in rest if _category_column(x[1])]
+    homeless = [x for x in rest
+                if x not in grouped
+                and len(x[1].get("columns") or []) >= 3
+                and len(x[1].get("rows") or []) >= 2]
 
     return {
         "flow": most(_structured(fragments, kind="graph", shape="flow"),
@@ -337,6 +401,11 @@ def _candidates(fragments: list[dict]) -> dict:
         "pairs": _structured(fragments, kind="pairs"),
         "compare_table": compare_table,
         "summary_tables": sorted(grouped, key=lambda x: -len(x[1].get("rows") or [])),
+        "matrix_table": most(homeless, lambda p: len(p.get("columns") or [])
+                             * len(p.get("rows") or [])),
+        "multi": next((x for x in _structured(fragments, kind="series")
+                       if _multi_grid(x[1]) is not None), None),
+        "media": _media_records(norm),
     }
 
 
@@ -395,6 +464,9 @@ def _assign(cand: dict, shorts: set[str]) -> dict:
         own(x, "proof.cases")
     for x in pairs_for_closing:
         own(x, "closing.stats")
+    # d-* 씬 (포맷 template_pool 이 열어줬을 때만 shorts 에 들어온다 — 옵트인 경계)
+    own(cand.get("matrix_table"), "d-matrix.rows" if "d-matrix" in shorts else None)
+    own(cand.get("multi"), "d-multi.series" if "d-multi" in shorts else None)
     plan["owner"] = owner
     return plan
 
@@ -1074,6 +1146,254 @@ def _build_timeline(norm: dict, fragments: list[dict], idx: int, plan: dict) -> 
     return data
 
 
+# ── d-* 데이터 씬 빌더 (격자 표 · 도판 · 다계열 — §9 #1·#2·#4 해소) ────────
+
+
+# 코드값 배지 매핑 — 미디어 타입 → d-media badge 칩 (이미지는 배지 없음)
+_MEDIA_BADGE = {"video": "영상", "cad_3d": "3D", "doc_viewer": "문서",
+                "attachment": "첨부", "html_embed": "웹"}
+
+
+def _build_d_matrix(norm: dict, fragments: list[dict], idx: int, plan: dict) -> dict:
+    """§9 #1 격자 표 → tpl.d-matrix — 행은 첫·끝 표본, 초과분은 omitted 로 정직 표기.
+
+    코드값 칩: 한 열의 값이 전부 4자 이하면(RACI 의 R/A/C/I 류) chip 으로 세운다.
+    """
+    payload = plan["matrix_table"][1]
+    cols_p, rows_p = payload["columns"], payload["rows"]
+    col_cap = _slot_cap("d-matrix", "columns", "label")[0] or 8
+    row_cap, label_max = _slot_cap("d-matrix", "rows", "label")
+    cols = cols_p[:col_cap]
+    col_omit = len(cols_p) - len(cols)
+    keep = _span_indices(len(rows_p), row_cap)
+    omitted = len(rows_p) - len(keep)
+
+    def cell_val(i: int, col: dict) -> str:
+        return str(rows_p[i].get(col["key"], "") or "").strip()
+
+    # 열 단위 칩 판정 — 값 종류가 아니라 길이가 기준 (코드값은 nowrap 4자 상한)
+    chip_cols = {
+        c["key"] for c in cols[1:]
+        if all(0 < len(cell_val(i, c)) <= 4 for i in keep)
+    }
+    rows = []
+    for i in keep:
+        cells = []
+        for c in cols[1:]:
+            v = cell_val(i, c) or "-"
+            cell: dict = {"v": _clip(v, 4 if c["key"] in chip_cols else 12)}
+            if c["key"] in chip_cols:
+                cell["chip"] = True
+            cells.append(cell)
+        rows.append(
+            {"label": _clip(cell_val(i, cols[0]) or f"행 {i + 1}", label_max or 24),
+             "cells": cells}
+        )
+    data = {
+        "kicker": "격자",
+        "title": _clip(payload.get("caption") or f"{norm['title']} — 표", 26),
+        "columns": [{"label": _clip(c["label"] or c["key"], 10)} for c in cols],
+        "rows": rows,
+        "note": {"pre": _clip(f"{len(cols_p)}열×{len(rows_p)}행 원문 수록", 18)},
+        "frame": _frame(norm, idx),
+    }
+    if omitted:
+        data["omitted"] = omitted
+    if col_omit:  # 열 생략도 무언 금지 — 풋노트에 밝힌다
+        data["note"]["post"] = _clip(_omit_note(col_omit, "열은 원문 참조"), 18)
+    return data
+
+
+def _build_d_media(norm: dict, fragments: list[dict], idx: int, plan: dict) -> dict:
+    """§9 #2 이미지/도판 → tpl.d-media — 해결된 자산 최대 3장, src 는 assets/{파일명}.
+
+    src 계약: 빌드 디렉터리의 `assets/` 아래에 해결 자산 사본이 있어야 한다
+    (엔트리 기준 상대경로). 사본 복사는 빌드 단계 몫 — build_render_package 에는
+    아직 자산 복사 단계가 없어 호출측이 복사한다(known issue 로 보고).
+    """
+    media = plan["media"]
+    files = []
+    for m in media[:3]:
+        fname = Path(m["asset"]["local_path"]).name
+        f = {
+            "src": f"assets/{fname}",
+            "caption": _clip(m.get("caption") or _clean_page_name(m.get("page", ""))
+                             or "도판", 18),
+            "alt": _clip(m.get("alt") or m.get("caption") or "보고서 도판", 80),
+        }
+        src_page = _clean_page_name(m.get("page", ""))
+        if src_page:
+            f["source"] = _clip(src_page, 14)
+        badge = _MEDIA_BADGE.get(str(m.get("media_type") or ""))
+        if badge:
+            f["badge"] = badge
+        files.append(f)
+    left = len(media) - len(files)
+    note = {"pre": _clip(_omit_note(left, "장은 원문 참조") or "원문 도판 그대로", 18)}
+    return {
+        "kicker": "도판",
+        "title": _clip(f"{norm['title']} — 도판", 26),
+        "files": files,
+        "note": note,
+        "frame": _frame(norm, idx),
+    }
+
+
+def _build_d_multi(norm: dict, fragments: list[dict], idx: int, plan: dict) -> dict:
+    """§9 #4 다계열 series → tpl.d-multi — 공통 축만, 값을 지어내지 않는다."""
+    payload = plan["multi"][1]
+    groups, cats, val = _multi_grid(payload)
+    g_cap = _slot_cap("d-multi", "series", "name")[0] or 4
+    c_cap, cat_max = _slot_cap("d-multi", "categories", "label")
+    keep_g = groups[:g_cap]
+    keep_c = [cats[i] for i in _span_indices(len(cats), c_cap)]
+    omitted = (len(groups) - len(keep_g)) * len(cats) \
+        + (len(cats) - len(keep_c)) * len(keep_g)
+    data = {
+        "kicker": "계열",
+        "title": _clip(payload.get("caption") or f"{norm['title']} — 계열 비교", 26),
+        "categories": [{"label": _clip(c, cat_max or 8)} for c in keep_c],
+        "series": [
+            {"name": _clip(g, 10), "values": [val[(g, c)] for c in keep_c]}
+            for g in keep_g
+        ],
+        "frame": _frame(norm, idx),
+    }
+    unit = payload.get("unit")
+    if unit:
+        data["unit"] = _clip(str(unit), 8)
+    axis_max = (payload.get("axis") or {}).get("max")
+    if isinstance(axis_max, (int, float)) and axis_max > 0:
+        data["axisMax"] = float(axis_max)
+    if omitted:
+        data["note"] = {"pre": _clip(_omit_note(omitted, "값은 원문 참조"), 18)}
+    return data
+
+
+# ── 세로 숏폼 빌더 4종 (short-9x16 — vtpl.hook/stack/metric/cta) ──────────
+
+
+def _v_frame(norm: dict, idx: int, plan: dict) -> dict:
+    """세로 프레임 — 가로(_frame)와 달리 idx/total 이 정수(스키마 계약)."""
+    return {
+        "brand": _clip(norm["title"], 20),
+        "idx": idx,
+        "total": int(plan.get("_skeleton_len") or 5),
+    }
+
+
+def _build_vhook(norm: dict, fragments: list[dict], idx: int, plan: dict) -> dict:
+    """vtpl.hook — 제목 3분할 후킹 문구 + 핵심 키워드 블록 + 구간 예고 레일."""
+    tags = norm.get("tags", [])
+    word = _clip(tags[0] if tags else norm["title"].split()[0], 8) or "핵심"
+    caption = _first_text(
+        fragments, f"{norm.get('report_date', '')} 보고서", type="claim", widget="rich_text"
+    )
+    return {
+        "kicker": "핵심 브리핑",
+        "line": _split_title(norm["title"], 10, 10, 10),
+        "focus": {
+            "label": _clip(norm["title"], 14),
+            "word": word,
+            "caption": _clip(caption, 22),
+        },
+        "hint": {"text": "핵심만 빠르게 정리합니다",
+                 "beats": ["문제", "해법", "근거", "행동"]},
+    }
+
+
+def _build_vstack(norm: dict, fragments: list[dict], idx: int, plan: dict) -> dict:
+    """vtpl.stack — 논지 적층 카드. 첫 호출은 problem, 두 번째부터 solution.
+
+    short-9x16 skeleton 은 problem→solution 순서로 vtpl.stack 을 두 번 쓴다 —
+    호출 순서가 곧 역할 순서다 (빌더는 역할명을 받지 않는다).
+    """
+    seq = int(plan.get("_stack_seq", 0))
+    plan["_stack_seq"] = seq + 1
+    tone = "problem" if seq == 0 else "solution"
+    purpose = _texts(fragments, 6, type="claim", section="purpose")
+    claims = _texts(fragments, 6, type="claim")
+    pool = purpose or claims or ["보고 내용 정리가 필요합니다"]
+
+    if tone == "problem":
+        kicker, title = "문제", _clip(pool[0], 22)
+        cards = [{"title": _clip(t, 30)} for t in pool[:4]]
+        conclusion = _clip(pool[-1], 20)
+    else:
+        kicker = "해법"
+        title = _clip(norm.get("ai_summary") or norm["title"], 22)
+        flow_nodes = (plan["flow"][1].get("nodes") or []) if plan.get("flow") else []
+        items = [{"label": n.get("label", ""), "desc": n.get("note", "")}
+                 for n in flow_nodes if n.get("label")]
+        if not items:
+            items = [{"label": t} for t in _texts(fragments, 4, type="evidence")]
+        cards = [
+            {"title": _clip(it["label"], 30),
+             **({"desc": _clip(it["desc"], 20)} if it.get("desc") else {})}
+            for it in items[:4]
+        ]
+        conclusion = _clip(norm.get("ai_summary") or norm["title"], 20)
+    while len(cards) < 3:
+        n = len(cards) + 1
+        cards.append({"title": f"논지 {n} — 보고서 참조"})
+    return {
+        "kicker": kicker,
+        "title": title,
+        "tone": tone,
+        "cards": cards[:4],
+        "conclusion": conclusion,
+        "frame": _v_frame(norm, idx, plan),
+    }
+
+
+def _build_vmetric(norm: dict, fragments: list[dict], idx: int, plan: dict) -> dict:
+    """vtpl.metric — 단일 계열의 최댓값 하나로 승부 (없으면 보고서 규모 폴백)."""
+    data: dict = {"kicker": "핵심 수치", "title": _clip(norm["title"], 22)}
+    if plan.get("series") is not None:
+        payload = plan["series"][1]
+        entries = [e for e in payload.get("series") or [] if e.get("value") is not None]
+        top = max(entries, key=lambda e: float(e["value"]))
+        data.update(
+            {
+                "label": _clip(top.get("label") or payload.get("caption") or "대표 수치", 20),
+                "value": _clip(_fmt_num(float(top["value"])), 7),
+                "evidence": _clip(payload.get("caption")
+                                  or _first_text(fragments, "보고서 수치 근거", type="metric"), 34),
+            }
+        )
+        unit = _clip(str(payload.get("unit") or ""), 2)
+        if unit:
+            data["unit"] = unit
+    else:
+        data.update(
+            {
+                "label": "추출된 근거 조각",
+                "value": str(len(fragments)),
+                "unit": "건",
+                "evidence": _clip(norm.get("ai_summary") or norm["title"], 34),
+            }
+        )
+    data["source"] = _clip(f"{norm['title']} {norm.get('report_date', '')}".strip(), 26)
+    data["frame"] = _v_frame(norm, idx, plan)
+    return data
+
+
+def _build_vcta(norm: dict, fragments: list[dict], idx: int, plan: dict) -> dict:
+    """vtpl.cta — 제목 3분할 헤드라인 + 태그 기반 진입점 필 1~3개."""
+    tags = [t for t in norm.get("tags", []) if str(t).strip()]
+    entries = [
+        {"text": _clip(t, 16), "kind": "primary" if i == 0 else "secondary"}
+        for i, t in enumerate(tags[:3])
+    ] or [{"text": "보고서 전문 확인", "kind": "primary"}]
+    return {
+        "kicker": "다음 행동",
+        "headline": _split_title(norm["title"], 10, 10, 10),
+        "sub": _clip(norm.get("ai_summary") or "자세한 내용은 원문에서 확인하십시오", 38),
+        "entries": entries,
+        "footnote": _clip(f"원문: {norm['title']}", 26),
+    }
+
+
 _BUILDERS = {
     "opening": lambda norm, frags, idx, plan: _build_opening(norm, frags),
     "problem": _build_problem,
@@ -1085,6 +1405,13 @@ _BUILDERS = {
     "compare": _build_compare,
     "dataviz": _build_dataviz,
     "timeline": _build_timeline,
+    "d-matrix": _build_d_matrix,
+    "d-media": _build_d_media,
+    "d-multi": _build_d_multi,
+    "hook": _build_vhook,
+    "stack": _build_vstack,
+    "metric": _build_vmetric,
+    "cta": _build_vcta,
 }
 
 # 구조 payload 와 **정확 대응**하는 템플릿 (§3). structured_templates=True 일 때
@@ -1095,6 +1422,11 @@ _EXACT_MATCH = {
     "timeline": lambda c: c["timeline"] is not None,
     "compare": lambda c: c["compare_table"] is not None,
     "dataviz": lambda c: c["series"] is not None,
+    # d-* 3종 — 포맷 template_pool 에 선언된 역할에서만 발동한다 (옵트인 경계).
+    # 현행 formats/wide-16x9/format.yaml 풀에는 아직 없어 기본 경로 동작은 불변이다.
+    "d-matrix": lambda c: c.get("matrix_table") is not None,
+    "d-media": lambda c: bool(c.get("media")),
+    "d-multi": lambda c: c.get("multi") is not None,
 }
 
 
@@ -1143,13 +1475,15 @@ def assemble_demo_scenario(
     폴백한다. 슬롯 용량을 넘치면 그룹 요약·대표 선별로 압축하고 생략 건수를 화면에 밝힌다.
 
     structured_templates=True 면 역할의 1순위 템플릿이 구조 payload 와 정확 대응하지
-    않을 때 같은 역할 풀의 대체 템플릿(tpl.compare · tpl.dataviz · tpl.timeline)이
-    자리를 가져간다. 기본값 False 는 기존 7종 골격을 그대로 유지한다 — 씬 구성이 바뀌면
+    않을 때 같은 역할 풀의 대체 템플릿(tpl.compare · tpl.dataviz · tpl.timeline ·
+    tpl.d-matrix · tpl.d-media · tpl.d-multi)이 자리를 가져간다. d-* 는 포맷
+    template_pool 에 선언된 역할에서만 발동한다(옵트인 경계 — 현행 wide-16x9 풀 미선언).
+    기본값 False 는 기존 7종 골격을 그대로 유지한다 — 씬 구성이 바뀌면
     이미 만들어진 시나리오·빌드 산출물과 어긋나므로 명시적 선택으로만 켠다.
     """
     modules_root = resolve_modules_root()
     spec = load_format(format, modules_root=modules_root)
-    cand = _candidates(fragments)
+    cand = _candidates(fragments, norm)
 
     # 1) 역할 → 템플릿 → 모듈/스키마 해석. 조립 휴리스틱이 없는 역할은 즉시 거절한다.
     picks: list[tuple[dict, dict, str]] = []  # (module.yaml, schema.json, 템플릿 짧은 이름)
@@ -1164,6 +1498,7 @@ def assemble_demo_scenario(
         picks.append((_load_module(module_id, modules_root),
                       _load_schema(module_id, modules_root), short))
     plan = _assign(cand, {short for _, _, short in picks})
+    plan["_skeleton_len"] = len(spec.skeleton)  # 세로 프레임 total (vtpl frame 은 정수 계약)
 
     durs = _stretch_to_target(
         [float(m.get("nat_default", 10)) for m, _, _ in picks], spec.duration.target
@@ -1271,7 +1606,17 @@ def _fit_record(frag: dict, payload: dict, cand: dict, shorts: set[str]) -> dict
     elif kind == "series":
         entries = payload.get("series") or []
         labels, items = [str(e.get("label", "")) for e in entries], len(entries)
-        if not _single_series(payload):
+        grid = _multi_grid(payload) if not _single_series(payload) else None
+        if grid is not None and "d-multi" in shorts:
+            groups, cats, _ = grid
+            cap_of("d-multi", "series", "name")
+            g_cap = capacity or 4
+            c_cap = _slot_cap("d-multi", "categories", "label")[0] or 7
+            labels = groups
+            carried = min(len(groups), g_cap) * min(len(cats), c_cap)
+            capacity = g_cap * c_cap        # 계열×항목 격자 용량 (포인트 기준)
+            strategy, reason = "grid", "다계열 → d-multi.series (공통 축 격자)"
+        elif not _single_series(payload):
             reason = "다계열(group)·분포형(values) — 단일 계열 막대로 환원 불가 (§9 #4)"
         elif "dataviz" in shorts:
             cap_of("dataviz", "bars", "label")
@@ -1305,6 +1650,14 @@ def _fit_record(frag: dict, payload: dict, cand: dict, shorts: set[str]) -> dict
             carried = sum(n for _, n in groups)   # 그룹 집계는 전 행을 대표한다
             strategy = "group"
             reason = f"카테고리 열 그룹 요약 {len(groups)}군 → proof.cases 1칸 (개별 행 손실)"
+        elif "d-matrix" in shorts and len(cols) >= 3 and len(rows) >= 2:
+            cap_of("d-matrix", "rows", "label")
+            carried = len(_span_indices(items, capacity))
+            col_cap = _slot_cap("d-matrix", "columns", "label")[0] or 8
+            strategy = "span"
+            reason = "격자 → d-matrix.rows (첫·끝 표본, 외 N행 표기)" + (
+                f" · 열 {len(cols) - col_cap}개 초과는 원문 참조" if len(cols) > col_cap else ""
+            )
         else:
             reason = f"{len(cols)}열 격자 — 격자 표 씬이 카탈로그에 없다 (§9 #1)"
 
@@ -1324,7 +1677,10 @@ def _fit_record(frag: dict, payload: dict, cand: dict, shorts: set[str]) -> dict
             reason = "스펙 목록 슬롯이 없다 (§9 #3)"
 
     elif kind == "media":
-        reason = "이미지/영상 슬롯이 카탈로그에 하나도 없다 (§9 #2)"
+        # 미디어는 fragments 가 아니라 자산 채널(collect_media)로 흐른다 — d-media 가 소비
+        reason = ("자산 채널 소관 — d-media 가 collect_media 로 받는다 (§9 #2)"
+                  if "d-media" in shorts
+                  else "이미지/영상 슬롯이 조립 템플릿에 없다 (§9 #2 — d-media 미편성)")
     else:
         reason = f"미지 kind={kind}"
 
@@ -1379,7 +1735,7 @@ def slot_fit_report(
     두고 경쟁하므로 두 수치는 다르다(예: 흐름도 3건 중 process.steps 에 실리는 건 1건).
     """
     spec = load_format(format, modules_root=resolve_modules_root())
-    cand = _candidates(fragments)
+    cand = _candidates(fragments, norm)
     shorts = {tpl_short(_pick_module(spec, role, cand, structured_templates))
               for role in spec.skeleton}
     plan = _assign(cand, shorts)

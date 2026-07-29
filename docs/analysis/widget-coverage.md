@@ -247,10 +247,20 @@ GLM 오케스트레이터 프롬프트 실물.
 씬 조립이 직접 읽는다. 브리핑에 가는 것은 요약 한 줄뿐이다
 (`test_summary_is_a_summary_not_the_data` 가 `{`/`[`/개행 유입을 차단).
 
-## 8. 씬 템플릿 수용 실측 — 구조가 살아도 담을 그릇이 없다
+## 8. 씬 템플릿 수용 실측 — 세 번의 측정 (초판 → 구조 매핑 → d-* 3종)
 
-`data/widget_check/template_fit.py` 가 카탈로그 `schema.json` 에서 슬롯 용량을
-**직접 읽어** payload 와 대조한다(하드코딩 없음).
+측정기는 두 개다. 기준이 달라 수치도 다르다 — 표마다 어느 기준인지 명시한다.
+
+- **블록 대조** `data/widget_check/template_fit.py` — 블록 하나씩 "받아줄 슬롯이
+  있고 그대로 들어가는가"를 카탈로그 `schema.json` 의 maxItems/maxLength 로 대조
+  (하드코딩 없음). 판정 4단계: `ok` / `trim`(라벨만 초과) / `overflow`(용량 초과 —
+  잘라야 들어간다) / `none`(슬롯 없음).
+- **조립기 실측** `wdpipeline.scenario.slot_fit_report` — 실제 조립 규칙(그룹 요약·
+  대표 선별·씬 분할 힌트)까지 적용한 판정 5단계(`ok/trim/summarized/split/none`)와,
+  역할 7개를 두고 경쟁한 끝에 **실제 문서에 실렸는가**(placed)를 따로 센다.
+  도달(reach) = none 제외 비율, 배치(placed) = 실린 비율.
+
+### 슬롯 용량 (schema.json 실측 — d-* 3종 추가 후)
 
 | 슬롯 | maxItems | 라벨 필드 maxLength |
 | --- | --- | --- |
@@ -262,41 +272,77 @@ GLM 오케스트레이터 프롬프트 실물.
 | `proof.cases` | 3 | `title` 24 |
 | `closing.stats` | 3 | `d` 24 |
 | `v-stack.cards` | 4 | `title` 30 |
+| **`d-matrix.rows`** | **8** (열 ≤8) | `label` 24 |
+| **`d-media.files`** | **3** | `caption` 18 |
+| **`d-multi.series`** | **4** (항목 ≤7) | `name` 10 |
 
-판정 4단계 — `ok`(그대로) / `trim`(개수는 맞고 라벨만 초과) / `overflow`(항목 수 초과) /
-`none`(받을 슬롯 자체가 없음).
+### 이전/이후 — 블록 대조 (template_fit.py, d-* 포함 재실행 2026-07-28)
 
-### 실물 report_sample.json — 12블록
+| 대상 | 라운드 | ok | trim | overflow | none | 슬롯 도달(ok+trim) |
+| --- | --- | --- | --- | --- | --- | --- |
+| 실물 12블록 | 초판 (07-27) | 0 | 3 | 6 | **3** | **25%** |
+| 실물 12블록 | d-* 이후 | **3** | 3 | 6 | **0** | **50%** |
+| 합성 34블록 | 초판 (07-27) | 14 | 2 | 0 | **18** | **47%** |
+| 합성 34블록 | d-* 이후 | **30** | 2 | 1 | **1** | **94%** |
 
-| 위젯 | 대상 슬롯 | 항목 | 용량 | 판정 | 비고 |
-| --- | --- | --- | --- | --- | --- |
-| `flowchart` ×3 | process.steps | 6 | 6 | **trim** | 항목 수는 정확히 맞으나 라벨 6/6·5/6·4/6 이 12자 초과 |
-| `key_value` ×2 | closing.stats | 9, 8 | 3 | overflow | 스펙 목록을 3칸에 못 담는다 |
-| `tree` | concept.nodes | 15 | 8 | overflow | 3단 계층도 잃는다 |
-| `comparison` (3열) | compare.rows | 5 | 4 | overflow | 라벨도 4/4 가 4자 초과 |
-| `table` (3열×33행) | compare.rows | 33 | 4 | overflow | — |
-| `progress_bar` | dataviz.bars | 7 | 5 | overflow | 라벨 7/7 이 9자 초과 |
-| `comparison` (4열) | — | 5 | — | **none** | 3안 비교 — compare 는 a/b 2안 전용 |
-| `raci_matrix` (6열) | — | 8 | — | **none** | 격자 슬롯 없음 |
-| `table` (4열×2행) | — | 2 | — | **none** | 격자 슬롯 없음 |
+실물의 `none` 3건(raci 6열×8행 · table 4열 · comparison 3안)이 전부
+`d-matrix.rows` 로 도달했고, raci 8행은 용량에 **정확히** 들어간다(ok).
+합성의 `none` 18건 중 17건이 해소 — 다계열 8종은 `d-multi.series`, 미디어 6종은
+`d-media.files`, 격자 2종은 `d-matrix.rows`. 남은 미수용은 분포형 `treemap` 1건
+(§9 #7)과 `fmea` 12열(행은 들어가나 열 8 초과 — overflow, 열 선별은 심의 몫)이다.
 
-→ **그대로 0 · 라벨 축약 3 · 용량 초과 6 · 슬롯 없음 3.** 슬롯 도달 25%.
+### 이전/이후 — 조립기 실측 (slot_fit_report, 실물 report_sample 12블록)
 
-### 합성 33종 — 34블록
+| 구성 | ok | trim | summarized | split | none | 도달 | 배치 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 기본 풀 · structured_templates=False | 0 | 3 | 2 | 4 | 3 | **75.0%** | **58.3%** |
+| 기본 풀 · True (compare/dataviz 대체) | 0 | 3 | 3 | 2 | 4 | 66.7% | 41.7% |
+| **d-\* 옵트인 풀 · True** | **3** | 3 | 2 | 3 | **1** | **91.7%** | 41.7% |
 
-`ok` 14 · `trim` 2 · `overflow` 0 · `none` 18 → 슬롯 도달 47%.
-합성 픽스처는 항목이 2~4개라 용량 초과가 안 나온다. **실물이 넘치는 것이지
-어댑터가 틀린 게 아니다** — 실물 표는 33행, 실물 스펙은 9쌍이다.
+읽는 법 두 가지.
 
-`none` 18건 내역 — 다계열 수치 8종(chart·radar·scatter·scatter3d·box·density·
-quadrant·heatmap) · 미디어 6종 · 격자 표 2종(table 4열·fmea 12열) · 분포형 1종(treemap) ·
-(quadrant 는 2모드라 2블록).
+1. **도달과 배치는 다르다.** d-* 풀에서 도달은 91.7%까지 오르지만 배치는 41.7%다 —
+   씬 역할은 7개뿐이라 같은 종류 payload 끼리(흐름도 3건 → process 1자리) 그리고
+   대체 템플릿끼리(아래 2번) 자리를 다툰다. 배치를 올리는 길은 씬 분할(split 힌트
+   소비)이지 슬롯 증설이 아니다.
+2. **대체는 공짜가 아니다.** structured_templates=True 는 역할의 기본 씬을 대체
+   템플릿으로 바꾸는 것이라, proof 가 dataviz 로 바뀌면 33행 표의 그룹 요약 카드
+   (proof.cases)가 사라지고, differentiator 를 d-matrix 가 가져가면 2안 비교가
+   자리를 잃는다(도달 91.7% 의 none 1건이 그것이다). 어느 대체가 이 보고서에
+   맞는지는 심의가 고른다 — 파이프라인은 선택지와 손실을 정직하게 계상할 뿐이다.
+
+### d-* 옵트인 경계 — 열어야 붙는 곳
+
+조립 라우팅(`_EXACT_MATCH`·빌더)은 `wdpipeline.scenario` 에 편입 완료. 다만 d-* 는
+**포맷 template_pool 에 선언된 역할에서만** 발동한다. 현행
+`formats/wide-16x9/format.yaml` 풀에는 아직 없어 기본 경로 동작은 불변이고,
+아래 3역할을 여는 것이 남은 전부다 (실증에 쓴 오버라이드 스펙:
+`data/pipeline/widget_e2e/formats/wide-16x9/format.yaml`).
+
+```yaml
+problem:        [tpl.problem, tpl.d-media]
+differentiator: [tpl.differentiator, tpl.d-matrix, tpl.compare]
+proof:          [tpl.proof, tpl.dataviz, tpl.d-multi]
+```
+
+빌드에도 미결 하나 — `build_render_package` 에 자산 복사 단계가 없어 d-media 의
+`src: assets/{파일명}` 사본은 호출측이 복사해야 한다(`widget_e2e/driver.py` 가 실례).
+
+### E2E 실증 (2026-07-28 — data/renders/widget_e2e/stills/)
+
+report_sample + 합성 이미지 2장을 `d-*` 옵트인 풀 · structured_templates=True 로
+빌드·렌더해 씬 스틸로 확인했다 — flowchart 6단계 → 절차 씬 실노드 6개(01~06),
+progress_bar 7계열 → dataviz 막대 5개 + "외 2계열은 원문 참조", raci 6열×8행 →
+d-matrix 격자(R/A·C·I 코드 칩, "6열×8행 원문 수록"), 합성 이미지 2장 → d-media
+도판 카드(캡션·출처 표기). 7게이트 QA `passed=True` (error 0 · warning 1 —
+tpl.concept 노드 라벨 4px 초과, d-* 무관 기존 이슈).
 
 ### 잘라 넣기가 왜 답이 아닌가
 
 `overflow` 를 상위 N개 절단으로 해결하면 33행 표에서 4행만 남는다. 심의가 근거로 인용한
 표가 화면에서는 다른 표가 된다. 자르는 판단은 **심의(무엇이 핵심 행인가)**의 몫이지
-파이프라인의 몫이 아니다. 그래서 이 라운드는 자르지 않고 미수용으로 계상했다.
+파이프라인의 몫이 아니다. 조립기는 자르는 대신 그룹 요약·대표 선별로 압축하고
+생략 건수를 화면에 명시하며(`외 N건`), d-matrix 도 같은 원칙(`외 N행`)을 따른다.
 
 ## 9. 신규 템플릿 필요 목록 — 다음 라운드 창작 대상
 
