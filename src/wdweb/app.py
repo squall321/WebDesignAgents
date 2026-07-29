@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 import yaml
@@ -15,15 +16,33 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from wdcore.config import get_settings
+from wdmcp.server import mcp as _wdmcp
 
 from . import runs as runledger
 from .runs import REPO_ROOT, RENDER_TARGETS, data_dir
+
+# wdmcp(경로 A stdio 어댑터)와 동일한 FastMCP 서버를 /mcp 로도 서빙 — heax 매니페스트
+# mcp:{path:/mcp, transport:streamable_http} 선언과 실체를 일치시켜 게이트웨이 자동연동
+# (ThermalShockMCP app/main.py 마운트 규약)을 성립시킨다. 도구 정의는 한 곳(wdmcp)뿐.
+_wdmcp.settings.streamable_http_path = "/"  # 마운트 지점(/mcp)이 곧 MCP 경로가 되게
+_mcp_app = _wdmcp.streamable_http_app()
+
+
+@asynccontextmanager
+async def _lifespan(_app: FastAPI):
+    # 마운트된 서브앱의 lifespan 은 자동 실행되지 않으므로 세션 매니저를 직접 구동한다.
+    async with _wdmcp.session_manager.run():
+        yield
+
 
 app = FastAPI(
     title="WebDesignAgents",
     description="전문가 심의 기반 발표자료(영상/PPT) 자동 생성 플랫폼 — 웹 콘솔",
     version="0.1.0",
+    lifespan=_lifespan,
 )
+
+app.mount("/mcp", _mcp_app)
 
 _MODULES_REGISTRY = REPO_ROOT / "modules" / "registry.yaml"
 _WEB_ROOT = REPO_ROOT / "web"

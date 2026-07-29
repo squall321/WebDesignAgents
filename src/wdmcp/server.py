@@ -15,6 +15,7 @@ from typing import get_args
 import structlog
 import yaml
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 from pydantic import ValidationError
 
 from wdcore.config import get_settings
@@ -87,6 +88,9 @@ log = structlog.get_logger("wdmcp.server")
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
+# HTTP(streamable) 모드는 wdweb 이 loopback 바인드 + Caddy 프록시 뒤에서 서빙하므로
+# Host 검증(DNS rebinding 보호)은 끈다 — ThermalShockMCP·LaminateAnalyzerMCP 와 동일 전제.
+# stdio 모드(경로 A)에는 이 설정이 영향을 주지 않는다.
 mcp = FastMCP(
     name="webdesignagents",
     instructions=(
@@ -96,6 +100,7 @@ mcp = FastMCP(
         "render_submit/render_status → qa_run으로 산출물을 검증한다. "
         "각 응답의 claude_instructions를 반드시 따르라."
     ),
+    transport_security=TransportSecuritySettings(enable_dns_rebinding_protection=False),
 )
 
 # ── 코어 서비스 (지연 조립 + 테스트 리셋) ────────────────────────────
