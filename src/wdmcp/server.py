@@ -850,9 +850,24 @@ def render_submit(
     return ok_envelope(state, data.model_dump(mode="json"), render_submitted_instructions(job.job_id))
 
 
+def _artifact_urls(job) -> dict[str, str]:
+    """산출물별 열람 URL — 파일 경로만으로는 챗·브라우저에서 볼 수 없어 함께 돌려준다.
+
+    앞에 붙는 $ROOT_PATH 는 런처가 주는 서브패스(예: /apps/web_design_agents)다. 그래서
+    반환값을 그대로 마크다운 링크로 쓰면 포털 오리진에서 열리고(세션 쿠키 실림) 챗은
+    영상 링크를 인라인 플레이어로 렌더한다. ROOT_PATH 가 없으면(로컬 직접 실행) 루트 기준.
+    """
+    root = (os.environ.get("ROOT_PATH") or "").rstrip("/")
+    return {
+        kind: f"{root}/api/render_jobs/{job.job_id}/download/{kind}"
+        for kind in (job.outputs or {})
+        if kind in ("video", "pptx")
+    }
+
+
 @mcp.tool()
 def render_status(job_id: str) -> dict:
-    """렌더 잡 상태·산출물 경로를 조회한다 (data/render_jobs/{job_id}.json이 진실)."""
+    """렌더 잡 상태·산출물 경로/열람 URL을 조회한다 (data/render_jobs/{job_id}.json이 진실)."""
     state = get_session()
     job = jobs.read_job(job_id)
     if job is None:
@@ -860,7 +875,8 @@ def render_status(job_id: str) -> dict:
             state, "NOT_FOUND", f"렌더 잡 없음: {job_id}",
             "render_submit이 반환한 job_id를 사용하라.",
         )
-    return ok_envelope(state, job.model_dump(mode="json"), render_status_instructions(job.status))
+    data = {**job.model_dump(mode="json"), "urls": _artifact_urls(job)}
+    return ok_envelope(state, data, render_status_instructions(job.status))
 
 
 # ── QA 툴 1종 (wdqa 지연 import — 병렬 개발 계약) ─────────────────────

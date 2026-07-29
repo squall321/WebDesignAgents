@@ -162,7 +162,10 @@ def render_status_instructions(status: str) -> str:
     if status == "failed":
         return "렌더 잡이 실패했다. error를 사용자에게 한국어로 설명하고 수정 방향을 제안하라. 성공했다고 말하지 마라."
     return (
-        "렌더가 완료되었다. outputs의 산출물 경로를 사용자에게 안내하라. "
+        "렌더가 완료되었다. **urls의 열람 링크를 마크다운 링크로 제시하라** "
+        "(예: `[영상 보기](urls.video)`, `[PPTX 내려받기](urls.pptx)`) — 포털 챗은 영상 링크를 "
+        "인라인 플레이어로 렌더하므로 사용자가 그 자리에서 재생할 수 있다. outputs의 파일 경로는 "
+        "참고용으로만 덧붙이고, 경로만 알려주고 끝내지 마라. "
         "시안 심의가 필요하면 design_review 회의를 열고, 스틸 PNG를 Read 도구로 열어 첨부한 뒤 심의하라. "
         "품질 확인이 필요하면 qa_run(build_path=...)을 호출하라."
     )

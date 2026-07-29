@@ -387,6 +387,47 @@ def run_preview(run_id: str, path: str) -> FileResponse:
     return _serve_safe(Path(run["build_dir"]), path)
 
 
+# ── MCP 렌더 잡 산출물 ───────────────────────────────────────────────────────
+# 웹 콘솔 원장(data/web_runs, run_id 키)과 MCP 렌더 잡 원장(data/render_jobs, job_id 키)은
+# 서로 다른 원장이라, MCP 로 렌더한 영상은 위 /api/runs/... 라우트로 받을 수 없었다. 그래서
+# render_status 가 돌려주는 건 컨테이너 파일 경로뿐이었고 챗에서 볼 방법이 없었다.
+# 잡 원장 기준 라우트를 두어 job_id 만으로 재생·다운로드가 되게 한다.
+# (media_type, 기본 파일명, Content-Disposition) — 영상은 inline 이어야 새 탭에서 다운로드가
+# 아니라 재생으로 열린다. PPTX 는 브라우저가 표시할 수 없으니 attachment 가 맞다.
+_JOB_DOWNLOAD_META = {
+    "video": ("video/mp4", "video.mp4", "inline"),
+    "pptx": (_DOWNLOAD_META["pptx"][0], "slides.pptx", "attachment"),
+}
+
+
+@app.get("/api/render_jobs/{job_id}/download/{kind}")
+def download_render_job(job_id: str, kind: str) -> FileResponse:
+    """render_submit 산출물 서빙 — 잡 원장의 경로가 데이터 루트 안인지 검증한 뒤 스트리밍."""
+    if kind not in _JOB_DOWNLOAD_META:
+        raise HTTPException(
+            status_code=404, detail=f"kind 는 {sorted(_JOB_DOWNLOAD_META)} 중 하나입니다"
+        )
+    from wdmcp import jobs as mcp_jobs  # 지연 import — wdmcp ↔ wdweb 순환 회피
+
+    job = mcp_jobs.read_job(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail=f"렌더 잡 없음: {job_id}")
+    raw = (job.outputs or {}).get(kind)
+    if not raw:
+        raise HTTPException(status_code=404, detail=f"산출물이 아직 없습니다: {kind}")
+    # 원장 값이라도 경계 검사는 한다 — 데이터 루트 밖 파일이 URL 하나로 노출되지 않게.
+    target = Path(raw).resolve()
+    if not target.is_relative_to(data_dir().resolve()):
+        raise HTTPException(status_code=403, detail="데이터 루트 밖 경로가 차단되었습니다")
+    if not target.is_file():
+        raise HTTPException(status_code=404, detail=f"파일이 없습니다: {kind}")
+    media_type, base_name, disposition = _JOB_DOWNLOAD_META[kind]
+    return FileResponse(
+        target, media_type=media_type, filename=f"{job_id}-{base_name}",
+        content_disposition_type=disposition,
+    )
+
+
 # ── 회의록 ──────────────────────────────────────────────────────────────────
 
 
