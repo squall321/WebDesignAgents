@@ -8,3 +8,6 @@ node_modules/
 .bkit/
 .koo-llm-sessions/
 .playwright-mcp/
+
+# SIF 산출물 (603MB — Drive/레지스트리로 배포)
+deploy/apptainer/*.sif

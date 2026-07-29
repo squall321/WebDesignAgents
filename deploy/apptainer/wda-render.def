@@ -1,0 +1,157 @@
+# WebDesignAgents 오프라인 렌더 노드 SIF — chromium·ffmpeg·Pretendard·vendor 내장으로 egress 0 렌더 (PLAN §12.4)
+#
+# 빌드:  scripts/build-sif.sh            (repo 루트에서 실행 — %files 가 상대경로다)
+# 실행:  scripts/render-offline.sh <slug>
+Bootstrap: docker
+From: python:3.12-slim-bookworm
+
+# repo 루트를 /opt/wda 로 통째 이식한다. wdpipeline/wdrender 는 __file__ 기준
+# parents[2] 를 repo 루트로 삼아 configs/·modules/·formats/·web/ 를 찾으므로
+# (src/wdrender/config.py:9, src/wdpipeline/build.py:13) 트리 모양을 그대로 지켜야 한다.
+%files
+    pyproject.toml /opt/wda/
+    src            /opt/wda/
+    web            /opt/wda/
+    modules        /opt/wda/
+    formats        /opt/wda/
+    configs        /opt/wda/
+    personas       /opt/wda/
+
+%post
+    set -eu
+    export DEBIAN_FRONTEND=noninteractive
+    export PIP_ROOT_USER_ACTION=ignore
+    export PIP_DISABLE_PIP_VERSION_CHECK=1
+    # 브라우저는 이미지 안 고정 경로에 심는다 — 런타임에 다운로드 시도가 없어야 egress 0.
+    export PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright
+
+    # 빌드 시점 프록시 포워딩 (HEAXHub toolchain_*.def 와 같은 관례)
+    if [ -n "${HTTPS_PROXY:-}" ]; then export https_proxy="$HTTPS_PROXY"; fi
+    if [ -n "${HTTP_PROXY:-}" ];  then export http_proxy="$HTTP_PROXY";  fi
+
+    apt-get update
+    # ffmpeg — PNG 시퀀스 → mp4 조립 (wdrender.exporter_video._assemble_mp4 가 PATH 의 ffmpeg 호출)
+    # fonts-liberation/fonts-nanum — @font-face 인라인이 실패했을 때의 라틴·한글 폴백
+    # fonts-dejavu-core — **필수**. 템플릿이 쓰는 ✕(U+2715)·→(U+2192) 등 기호는 Pretendard 에
+    #   없어 시스템 폴백으로 넘어간다. 개발 호스트가 DejaVu Sans 로 폴백하므로 이미지에도
+    #   같은 폰트를 넣어야 프레임이 픽셀 단위로 일치한다 (없으면 Unifont/FreeSerif 로 떨어져
+    #   ✕ 글리프 모양이 달라진다 — 실측 diff_ratio 0.00053).
+    apt-get install -y --no-install-recommends \
+        ffmpeg \
+        ca-certificates \
+        fontconfig \
+        fonts-dejavu-core \
+        fonts-liberation \
+        fonts-nanum
+    update-ca-certificates || true
+
+    # playwright 는 호스트 .venv(1.61.0) 와 같은 버전으로 못 박는다 — 브라우저 리비전
+    # (chromium-1228)까지 고정돼야 오프라인 렌더가 재현된다. 프로젝트보다 먼저 깔아야
+    # optional-dependencies 의 무제약 "playwright" 가 최신판으로 끌려오지 않는다.
+    python -m pip install --no-cache-dir --upgrade pip
+    python -m pip install --no-cache-dir "playwright==1.61.0"
+    # editable 설치 — /opt/wda/src 를 그대로 import 경로로 써서 repo 루트 앵커를 보존한다.
+    python -m pip install --no-cache-dir -e "/opt/wda[render]"
+
+    # chromium 의 OS 의존 라이브러리 + 브라우저 본체 사전 내장
+    python -m playwright install-deps chromium
+    python -m playwright install chromium
+    chmod -R a+rX /opt/ms-playwright
+
+    # 기호 폴백 고정 — install-deps 가 딸려 넣는 fonts-unifont(비트맵 폰트)가 lang=ko 문맥에서
+    # ✕(U+2715) 를 가로채 계단현상 글리프를 그린다(개발 호스트는 DejaVu Sans 로 폴백).
+    # chromium 의 문자 단위 폴백은 fontconfig 의 sans-serif alias 를 따르지 않으므로
+    # 패키지 자체를 걷어내는 것이 유일하게 확실한 방법이다.
+    apt-get purge -y fonts-unifont
+    apt-get autoremove -y
+    cat > /etc/fonts/local.conf <<'XML'
+<?xml version="1.0"?>
+<!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">
+<fontconfig>
+  <!-- Pretendard 에 없는 기호(✕ → — 등)의 최종 폴백을 DejaVu Sans 로 못 박는다 -->
+  <alias binding="same">
+    <family>sans-serif</family>
+    <prefer><family>DejaVu Sans</family></prefer>
+  </alias>
+</fontconfig>
+XML
+
+    fc-cache -f >/dev/null 2>&1 || true
+    rm -rf /var/lib/apt/lists/*
+
+    # 쓰기 지점은 오직 바인드 마운트 /data — SIF rootfs 는 읽기 전용이다 (HEAXHub 3계약 ③)
+    mkdir -p /data
+    chmod 0777 /data
+
+    # 조기 실패 검사 — 하나라도 없으면 빌드를 깨뜨린다
+    ffmpeg -version | head -1
+    python - <<'PY'
+import pathlib, shutil, sys
+from playwright.sync_api import sync_playwright  # noqa: F401
+import wdrender.exporter_video, wdpipeline.build  # noqa: F401
+root = pathlib.Path(wdpipeline.build.__file__).resolve().parents[2]
+assert root == pathlib.Path("/opt/wda"), f"repo 루트 앵커 어긋남: {root}"
+for rel in ("configs/render.toml", "web/vendor/babel.min.js",
+            "web/fonts/PretendardVariable.woff2", "modules/registry.yaml",
+            "formats/wide-16x9/format.yaml"):
+    assert (root / rel).is_file(), f"자산 누락: {rel}"
+assert shutil.which("ffmpeg"), "ffmpeg 없음"
+print("sanity ok", sys.version.split()[0])
+PY
+    wda version
+
+%environment
+    export PATH=/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin
+    export LANG=C.UTF-8
+    export LC_ALL=C.UTF-8
+    export PYTHONUNBUFFERED=1
+    # 읽기 전용 rootfs — .pyc 를 쓰려다 실패하지 않게
+    export PYTHONDONTWRITEBYTECODE=1
+    # 오프라인 강제 — 브라우저는 내장분만 쓰고, 없으면 다운로드 대신 즉시 실패한다
+    export PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright
+    export PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+    export PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS=1
+    export PIP_NO_INDEX=1
+    export PIP_DISABLE_PIP_VERSION_CHECK=1
+    # 산출물 경로 — wdcore.config.Settings(WDA_ 접두)가 읽는다
+    export WDA_DATA_DIR=/data
+    export WDA_PERSONAS_ROOT=/opt/wda/personas
+    export WDA_MODULES_ROOT=/opt/wda/modules
+    export WDA_FORMATS_ROOT=/opt/wda/formats
+
+%runscript
+    # 기본 진입은 `wda render`. 다른 하위 명령은 이름을 그대로 앞에 붙이면 된다.
+    if [ "$#" -eq 0 ]; then
+        exec wda render --help
+    fi
+    case "$1" in
+        ingest|fragmentize|scenario|build|render|run|repro|validate|formats|version)
+            exec wda "$@" ;;
+        *)
+            exec wda render "$@" ;;
+    esac
+
+%test
+    ffmpeg -version | head -1
+    python -c "from playwright.sync_api import sync_playwright; print('playwright ok')"
+    test -d /opt/ms-playwright || { echo "브라우저 미내장"; exit 1; }
+
+%labels
+    org.heaxhub.role render-node
+    org.heaxhub.app web_design_agents
+    org.wda.python 3.12
+    org.wda.playwright 1.61.0
+    org.wda.egress none
+
+%help
+    WebDesignAgents 오프라인 렌더 노드 (PLAN §12.4).
+
+    내장: python 3.12 · playwright 1.61.0 + chromium(/opt/ms-playwright) · ffmpeg ·
+          Pretendard woff2(web/fonts) · React/ReactDOM/Babel UMD(web/vendor) ·
+          씬 템플릿 모듈(modules/) · 포맷 스펙(formats/) · 렌더 설정(configs/render.toml)
+
+    바인드: 호스트 data/ → /data (쓰기). build/ 는 data/build/ 아래이므로 이 하나로 족하다.
+
+    오프라인 실행 예:
+      apptainer run --net --network=none --bind ./data:/data wda-render.sif --slug delib_v2
+    산출: /data/renders/{slug}/{slug}.mp4 · {slug}.pptx

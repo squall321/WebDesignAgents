@@ -1,0 +1,2 @@
+# 빌드 산출 SIF 는 600MB 급이라 커밋하지 않는다 — scripts/build-sif.sh 로 재생성
+*.sif
