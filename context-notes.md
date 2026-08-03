@@ -165,3 +165,24 @@ Pretendard 폰트를 CDN → 로컬 @font-face(`web/fonts/PretendardVariable.wof
 ### 결정 21. UI 품질을 제도로 (사용자 상시 지시)
 - docs/UI_PRINCIPLES.md 7항 — "구두수선공의 아이들부터 신긴다": 화면 구성을 심의하는 플랫폼의 콘솔이 평범하면 설득력이 죽는다.
 - UI 변경 라운드마다 페르소나 design_review 심의로 스크린샷 심사 → Conditional 이하면 반영 후 재심사. 산출물과 동일 규율.
+
+## 2026-07-29 — 배포 구조 확정 (다른 에이전트 작업 인수)
+
+### 결정 22. 배포는 HEAXHub SIF 표준 빌드 (독립 서비스 아님)
+- 경위: 처음엔 SIF 계획(§12.4) → chromium 646MB 때문에 자체 venv 독립 서비스로 전환 시도(HWAXPortal services.yaml 등록) → 최종적으로 **SIF 빌드 훅**으로 회귀·확정.
+- 방법: `scripts/heaxhub-build.sh` 가 `fastapi.def` Stage2 opt-in 훅으로 붙어 playwright 1.61 + chromium(/opt/ms-playwright) + ffmpeg + 폰트를 컨테이너에 굽는다. 별도 SIF 를 따로 만들지 않는다.
+- `serve.sh` 는 로컬 개발 편의용으로 격하, Drive 스크립트(browser/data/deploy-from-drive)는 제거.
+- 실가동 확인 — 런처가 :9136 에 `--root-path /apps/web_design_agents` 로 기동, Caddy 경유 `/apps/web_design_agents/api/health` 200.
+- 정본 문서는 docs/DEPLOY.md.
+
+### 결정 23. manifest 함정 — health_check·restart_policy 는 launch: 아래
+- 런처·서비스매니저가 `launch.health_check`/`launch.restart_policy` 만 읽는다. top-level 선언은 조용히 무시되고 스택 기본값 `/health` 로 프로브돼 404 만 쌓인다(재시작 정책도 미적용).
+- 재시도 횟수 키는 `max_attempts` (≠ max_retries).
+
+### 결정 24. wdmcp 이중 노출의 실체 — 웹 앱 /mcp 로도 서빙
+- manifest `mcp:{expose:true, path:/mcp}` 선언만 있고 실체가 없어 게이트웨이가 "다운"으로 표시되던 문제 해소.
+- `wdweb.app` 이 동일 FastMCP 서버를 `/mcp`(streamable_http)로 서빙. 도구 정의는 wdmcp 한 곳뿐.
+- ⚠ `app.mount("/mcp", ...)` 금지 — Starlette Mount 정규식이 `/mcp/{path}` 라 뒤 슬래시 없는 정확 경로를 못 잡는다. 정확 경로 Route 로 등록해야 SPA 캐치올이 405 로 먹지 않는다.
+
+### 진행 기록
+- HEAXHub 쪽 부수 수정 6건(다른 에이전트) — '열기' 무반응 3중 결함(스택 오지정·extras 누락·launch.command 무시), 호스팅 앱 LLM 설정 상속(cae00 GLM), 스캐너 커밋 백필 제거, MCP 레지스트리가 실체 없는 앱 미노출, deploy rev 즉시 기록.

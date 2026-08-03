@@ -35,7 +35,9 @@
 | 템플릿 카탈로그 | 10종 | 시딩 7 + 창작 모드 자가 저작 3(dataviz Go, timeline·compare Conditional) |
 | 테스트 | 240 passed | 전 영역 회귀 |
 
-**아직 남은 것** — GLM-5-2 실서버 검증(M2), SIF 오프라인 렌더 노드·하이브리드 PPTX(M3), ReportArchive REST 실연동(자격증명 필요).
+**배포** — HEAXHub SIF 앱으로 **실가동 중**(Caddy `/apps/web_design_agents/`, `mcp.expose`로 게이트웨이 연동). §12.4~12.5 참조.
+
+**아직 남은 것** — GLM-5-2 실서버 검증(M2, cae00 필요), ReportArchive REST 실연동(자격증명 필요), 내레이터 참조음성.
 
 ---
 
@@ -527,15 +529,23 @@ wda   = "wdpipeline.cli:app"
 - 렌더 런타임에 Node 빌드 체인 없음(빌드 스텝 없는 즉시성 = LLM 생성 씬 즉시 실행). React/Babel은 `web/vendor/` 파일 커밋 + `__resources` 주입으로 CDN 의존 제거.
 - 유일한 Node 사용처는 `tools/omx-qa/`(정적 AST 린트, Node 20 확인됨) — dev 전용, 자체 package.json으로 격리, Python이 subprocess로 호출.
 
-### 12.4 렌더 노드 패키징 — Apptainer SIF (크리틱 반영)
+### 12.4 렌더 런타임 패키징 — SIF 빌드 훅 (2026-07-29 실배포로 확정)
 
-- ReportArchive와 동일한 SIF 폐쇄망 운영에 정합시킨다. SIF에 chromium 바이너리(`PLAYWRIGHT_BROWSERS_PATH` 사전 배포 — 현재 호스트에 chromium 캐시 확인됨), ffmpeg, Pretendard 폰트, `web/vendor/`를 내장해 **외부 egress 0으로 렌더 가능**하게 한다. M3 검증 항목.
+렌더 런타임(Playwright chromium·ffmpeg·폰트)은 **HEAXHub SIF 빌드 훅이 컨테이너에 구워 넣는다**. 별도 SIF를 따로 만들지 않고 표준 스택 빌드에 얹는 방식이다.
 
-### 12.5 HEAXHub 산하 연계 프로젝트 등록 (사용자 확정 반영)
+- `scripts/heaxhub-build.sh` — `fastapi.def` Stage2 opt-in 훅. playwright 1.61.0 + chromium(`/opt/ms-playwright`) + ffmpeg + 폰트(dejavu/nanum/liberation) + fontconfig 설치. `deploy/apptainer/wda-render.def`에서 검증한 `%post`를 재현한 것이다.
+- 산출은 `HEAXHub/var/sifs/web_design_agents.sif` 하나로 자족한다 — **외부 egress 0으로 렌더 가능**(§12.4 검증: `--network=none` 네임스페이스에서 delib_v2 렌더 188초 성공).
+- `deploy/apptainer/wda-render.def`는 독립 렌더 노드용 참조 정의로 남긴다(603MB, fakeroot 빌드 108~119초). 표준 경로는 위 훅이다.
+- 상세 절차·폐쇄망 이송은 `docs/DEPLOY.md`가 정본.
 
-WebDesignAgents는 VoiceRecorder와 마찬가지로 HEAXHub(`/home/koopark/claude/HEAXHub`, Caddy :4180 + FastAPI :4040) 산하에서 관리한다.
+### 12.5 HEAXHub 산하 연계 프로젝트 등록 (2026-07-29 실배포 반영)
 
-- **등록** — `HEAXHub/integrations/web_design_agents/.portal/manifest.yaml` 1파일(schema v2)로 끝. `build.stack: fastapi_react`(웹 콘솔 `wdweb` + `frontend/dist` 가 이 규약의 실체), `launch.mode: service`, `health_check.path: /api/health`, `source: {type: git, url: https://github.com/squall321/WebDesignAgents, ref: main}`. 스캐너가 5분 주기로 자동 발견 → SIF 빌드 → `/apps/web_design_agents/` 서브경로 서빙. 단축 경로는 `scripts/register-repo.sh web_design_agents <git-url> fastapi_react`.
+WebDesignAgents는 HEAXHub(`/home/koopark/claude/HEAXHub`, Caddy :4180 + FastAPI :4040) 산하 앱으로 **이미 가동 중**이다 — 다른 HEAX 앱과 똑같이 HEAXHub가 SIF로 빌드·서빙한다(자체 venv 독립 서비스가 아니다).
+
+- **등록** — `HEAXHub/integrations/web-design-agents/.portal/manifest.yaml` 1파일(schema v2). `build.stack: fastapi`, `build.extras: [web,render,mcp,llm]`, `launch.command: uvicorn wdweb.app:app …`, `mcp.expose: true`, `source: {type: git, url: https://github.com/squall321/WebDesignAgents, ref: main}`. 스캐너가 GitHub main을 clone → `fastapi.def` 렌더 → SIF 빌드 → `apptainer instance start` → Caddy가 `/apps/web_design_agents/`로 서빙.
+- **⚠ manifest 함정 (실측으로 확인된 것)** — `health_check`·`restart_policy`는 **반드시 `launch:` 아래**에 둔다. 런처·서비스매니저가 `launch.health_check`/`launch.restart_policy`만 읽으므로 top-level 선언은 조용히 무시되고 스택 기본값 `/health`로 프로브돼 404 로그만 쌓인다. 재시도 횟수 키는 `max_attempts`(≠`max_retries`).
+- **실가동 확인** — 런처가 앱 포트 풀에서 할당(예: `:9136`), `--root-path /apps/web_design_agents`로 기동. `curl :4180/apps/web_design_agents/api/health` → `{"status":"ok"}` 200.
+- **`serve.sh`는 로컬 개발 편의용으로 격하** — 배포 경로가 아니다. 독립 서비스 시절의 Drive 스크립트(browser/data/deploy-from-drive)는 SIF 경로가 대체하므로 제거됐다.
 - **웹 콘솔(wdweb)** — 보고서 JSON 붙여넣기 → 파이프라인 단계 실행·진행 표시 → 브라우저 프리뷰(영상 엔트리 iframe 재생) → 렌더/QA 실행 → mp4·PPTX 다운로드 + 실행 이력·모듈 갤러리·회의록 뷰어. API 는 `{success, data, message}` 봉투, 프런트는 상대경로 fetch(서브패스 프록시 대응).
 - **런타임 3계약** — ① `127.0.0.1:$PORT`로만 listen(0.0.0.0 금지 — 인증 게이트 우회 차단) ② `uvicorn --root-path $ROOT_PATH`(=/apps/web_design_agents) ③ 쓰기 데이터는 `$HEAX_DATA_DIR`(/data) 아래에만(SIF rootfs는 읽기 전용) — `data/` 산출물 경로를 `WDA_DATA_DIR=$HEAX_DATA_DIR` 로 매핑.
 - **MCP 노출 = Claude 연동** — manifest에 `mcp: {expose: true, path: /mcp, transport: streamable_http}` 선언 + status beta 이상이면 HWAX MCP Gateway(:9110)가 자동 흡수 → 포탈 챗과 개인 Claude에서 즉시 사용. 즉 **wdmcp는 이중 노출**이다 — ① 로컬 개발용 stdio(.mcp.json, Claude Code 직결) ② HEAXHub 연방용 streamable-http(`/mcp` 경로, 게이트웨이 경유).
