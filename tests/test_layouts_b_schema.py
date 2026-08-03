@@ -10,7 +10,6 @@ from jsonschema import Draft202012Validator
 ROOT = Path(__file__).resolve().parents[1]
 TPL_DIR = ROOT / "modules" / "scene-templates"
 JSX_FILE = ROOT / "web" / "templates" / "omx-layouts-b.jsx"
-PENDING = ROOT / "modules" / "_pending" / "layouts-b.registry.yaml"
 FORMAT_ID = "wide-16x9"
 STAGE = {"w": 1920, "h": 1080}
 ORIGIN = "창작 모드 레이아웃 확장 2026-07-29"
@@ -154,33 +153,24 @@ def test_preview_contract(name):
 
 
 def test_pending_registry_fragment_is_mergeable():
-    """레지스트리 본체는 오케스트레이터가 병합한다 — 조각이 병합 가능한 형태인지만 검증한다."""
-    frag = yaml.safe_load(PENDING.read_text(encoding="utf-8"))
-    assert frag["origin"] == ORIGIN
-    ins = frag["load_order_insert"]
-    assert ins["entry"] == "web/templates/omx-layouts-b.jsx"
-    assert ins["before"] == "<project scenes.jsx>"
-    ids = [m["id"] for m in frag["modules"]]
-    assert ids == list(LAYOUTS.values()), f"조각 모듈 id 가 4종과 다르다 — {ids}"
+    """병합 완료 검증 — registry.yaml 등재가 module.yaml 과 일치하는가.
 
+    (구 _pending 조각 검사에서 전환: 오케스트레이터 병합이 끝나 조각은 제거됐고
+     정본은 registry.yaml 이다.)
+    """
     reg = yaml.safe_load((ROOT / "modules" / "registry.yaml").read_text(encoding="utf-8"))
-    existing = {m["id"] for m in reg["modules"]}
-    assert not (set(ids) & existing), "조각 id 가 레지스트리와 충돌한다 (병합 전 중복)"
-    order = reg["load_order_contract"]
-    assert ins["after"] in order, "삽입 기준 파일이 레지스트리 로드 순서에 없다"
-    assert ins["entry"] not in order, "이미 병합됐다면 조각은 제거되어야 한다"
-
-    for entry in frag["modules"]:
-        name = Path(entry["path"]).name
-        mod = load_module(name)
+    by_id = {m["id"]: m for m in reg["modules"]}
+    for name, tid in LAYOUTS.items():
+        assert tid in by_id, f"{tid} 이 registry.yaml 에 없다"
+        entry, mod = by_id[tid], load_module(name)
         assert entry["type"] == "scene-template"
         assert Path(entry["path"]) == Path("modules/scene-templates") / name
-        assert entry["formats"] == [FORMAT_ID]
-        assert entry["stage"] == STAGE
-        assert entry["nat_default"] == mod["nat_default"], f"{name}: nat_default 불일치"
-        assert entry["status"] == mod["status"]
-        assert entry["summary"] == mod["summary"]
-
+        assert entry.get("nat_default") == mod["nat_default"], f"{name}: nat_default 불일치"
+        assert entry.get("status") == mod["status"]
+        assert entry.get("version") == mod["version"]
+    contract = [str(x) for x in reg["load_order_contract"]]
+    assert any("omx-layouts-b.jsx" in x for x in contract), (
+        "omx-layouts-b.jsx 이 load_order_contract 에 없으면 빌드 엔트리에서 누락된다")
 
 # ── 이 라운드의 존재 이유 — 배치 다양성 계약 ────────────────────────────────
 

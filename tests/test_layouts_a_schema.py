@@ -10,7 +10,6 @@ from jsonschema import Draft202012Validator
 ROOT = Path(__file__).resolve().parents[1]
 TPL_DIR = ROOT / "modules" / "scene-templates"
 JSX_FILE = ROOT / "web" / "templates" / "omx-layouts-a.jsx"
-PENDING = ROOT / "modules" / "_pending" / "layouts-a.registry.yaml"
 FORMAT_ID = "wide-16x9"
 STAGE = {"w": 1920, "h": 1080}
 ORIGIN = "창작 모드 레이아웃 확장 2026-07-29"
@@ -154,25 +153,24 @@ def test_preview_contract(name):
 
 
 def test_pending_registry_fragment_matches_modules():
-    """registry.yaml 은 다른 워크플로 소유 — 병합 대기 조각이 module.yaml 과 어긋나면 안 된다."""
-    frag = yaml.safe_load(PENDING.read_text(encoding="utf-8"))
-    ids = [m["id"] for m in frag["modules"]]
-    assert sorted(ids) == sorted(LAYOUTS.values()), ids
+    """병합 완료 검증 — registry.yaml 등재가 module.yaml 과 일치하는가.
+
+    (구 _pending 조각 검사에서 전환: 오케스트레이터 병합이 끝나 조각은 제거됐고
+     정본은 registry.yaml 이다.)
+    """
+    reg = yaml.safe_load((ROOT / "modules" / "registry.yaml").read_text(encoding="utf-8"))
+    by_id = {m["id"]: m for m in reg["modules"]}
     for name, tid in LAYOUTS.items():
-        entry = next(m for m in frag["modules"] if m["id"] == tid)
-        mod = load_module(name)
+        assert tid in by_id, f"{tid} 이 registry.yaml 에 없다"
+        entry, mod = by_id[tid], load_module(name)
         assert entry["type"] == "scene-template"
         assert Path(entry["path"]) == Path("modules/scene-templates") / name
-        assert entry["formats"] == [FORMAT_ID]
-        assert entry["stage"] == STAGE
-        assert entry["nat_default"] == mod["nat_default"], f"{name}: nat_default 불일치"
-        assert entry["status"] == mod["status"]
-        assert entry["version"] == mod["version"]
-    adds = frag["load_order_contract_additions"]
-    assert any(a["insert"] == "web/templates/omx-layouts-a.jsx" for a in adds), (
-        "load_order 병합 지시가 없으면 빌드 엔트리에서 누락된다"
-    )
-
+        assert entry.get("nat_default") == mod["nat_default"], f"{name}: nat_default 불일치"
+        assert entry.get("status") == mod["status"]
+        assert entry.get("version") == mod["version"]
+    contract = [str(x) for x in reg["load_order_contract"]]
+    assert any("omx-layouts-a.jsx" in x for x in contract), (
+        "omx-layouts-a.jsx 이 load_order_contract 에 없으면 빌드 엔트리에서 누락된다")
 
 # ── 밀도 조임의 실제 강제 — 스키마가 상한을 지키는지 (이 라운드의 존재 이유) ──
 

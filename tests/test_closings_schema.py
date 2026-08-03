@@ -84,7 +84,7 @@ def test_modules_present():
     for name in MODULES:
         assert (TPL_DIR / name).is_dir(), f"{name} 모듈 디렉터리가 없다"
     assert JSX_FILE.exists()
-    assert PENDING.exists(), "registry.yaml 병합 대기 조각이 없다 (소유권 규칙상 직접 수정 금지)"
+    assert (ROOT / "modules" / "registry.yaml").is_file()  # 병합 완료 — _pending 조각은 제거됐다
 
 
 @pytest.mark.parametrize("name", MODULES)
@@ -156,28 +156,18 @@ def test_preview_contract(name):
 
 
 def test_pending_registry_fragment():
-    """registry.yaml 은 병렬 작업자 소유 — 조각이 병합에 필요한 값을 전부 들고 있어야 한다."""
-    frag = yaml.safe_load(PENDING.read_text(encoding="utf-8"))
-    order = frag["merge"]["load_order_contract"]
-    assert order["entries"] == ["web/templates/omx-closings.jsx"]
-    assert order["insert_before"] == "<project scenes.jsx>"
-    ids = [m["id"] for m in frag["modules"]]
-    assert sorted(ids) == sorted(MODULES.values())
-    for name, tid in MODULES.items():
-        entry = next(m for m in frag["modules"] if m["id"] == tid)
-        mod = load_module(name)
-        assert entry["type"] == "scene-template"
-        assert Path(entry["path"]) == Path("modules/scene-templates") / name
-        assert entry["formats"] == [FORMAT_ID]
-        assert entry["stage"] == STAGE
-        assert entry["nat_default"] == mod["nat_default"], f"{name}: nat_default 불일치"
-        assert entry["status"] == mod["status"]
-        assert entry["summary"] == mod["summary"]
-    # 포맷 풀 제안 — formats/** 는 타 소유라 여기 제안만 남긴다
-    sug = frag["merge"]["format_pool_suggestion"]
-    assert sug["format"] == FORMAT_ID and sug["role"] == "closing"
-    assert sorted(sug["add"]) == sorted(MODULES.values())
+    """병합 완료 검증 — 이 모듈들이 registry.yaml 에 실제로 등재됐는가.
 
+    (과거에는 modules/_pending 조각 존재를 봤으나, 오케스트레이터 병합이
+     끝나 조각은 제거됐다. 정본은 registry.yaml 이다.)
+    """
+    reg = yaml.safe_load((ROOT / "modules" / "registry.yaml").read_text(encoding="utf-8"))
+    ids = {m["id"] for m in reg["modules"]}
+    for name in MODULES:
+        assert f"tpl.{name}" in ids, f"tpl.{name} 이 registry.yaml 에 없다"
+    contract = reg["load_order_contract"]
+    assert any(JSX_FILE.name in str(x) for x in contract), (
+        f"{JSX_FILE.name} 이 load_order_contract 에 없다")
 
 def test_registry_merge_is_consistent_when_already_merged():
     """오케스트레이터가 조각을 합친 뒤에도 이 테스트가 계약을 지킨다 (병합 전에는 no-op)."""

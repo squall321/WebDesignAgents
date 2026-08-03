@@ -34,12 +34,17 @@ def _roots(tmp_path: Path, monkeypatch, format_file: Path) -> Path:
     """
     base = yaml.safe_load((REPO_ROOT / "modules" / "registry.yaml").read_text(encoding="utf-8"))
     have = {m["id"] for m in base["modules"]}
-    for name in PENDING:
-        frag = yaml.safe_load((REPO_ROOT / "modules" / "_pending" / name).read_text("utf-8"))
+    for name in PENDING:   # 병합이 끝나면 조각은 사라진다 — 그때는 본 레지스트리가 이미 정본
+        frag_path = REPO_ROOT / "modules" / "_pending" / name
+        if not frag_path.is_file():
+            continue
+        frag = yaml.safe_load(frag_path.read_text("utf-8"))
         for mod in frag.get("modules", []) or []:
             if mod["id"] not in have:
                 base["modules"].append(mod)
                 have.add(mod["id"])
+    missing = sorted({f"tpl.{s}" for s in NEW_SHORTS} - have)
+    assert not missing, f"레지스트리에도 병합 조각에도 없는 모듈: {missing}"
     modules = tmp_path / "modules"
     modules.mkdir()
     (modules / "registry.yaml").write_text(

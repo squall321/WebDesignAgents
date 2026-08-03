@@ -37,17 +37,15 @@ TIER1_POOL = {
 
 @pytest.fixture()
 def merged_modules_root(tmp_path: Path, monkeypatch) -> Path:
-    """modules/_pending/layouts-{c,d}.registry.yaml 을 병합한 임시 모듈 루트.
+    """실제 registry.yaml 을 그대로 쓰는 모듈 루트.
 
-    registry.yaml 직접 수정은 소유권 규약상 금지(병합은 오케스트레이터 몫)라서, 병합
-    **후** 상태를 테스트가 스스로 재현한다 — 이 픽스처가 곧 병합 조각의 계약 검증이다.
+    (구현 초기에는 modules/_pending 조각을 합쳐 '병합 후'를 재현했으나, 오케스트레이터
+     병합이 끝나 registry.yaml 자체가 그 상태다 — 조각은 제거됐다.)
     """
     reg = yaml.safe_load((MODULES / "registry.yaml").read_text(encoding="utf-8"))
-    for name in ("layouts-c", "layouts-d"):
-        frag = yaml.safe_load(
-            (MODULES / "_pending" / f"{name}.registry.yaml").read_text(encoding="utf-8")
-        )
-        reg["modules"].extend(frag["modules"])
+    ids = {m["id"] for m in reg["modules"]}
+    for tid in ("tpl.c-ratio", "tpl.c-trend", "tpl.c-branch", "tpl.c-grid"):
+        assert tid in ids, f"{tid} 이 registry.yaml 에 없다 — 병합 누락"
     root = tmp_path / "modules"
     root.mkdir()
     (root / "registry.yaml").write_text(yaml.safe_dump(reg, allow_unicode=True), encoding="utf-8")

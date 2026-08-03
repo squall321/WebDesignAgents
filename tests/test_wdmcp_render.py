@@ -195,7 +195,9 @@ def test_render_submit_to_done_with_real_export(mcp_env, build_dir):
         assert final is not None, f"타임아웃 — 관측 상태: {seen}"
         assert final["data"]["status"] == "done", final["data"].get("error")
         assert "rendering" in seen or "queued" in seen, f"중간 상태 관측 실패: {seen}"
-        assert "산출물" in final["claude_instructions"]
+        # 렌더 완료 지시문은 열람 URL 제시를 요구한다 (fe0095a — 챗에서 바로 재생)
+        instr = final["claude_instructions"]
+        assert "urls" in instr and "링크" in instr, instr
         return final["data"]
 
     job = run_mcp(scenario)

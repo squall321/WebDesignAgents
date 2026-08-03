@@ -301,7 +301,7 @@ proof:          [tpl.proof, tpl.c-trend, tpl.c-grid]
 후자는 판 자체가 정보라서다(§7.3 판정 참조).
 
 실증 산출물 — 12씬 빌드·렌더 스틸 `data/quality_compare/layouts/` 12장, QA 게이트 7종
-`error 0 · warning 0 · info 0`(`data/qa_reports/20260729-030823-2c540c/qa.json`),
+`error 0 · warning 0 · info 0`(`data/layout_check/qa.json → data/qa_reports/20260729-040042-4f73fe/qa.json`),
 조립 결과 `data/layout_check/scenario.json`.
 
 ### 7.3 심의 판정 (module_review 8건 · 2026-07-29)

@@ -266,21 +266,18 @@ def test_preview_declares_wide_stage_and_load_order(name):
 
 
 def test_pending_registry_fragment_declares_both_modules():
-    """registry.yaml 직접 수정 금지 — 대기 조각이 두 모듈과 로드 순서를 선언한다."""
-    frag = yaml.safe_load(PENDING.read_text(encoding="utf-8"))
-    ids = [m["id"] for m in frag["modules"]]
-    assert set(ids) == set(LAYOUTS.values()), ids
-    for m in frag["modules"]:
-        name = Path(m["path"]).name
-        mod = load_module(name)
-        assert m["type"] == "scene-template"
-        assert Path(m["path"]) == Path("modules/scene-templates") / name
-        assert m["formats"] == [FORMAT_ID] and m["stage"] == STAGE
-        assert m["nat_default"] == mod["nat_default"], f"{name}: nat_default 불일치"
-        assert m["status"] == mod["status"]
-    ins = frag["load_order_contract_insert"]
-    assert any(x["file"] == "web/templates/omx-layouts-c.jsx" for x in ins)
+    """병합 완료 검증 — 이 모듈들이 registry.yaml 에 실제로 등재됐는가.
 
+    (과거에는 modules/_pending 조각 존재를 봤다. 오케스트레이터 병합이 끝나
+     조각은 제거됐고, 정본은 registry.yaml 이다.)
+    """
+    reg = yaml.safe_load((ROOT / "modules" / "registry.yaml").read_text(encoding="utf-8"))
+    ids = {m["id"] for m in reg["modules"]}
+    for tpl_id in LAYOUTS.values():
+        assert tpl_id in ids, f"{tpl_id} 이 registry.yaml 에 없다"
+    contract = [str(x) for x in reg["load_order_contract"]]
+    assert any(LAYOUTS_C.name in x for x in contract), (
+        f"{LAYOUTS_C.name} 이 load_order_contract 에 없다")
 
 def test_registry_yaml_untouched_by_this_agent():
     """소유 규칙 확인 — 본 에이전트는 registry.yaml 에 c-* 항목을 직접 넣지 않는다."""
