@@ -14,7 +14,11 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-mcp = ["mcp>=1.0"]
+# 상한 필수 — mcp 2.0 이 mcp.server.fastmcp 를 제거했다(FastMCP 는 별도 fastmcp 패키지로 이관).
+# 상한이 없던 동안 SIF 빌드가 2.0.0 을 잡아 wdmcp/server.py 의 import 가 깨졌고, uvicorn 이
+# 앱 로드에 실패해 기동 즉시 죽었다. 겉으로는 앱 경로가 정적 HTML 200 을 돌려줘 살아 있는
+# 것처럼 보였고, 게이트웨이에는 도구 0개 백엔드로 붙어 있었다(2026-08-03 ~ 08-08).
+mcp = ["mcp>=1.0,<2"]
 llm = ["openai>=1.0"]
 render = ["playwright", "python-pptx", "pillow", "numpy", "python-docx", "pypdf"]
 web = ["fastapi>=0.110", "uvicorn>=0.30", "python-multipart"]
