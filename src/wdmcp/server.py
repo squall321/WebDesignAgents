@@ -295,6 +295,46 @@ def _facts_for_briefing(
 # ── 회의 툴 5종 ───────────────────────────────────────────────────────
 
 
+def _roster_line() -> str:
+    """로스터 한 줄. 힌트를 만드는 모든 자리가 이걸 쓴다.
+
+    ⚠ 예전에는 participants 가 빈 배열일 때만 로스터를 알려 줬다. 유효하지 않은 id 를
+    넣으면 PERSONA_NOT_FOUND 의 hint 가 빈 문자열이라, 클라이언트는 무엇이 유효한지
+    알 방법이 없었다 — 두 분기 위에 로스터가 있는데도. 실제로 외부 Claude 가 그럴듯한
+    id 를 여덟 개 시도하다 "페르소나 등록이 안 돼 있다"고 결론내고 포기했다.
+    """
+    return ", ".join(f"{x.id}({x.abbr})" for x in get_registry().summaries())
+
+
+@mcp.tool()
+def meeting_personas() -> dict:
+    """회의에 넣을 수 있는 페르소나 로스터. meeting_start 의 participants 에 쓸 id 목록이다.
+
+    회의를 열기 전에 이걸 먼저 부르면 된다. 종전에는 유효한 id 를 알아내는 방법이
+    'participants 를 빈 배열로 보내 오류를 유발하는 것' 뿐이었다.
+    """
+    state = get_session()
+    rows = [
+        {
+            "id": x.id,
+            "abbr": x.abbr,
+            "category": x.category,
+            "name_ko": x.name_ko,
+            "name_en": x.name_en,
+            "status": x.status.value if hasattr(x.status, "value") else str(x.status),
+            "boundary_statement": x.boundary_statement,
+        }
+        for x in get_registry().summaries()
+    ]
+    return ok_envelope(
+        state,
+        {"count": len(rows), "personas": rows,
+         "meeting_types": [t.value for t in MeetingType]},
+        "이 중 5~8인을 골라 meeting_start(participants=[id,...]) 로 회의를 연다. "
+        "확정한 순서가 곧 발언 순서다.",
+    )
+
+
 @mcp.tool()
 def meeting_start(
     topic: str, type: str, participants: list[str], run_id: str | None = None
@@ -315,12 +355,11 @@ def meeting_start(
             f"type은 {'/'.join(t.value for t in MeetingType)} 중 하나다.",
         )
     if not participants:
-        roster = ", ".join(f"{p.id}({p.abbr})" for p in get_registry().summaries())
         return error_envelope(
             state,
             "PARTICIPANTS_REQUIRED",
             "participants가 비어 있다. 참가 페르소나를 명시해야 회의를 생성할 수 있다.",
-            f"로스터에서 5~8인을 골라 id 배열로 넘겨라. 로스터: {roster}",
+            f"meeting_personas 로 목록을 받을 수 있다. 로스터: {_roster_line()}",
         )
     fragments_loaded = 0
     if run_id:
@@ -335,9 +374,17 @@ def meeting_start(
     try:
         meta = engine.create(mtype, topic, participants)
     except WebDesignAgentsError as exc:
-        return error_envelope(state, exc.error_code.upper(), exc.message)
+        # 힌트 없이 코드만 돌려주면 클라이언트는 무엇을 고쳐야 하는지 모른다.
+        return error_envelope(
+            state, exc.error_code.upper(), exc.message,
+            f"유효한 id 는 이것뿐이다(meeting_personas 로도 받을 수 있다). "
+            f"로스터: {_roster_line()}",
+        )
     except ValueError as exc:
-        return error_envelope(state, "INVALID_PARTICIPANTS", str(exc))
+        return error_envelope(
+            state, "INVALID_PARTICIPANTS", str(exc),
+            f"meeting_personas 로 목록을 확인하라. 로스터: {_roster_line()}",
+        )
     ledger = state.ledger(meta.id)
     ledger.run_id = run_id
     data = MeetingStartOut(
