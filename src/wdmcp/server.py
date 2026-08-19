@@ -408,6 +408,7 @@ def meeting_start(
     )
     return ok_envelope(
         state, data.model_dump(mode="json"), meeting_started_instructions(meta.type.value)
+        , meta.id
     )
 
 
@@ -585,7 +586,7 @@ def meeting_submit_turn(
         round_no=meta.round_index,
         next_speaker=next_info,
     )
-    return ok_envelope(state, data.model_dump(mode="json"), turn_accepted_instructions(next_info))
+    return ok_envelope(state, data.model_dump(mode="json"), turn_accepted_instructions(next_info), meeting_id)
 
 
 @mcp.tool()
@@ -617,7 +618,7 @@ def meeting_status(meeting_id: str) -> dict:
         known_refs_count=len(ledger.known_refs),
         modules_delivered=ledger.modules_delivered,
     )
-    return ok_envelope(state, data.model_dump(mode="json"), INSTR_STATUS)
+    return ok_envelope(state, data.model_dump(mode="json"), INSTR_STATUS, meeting_id)
 
 
 @mcp.tool()

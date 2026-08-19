@@ -60,12 +60,27 @@ class SessionState:
         """회의 id별 원장을 반환한다 (없으면 생성)."""
         return self.meetings.setdefault(meeting_id, MeetingLedger())
 
-    def summary(self) -> SessionSummary:
-        """envelope session 필드용 요약."""
+    def summary(self, meeting_id: str | None = None) -> SessionSummary:
+        """envelope session 필드용 요약. meeting_id 를 주면 그 회의만 싣는다.
+
+        ⚠ 종전에는 모든 응답이 **이 프로세스의 전체 회의 목록**을 실었다. 그리고 이 앱은
+        transport: streamable_http 로 한 프로세스가 전원을 받는다. 게이트웨이는 백엔드마다
+        영속 세션 하나를 열고 전 사용자를 그 위에 다중화하므로(gateway.py _Backend.run —
+        연결 생성 시 헤더가 한 번 정해지고 세션은 하나다), 앱 쪽에서 호출자를 구분할 방법이
+        아예 없다. 실측으로 서로 다른 PAT 의 두 사용자가 같은 session_id 를 받고 서로의
+        회의를 봤다.
+
+        식별이 불가능하니 격리가 아니라 **비공개**로 푼다 — 묻지 않은 회의는 싣지 않는다.
+        회의 본문은 원래도 meeting_id 를 알아야 접근할 수 있었으므로 잃는 기능이 없다.
+        """
+        if meeting_id is None:
+            return SessionSummary(session_id=self.session_id, started_at=self.started_at,
+                                  meetings={})
+        led = self.meetings.get(meeting_id)
         return SessionSummary(
             session_id=self.session_id,
             started_at=self.started_at,
-            meetings={mid: led.summary() for mid, led in sorted(self.meetings.items())},
+            meetings={meeting_id: led.summary()} if led is not None else {},
         )
 
 

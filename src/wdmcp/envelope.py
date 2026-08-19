@@ -5,19 +5,21 @@ from .schemas import Envelope, ErrorInfo, NextSpeakerInfo
 from .session import SessionState
 
 
-def ok_envelope(state: SessionState, data: dict, instructions: str) -> dict:
+def ok_envelope(state: SessionState, data: dict, instructions: str,
+                meeting_id: str | None = None) -> dict:
     """정상 응답 봉투."""
     return Envelope(
-        ok=True, data=data, session=state.summary(), claude_instructions=instructions, error=None,
+        ok=True, data=data, session=state.summary(meeting_id), claude_instructions=instructions, error=None,
     ).model_dump(mode="json")
 
 
-def error_envelope(state: SessionState, code: str, message: str, hint: str = "") -> dict:
+def error_envelope(state: SessionState, code: str, message: str, hint: str = "",
+                   meeting_id: str | None = None) -> dict:
     """오류 응답 봉투. MCP 예외 전파 대신 항상 구조화해 반환한다."""
     return Envelope(
         ok=False,
         data=None,
-        session=state.summary(),
+        session=state.summary(meeting_id),
         claude_instructions="오류 내용을 사용자에게 한국어로 알리고, hint가 있으면 함께 전하라.",
         error=ErrorInfo(code=code, message=message, hint=hint),
     ).model_dump(mode="json")
