@@ -110,11 +110,24 @@ class MeetingEngine:
                 raise ValueError(f"지금은 {expected}의 차례다")
             if spec.citation_required and not turn.citations:
                 raise ValueError(f"'{spec.name}' 라운드는 근거 인용이 필수다. citations를 채워라")
-            for c in turn.citations:
-                if c.ref not in known_refs:
-                    raise ValueError(
-                        f"존재하지 않는 인용 ref: {c.ref!r}. 브리핑에 제공된 ID/라벨만 사용하라"
-                    )
+        else:
+            # user/system 은 사람의 개입구다. 차례와 인용필수는 면제하는 것이 맞지만,
+            # ⚠ 종전에는 이 두 검사만이 아니라 **모든** 검사가 위 분기 안에 있어서 사칭과
+            # 날조까지 통과했다. role=user 에 expert_id 를 실으면 회의록에 그 전문가의
+            # 발언으로 남고, citations 에 없는 ref 를 넣어도 아무도 안 봤다. 개입구가
+            # 검증 0의 우회로가 되면 그건 개입구가 아니라 뒷문이다.
+            if turn.expert_id is not None:
+                raise ValueError(
+                    f"role={turn.role.value} 턴에는 expert_id 를 실을 수 없다"
+                    "(전문가 사칭 방지). 전문가 발언은 role=expert 로 차례에 맞춰 제출하라."
+                )
+        # 인용 ref 실존은 역할과 무관하게 검사한다 — 개입 발언이라고 없는 근거를 지어낼
+        # 이유는 없고, 그 텍스트는 회의록과 다음 라운드 컨텍스트에 그대로 들어간다.
+        for c in turn.citations:
+            if c.ref not in known_refs:
+                raise ValueError(
+                    f"존재하지 않는 인용 ref: {c.ref!r}. 브리핑에 제공된 ID/라벨만 사용하라"
+                )
         turn = turn.model_copy(update={"turn_no": len(all_turns) + 1})
         self.store.append_turn(meta, turn)
         if meta.status is MeetingStatus.created:
