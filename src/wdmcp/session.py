@@ -108,13 +108,64 @@ def split_fact_structure(frag: dict) -> tuple[str, str]:
 _state = SessionState()
 
 
+# 호출자별 세션 상태. 키는 아래 _session_key() 가 정한다.
+_sessions: "dict[str, SessionState]" = {}
+_SESSIONS_MAX = 256          # 폭주 방지 — 넘으면 가장 오래된 것부터 버린다
+
+
+def _session_key() -> str | None:
+    """이 요청의 호출자 식별자. 못 정하면 None(= 프로세스 단일 세션으로 폴백).
+
+    ⚠ 이 파일은 원래 "stdio 프로세스 1개 = 세션 1개" 를 전제로 썼다. 그 전제에서는
+    프로세스 싱글턴이 맞다. 그런데 지금은 매니페스트가 transport: streamable_http 라
+    **한 프로세스가 전원을 받는다.** 그래서 전제가 깨졌고, 실측으로 완전히 새 MCP
+    세션에서 남이 만든 회의 목록이 그대로 보였다(envelope 의 session.meetings).
+    회의 본문은 meeting_id 로 접근하니 내용까지 새지는 않지만, 누가 무슨 회의를 열었는지가
+    전원에게 노출된다.
+
+    키 우선순위.
+      1) 게이트웨이가 넣어 주는 x-hwax-user — 검증된 PAT 의 이메일이다(위조본은 게이트웨이가
+         버린다). 재접속해도 같은 사람이면 같은 세션이라 이게 가장 자연스럽다.
+      2) MCP ServerSession 객체 id — 헤더가 없는 직결 http 클라이언트용. 연결 단위로 갈린다.
+      3) None — stdio. 원래 전제가 그대로 성립하므로 싱글턴을 쓴다.
+    """
+    try:
+        from mcp.server.fastmcp import FastMCP  # noqa: F401  (지연 import — 순환 회피)
+        from .server import mcp as _mcp
+        ctx = _mcp.get_context()
+        rc = getattr(ctx, "request_context", None)
+        if rc is None:
+            return None
+        req = getattr(rc, "request", None)
+        if req is not None:
+            user = (getattr(req, "headers", {}) or {}).get("x-hwax-user")
+            if user:
+                return f"u:{user.strip().lower()}"
+        sess = getattr(rc, "session", None)
+        if sess is not None:
+            return f"s:{id(sess)}"
+    except Exception:  # noqa: BLE001 — 식별 실패가 도구를 죽이면 안 된다
+        return None
+    return None
+
+
 def get_session() -> SessionState:
-    """프로세스 단일 세션 상태를 반환한다."""
-    return _state
+    """이 호출자의 세션 상태를 반환한다(없으면 생성)."""
+    key = _session_key()
+    if key is None:
+        return _state
+    st = _sessions.get(key)
+    if st is None:
+        if len(_sessions) >= _SESSIONS_MAX:
+            _sessions.pop(next(iter(_sessions)), None)
+        st = SessionState()
+        _sessions[key] = st
+    return st
 
 
 def new_session() -> SessionState:
     """세션을 새 인스턴스로 교체한다 (테스트용)."""
     global _state
     _state = SessionState()
+    _sessions.clear()
     return _state
