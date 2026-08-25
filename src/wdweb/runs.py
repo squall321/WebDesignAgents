@@ -16,7 +16,8 @@ from wdcore.config import get_settings
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 STAGES = ("ingest", "fragmentize", "scenario", "build")
-RENDER_TARGETS = ("video", "pptx")
+# 문서 3형식도 같은 잡 경로를 탄다 (wdmcp.schemas.RENDER_TARGETS 와 동일 계약)
+RENDER_TARGETS = ("video", "pptx", "html", "pdf", "docx")
 
 _SLUG_RE = re.compile(r"[^a-zA-Z0-9._-]+")
 # RLock — 파일 I/O(write_run/read_run)와 그것을 품는 read-modify-write(update_*)가
@@ -302,7 +303,8 @@ def _run_render(run_id: str, targets: list[str], fps: int | None, droot: Path) -
         # mp4 를 굽다 실패하지 않게, wda render 와 같은 단일 판정점을 쓴다.
         from wdpipeline.format import render_targets
 
-        allowed = set(render_targets(_format_of(root)))
+        # 문서 3형식은 무대 규격과 무관하다(심의 산출물에서 나온다) — 포맷 outputs 필터 면제.
+        allowed = set(render_targets(_format_of(root))) | {"html", "pdf", "docx"}
         targets = [t for t in targets if t in allowed]
         if "video" in targets:
             out = out_dir / "video.mp4"
@@ -318,6 +320,28 @@ def _run_render(run_id: str, targets: list[str], fps: int | None, droot: Path) -
                 format_id=_format_of(root), stills=stills, notes=notes, log=lambda m: None,
             )
             outputs["pptx"] = str(out)
+
+        # 문서 3형식 — 심의 산출물을 읽는 글로. wdmcp.jobs 와 같은 절차를 쓴다
+        # (삽화용 씬 스틸을 run_dir/stills 규약 이름으로 먼저 굽고 조립·검증·export).
+        doc_targets = [t for t in targets if t in ("html", "pdf", "docx")]
+        if doc_targets:
+            from wdmcp.jobs import _capture_doc_stills
+            from wdpipeline.document import assemble_document, validate_document
+            from wdrender.exporter_doc import export_document
+
+            run_dir = (droot / "pipeline" / run_id).resolve()
+            _capture_doc_stills(root, rel, run_dir / "stills", resources)
+            ddoc = assemble_document(run_dir, build_dir=root, style="report")
+            errs = validate_document(ddoc)
+            if errs:
+                raise ValueError("문서 검증 실패: " + "; ".join(errs))
+            res = export_document(ddoc, out_dir, stem="report",
+                                  formats=tuple(doc_targets), assets_root=root,
+                                  log=lambda m: None)
+            for kind, info in res.items():
+                outputs[kind] = str(out_dir / f"report.{kind}")
+                detail[kind] = info
+
         _update_render(run_id, status="done", outputs=outputs, detail=detail,
                        finished_at=_now_iso())
     except Exception as exc:  # 워커 스레드 — 어떤 실패든 원장에 남긴다
