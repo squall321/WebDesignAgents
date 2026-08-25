@@ -186,3 +186,19 @@ Pretendard 폰트를 CDN → 로컬 @font-face(`web/fonts/PretendardVariable.wof
 
 ### 진행 기록
 - HEAXHub 쪽 부수 수정 6건(다른 에이전트) — '열기' 무반응 3중 결함(스택 오지정·extras 누락·launch.command 무시), 호스팅 앱 LLM 설정 상속(cae00 GLM), 스캐너 커밋 백필 제거, MCP 레지스트리가 실체 없는 앱 미노출, deploy rev 즉시 기록.
+
+## 2026-08-25 — 문서 3형식을 호출 경로에 붙임
+
+### 결정 25. 문서(html/pdf/docx)는 렌더 잡과 같은 큐를 탄다
+- 경위: 문서 조립·export 는 이미 있었는데(`wdpipeline.document` + `wdrender.exporter_doc`) 호출 경로가 CLI 뿐이었다. MCP·웹 모두 `RENDER_TARGETS = ("video","pptx")` 라 요청 자체가 걸러졌다.
+- 별도 큐를 만들지 않은 이유 — 워커가 스레드라 PDF 의 sync Playwright 가 그대로 안전하고, 폴링(`render_status`)·열람 URL 배관을 재사용할 수 있다.
+- **포맷 outputs 필터는 면제**한다. 영상·PPT 는 무대 규격(16:9 등)의 산출물이지만 문서는 무대와 무관하게 심의 산출물에서 나온다 — 포맷이 `outputs: [pptx]` 여도 문서는 나와야 한다.
+- 삽화는 `_capture_doc_stills` 가 즉석에서 굽는다. 렌더 패키지에는 스틸 PNG 가 없다(영상·PPT 는 캡처 후 버린다).
+  - 파일명은 `document.py::_still_filename` 규약 — **전역 시각**이다. 로컬 시각으로 쓰면 다단 페이즈 씬(클로징)의 두 스틸이 한 파일로 겹쳐 그림 수가 모자란다(실측).
+  - `run_dir` 은 `resolve()` 로 절대화한다. 상대경로면 exporter 가 `assets_root` 아래로 붙여 그림이 0개가 된다(실측).
+
+### 결정 26. 검사기가 잡는 구어체는 변환기가 없앨 수 있어야 한다
+- `SPOKEN_RESIDUE` 는 하세요·해요·이에요·예요·시죠 를 잡는데 `SPOKEN_RULES` 에 대응 규칙이 없었다 → 그 말이 든 원고는 `to_written` 을 거쳐도 남아 `validate_document` 가 **영구** 차단. 웹 데모 시나리오의 "확인하세요" 가 실제로 그랬다.
+- 해요체 청유(-세요/-으세요/-시죠)는 십시오 규칙과 같은 꼴로 권고형(`~는 것을 권한다`)으로 보낸다.
+- 검사기도 `하세요` → `세요` 로 넓혔다. '읽으세요' 같은 비-하 어간을 놓치면 검사기가 통과시켜 구어체가 보고서에 실린다.
+- 표본 11종으로 불변식 회귀 고정 (`test_every_residue_pattern_has_a_converting_rule`).

@@ -115,7 +115,7 @@ wda CLI ────────────▶ wdllm (AutoOrchestrator) ─┼�
 | 6 | `report_ingest(report_id)` | ReportArchive REST/MCP 프록시 → 정규화 JSON (P0) |
 | 7 | `report_fragmentize(doc_id)` | 조각 분해 지시문 반환, 결과 재제출 검증·저장 (P1) |
 | 8 | `scenario_build(meeting_id)` | 회의 산출물 → 시나리오 JSON 초안 + 검증 결과 (P3) |
-| 9 | `render_submit(scenario_path, targets)` | 씬 빌드+export 잡 등록, 잡 ID 반환 (P4~P5) |
+| 9 | `render_submit(targets, scenario_path?/build_dir?, run_dir?, doc_style?)` | 씬 빌드+export 잡 등록, 잡 ID 반환 (P4~P5). `targets` ∈ video·pptx·**html·pdf·docx** — 문서 3형식은 `run_dir` 이 있어야 조립된다 |
 | 10 | `render_status(job_id)` | 렌더 잡 상태·산출물 경로 조회 |
 | 11 | `qa_run(build_path, gates?)` | 품질 게이트 실행, 리포트 JSON 반환. **리포트는 지식카드로 등록되어 심의 인용 근거가 된다** |
 
