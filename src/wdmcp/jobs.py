@@ -9,7 +9,7 @@ from pathlib import Path
 
 from wdcore.config import get_settings
 
-from .schemas import RenderJob
+from .schemas import DOC_TARGETS, RenderJob
 
 _lock = threading.Lock()
 
@@ -24,6 +24,52 @@ def _format_of(build_dir: Path) -> str | None:
         return json.loads(sd.read_text(encoding="utf-8")).get("format")
     except ValueError:
         return None
+
+
+def _capture_doc_stills(build_dir: Path, entry_rel: str, out_dir: Path,
+                        resources: dict | None) -> int:
+    """문서 삽화용 씬 스틸을 document.py 파일명 규약(`{idx:02d}_{name}_{t:.1f}s.png`)으로 캡처한다.
+
+    렌더 패키지에는 스틸이 없다(영상·PPT 는 캡처 후 버린다). 문서만 파일이 필요해서
+    여기서 한 번 굽는다 — 이미 있으면 건너뛴다(재실행 비용 0).
+    """
+    import json as _json
+
+    sd = build_dir / "scene-data.json"
+    if not sd.is_file():
+        return 0
+    scenes = (_json.loads(sd.read_text(encoding="utf-8")) or {}).get("scenes") or []
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    from wdrender.config import apply_format, load_config
+    from wdrender.page_session import RenderSession
+    from wdrender.server import StaticServer
+
+    cfg = apply_format(load_config(), _format_of(build_dir))
+    wanted: list[tuple[int, str, float, float]] = []   # (idx, name, 전역시각, 로컬시각)
+    elapsed = 0.0
+    for i, sc in enumerate(scenes, start=1):
+        dur = float(sc.get("dur") or 0)
+        # 다단 페이즈 씬(예: 클로징)은 stills 가 복수다 — 전량 캡처해야 그림이 겹치지 않는다
+        locals_ = [float(t) for t in (sc.get("stills") or [max(dur - 1.0, dur * 0.5)])]
+        name = str(sc.get("name") or f"scene{i}")
+        for local in locals_:
+            wanted.append((i, name, elapsed + local, local))
+        elapsed += dur
+
+    # 파일명은 document.py 규약(_still_filename)과 같아야 한다 — **전역 시각** 기준이다.
+    # 로컬 시각으로 쓰면 다단 페이즈 씬에서 두 그림이 같은 파일로 해석된다(실측 버그).
+    todo = [w for w in wanted
+            if not (out_dir / f"{w[0]:02d}_{w[1]}_{w[2]:.1f}s.png").is_file()]
+    if not todo:
+        return 0
+    with StaticServer(build_dir) as srv:
+        with RenderSession(srv.url_for(entry_rel), width=cfg.width, height=cfg.height,
+                           resources=resources) as sess:
+            for idx, name, gt, _local in todo:
+                sess.seek(gt)
+                sess.capture(out_dir / f"{idx:02d}_{name}_{gt:.1f}s.png")
+    return len(todo)
 
 
 def _now_iso() -> str:
@@ -76,6 +122,8 @@ def submit_render_job(
     build_dir: str | None = None,
     entry: str | None = None,
     fps: int | None = None,
+    run_dir: str | None = None,
+    doc_style: str = "report",
 ) -> RenderJob:
     """잡 파일을 queued로 기록하고 백그라운드 워커 스레드를 기동한다."""
     now = _now_iso()
@@ -87,6 +135,8 @@ def submit_render_job(
         build_dir=build_dir,
         entry=entry,
         fps=fps,
+        run_dir=run_dir,
+        doc_style=doc_style,
         created_at=now,
         updated_at=now,
     )
@@ -155,7 +205,8 @@ def _run_job(job_id: str, renders_root: Path, build_root: Path) -> None:
         # mp4 를 굽다 실패하지 않게, wda render 와 같은 단일 판정점을 쓴다.
         from wdpipeline.format import render_targets
 
-        allowed = set(render_targets(_format_of(root)))
+        # 문서 3형식은 무대 규격과 무관하다(심의 산출물에서 나온다) — 포맷 outputs 필터 면제.
+        allowed = set(render_targets(_format_of(root))) | set(DOC_TARGETS)
         job_targets = [t for t in job.targets if t in allowed]
         if "video" in job_targets:
             out = out_dir / "video.mp4"
@@ -171,6 +222,42 @@ def _run_job(job_id: str, renders_root: Path, build_root: Path) -> None:
                 format_id=_format_of(root), stills=stills, notes=notes, log=lambda m: None,
             )
             outputs["pptx"] = str(out)
+
+        # ── 문서 3형식 — 심의 산출물을 읽는 글로 (본문=narration, 삽화=씬 스틸,
+        #    표=structured, 부록=회의록). run_dir 이 있어야 조립할 수 있다.
+        doc_targets = [t for t in job_targets if t in DOC_TARGETS]
+        if doc_targets:
+            from wdpipeline.document import assemble_document, validate_document
+            from wdrender.exporter_doc import export_document
+
+            # 절대경로로 정규화 — assemble_document 가 만드는 figure source_path 가
+            # 그대로 절대경로가 되어, exporter 의 assets_root 조합에 좌우되지 않는다.
+            run_dir = Path(job.run_dir) if job.run_dir else (
+                Path(job.scenario_path).parent if job.scenario_path else None
+            )
+            if run_dir is not None:
+                run_dir = run_dir.resolve()
+            if run_dir is None or not run_dir.is_dir():
+                raise ValueError(
+                    "문서 산출에는 run_dir(data/pipeline/{run_id})가 필요하다 — "
+                    "render_submit 에 run_dir 을 넘기거나 scenario_path 로 제출하라"
+                )
+            # 삽화 확보 — 렌더 패키지에는 스틸 PNG 가 없다. 문서가 그림을 실으려면
+            # 씬 스틸을 run_dir/stills/ 규약 이름으로 먼저 구워야 한다.
+            _capture_doc_stills(root, rel, run_dir / "stills", resources)
+            ddoc = assemble_document(run_dir, build_dir=root, style=job.doc_style)
+            errs = validate_document(ddoc)
+            if errs:
+                raise ValueError("문서 검증 실패: " + "; ".join(errs))
+            res = export_document(
+                ddoc, out_dir, stem="report",
+                formats=tuple(doc_targets), assets_root=root, log=lambda m: None,
+            )
+            for kind, info in res.items():
+                path = out_dir / f"report.{kind}"
+                outputs[kind] = str(path)
+                detail[kind] = info
+
         _update_job(job_id, status="done", outputs=outputs, detail=detail)
     except Exception as exc:  # 워커 스레드 — 어떤 실패든 잡 파일에 기록한다
         try:

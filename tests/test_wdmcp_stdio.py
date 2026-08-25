@@ -1,4 +1,4 @@
-# wdmcp stdio 통합 테스트 — 서브프로세스로 서버를 기동해 initialize·툴 15종 노출·봉투 계약 검증
+# wdmcp stdio 통합 테스트 — 서브프로세스로 서버를 기동해 initialize·툴 16종 노출·봉투 계약 검증
 from __future__ import annotations
 
 import asyncio
@@ -13,6 +13,7 @@ from mcp.client.stdio import stdio_client
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 EXPECTED_TOOLS = {
+    "meeting_personas",
     "meeting_start",
     "meeting_get_briefing",
     "meeting_submit_turn",
@@ -32,7 +33,7 @@ EXPECTED_TOOLS = {
 }
 
 
-def test_stdio_server_lists_15_tools_and_returns_envelope(tmp_path: Path):
+def test_stdio_server_lists_all_tools_and_returns_envelope(tmp_path: Path):
     params = StdioServerParameters(
         command=sys.executable,
         args=["-m", "wdmcp.server"],
@@ -52,7 +53,7 @@ def test_stdio_server_lists_15_tools_and_returns_envelope(tmp_path: Path):
 
                 tools = await session.list_tools()
                 names = {t.name for t in tools.tools}
-                assert names == EXPECTED_TOOLS, f"툴 15종 정확 노출 실패: {sorted(names)}"
+                assert names == EXPECTED_TOOLS, f"툴 16종 정확 노출 실패: {sorted(names)}"
 
                 # participants 미명시 → 오류 봉투 (예외 전파가 아니라 구조화 응답)
                 res = await session.call_tool(

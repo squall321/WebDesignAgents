@@ -51,6 +51,8 @@ from .envelope import (
     turn_accepted_instructions,
 )
 from .schemas import (
+    DOC_STYLES,
+    DOC_TARGETS,
     RENDER_TARGETS,
     BriefingCard,
     BriefingFact,
@@ -827,15 +829,27 @@ def render_submit(
     build_dir: str | None = None,
     entry: str | None = None,
     fps: int | None = None,
+    run_dir: str | None = None,
+    doc_style: str = "report",
 ) -> dict:
-    """렌더 잡을 등록한다 — 백그라운드 스레드가 (필요 시) 빌드 후 mp4/PPTX를 export 한다.
+    """렌더 잡을 등록한다 — 백그라운드 스레드가 (필요 시) 빌드 후 산출물을 export 한다.
 
     scenario_path(ScenarioDoc JSON) 또는 build_dir(기성 렌더 패키지 + entry) 중 하나를 넘겨라.
-    targets 기본 ["video"], 허용 값 video/pptx. 상태는 data/render_jobs/{job_id}.json에 기록되며
-    render_status로 폴링한다.
+    targets 기본 ["video"], 허용 값 video/pptx/html/pdf/docx.
+      · video·pptx — 씬을 렌더/캡처한 영상·슬라이드
+      · html·pdf·docx — 같은 심의에서 나온 **읽는 문서**(본문=narration, 삽화=씬 스틸,
+        표=structured, 부록=회의록 결정·미해결 쟁점). doc_style 은 report|brief|memo.
+        문서는 run_dir(data/pipeline/{run_id})가 필요하다 — scenario_path 로 제출하면
+        그 상위 디렉터리를 자동으로 쓴다.
+    상태는 data/render_jobs/{job_id}.json에 기록되며 render_status로 폴링한다.
     """
     state = get_session()
     targets = targets or ["video"]
+    if doc_style not in DOC_STYLES:
+        return error_envelope(
+            state, "INVALID_INPUT", f"알 수 없는 doc_style: {doc_style}",
+            f"doc_style 은 {list(DOC_STYLES)} 중 하나다.",
+        )
     bad = [t for t in targets if t not in RENDER_TARGETS]
     if bad:
         return error_envelope(
@@ -888,6 +902,7 @@ def render_submit(
             return error_envelope(state, "ENTRY_NOT_FOUND", f"엔트리 없음: {bd / entry}")
     job = jobs.submit_render_job(
         targets=targets, scenario_path=scenario_path, build_dir=build_dir, entry=entry, fps=fps,
+        run_dir=run_dir, doc_style=doc_style,
     )
     data = RenderSubmitOut(
         job_id=job.job_id,
@@ -909,7 +924,7 @@ def _artifact_urls(job) -> dict[str, str]:
     return {
         kind: f"{root}/api/render_jobs/{job.job_id}/download/{kind}"
         for kind in (job.outputs or {})
-        if kind in ("video", "pptx")
+        if kind in ("video", "pptx", *DOC_TARGETS)
     }
 
 

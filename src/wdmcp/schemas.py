@@ -352,7 +352,11 @@ class ScenarioPatchOut(ToolModel):
 
 # ── 렌더 툴 2종 ───────────────────────────────────────────────────────
 
-RENDER_TARGETS = ("video", "pptx")
+# 문서 3형식은 같은 잡 큐를 탄다 — 워커가 스레드라 PDF 의 sync Playwright 가 안전하고,
+# 폴링(render_status)·열람 URL 배관을 그대로 재사용한다.
+RENDER_TARGETS = ("video", "pptx", "html", "pdf", "docx")
+DOC_TARGETS = ("html", "pdf", "docx")
+DOC_STYLES = ("report", "brief", "memo")
 
 JobStatus = Literal["queued", "building", "rendering", "done", "failed"]
 
@@ -367,6 +371,8 @@ class RenderJob(ToolModel):
     build_dir: str | None = None
     entry: str | None = None
     fps: int | None = None
+    run_dir: str | None = None      # 문서 조립 원천 (data/pipeline/{run_id})
+    doc_style: str = "report"       # report | brief | memo
     outputs: dict[str, str] = Field(default_factory=dict)
     detail: dict = Field(default_factory=dict)
     error: str | None = None
