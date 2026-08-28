@@ -475,7 +475,30 @@ main { padding: var(--sp-5) var(--sp-6) var(--sp-7); max-width: 1280px; margin: 
   font-size: var(--fs-3); font-weight: 700; color: var(--c-ink);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.sum-actions { display: flex; gap: var(--sp-2); margin-left: auto; }
+.sum-actions { display: flex; align-items: center; gap: var(--sp-2); margin-left: auto; }
+
+/* 산출물 갈래 — 버튼을 나란히 늘리지 않고 한 액션이 갈래를 받는다 (UI 원칙 1) */
+.seg { display: flex; border: 1px solid var(--c-line); border-radius: var(--r-pill);
+  padding: var(--sp-1); gap: var(--sp-1); background: var(--c-card); margin: 0; }
+.seg label { position: relative; }
+.seg input { position: absolute; inset: 0; opacity: 0; cursor: pointer; margin: 0; }
+.seg span { display: block; padding: var(--sp-1) var(--sp-3); border-radius: var(--r-pill);
+  font-size: var(--fs-2); color: var(--c-sub); cursor: pointer; }
+.seg input:checked + span { background: var(--c-blue-soft); color: var(--c-blue); font-weight: 600; }
+.seg input:focus-visible + span { outline: 2px solid var(--c-focus); outline-offset: 2px; }
+
+.inline-field { display: flex; align-items: center; gap: var(--sp-2); }
+.inline-k { font-size: var(--fs-2); color: var(--c-sub); }
+/* 세그먼트와 같은 알약꼴·같은 높이로 — 네이티브 크롬이 튀면 토큰 체계가 깨진다 */
+.inline-field select {
+  font: inherit; font-size: var(--fs-2); color: var(--c-ink);
+  background: var(--c-card); border: 1px solid var(--c-line);
+  border-radius: var(--r-pill); padding: var(--sp-2) var(--sp-5) var(--sp-2) var(--sp-3);
+  appearance: none; cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2357607A' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right var(--sp-3) center;
+}
+.inline-field select:focus-visible { outline: 2px solid var(--c-focus); outline-offset: 2px; }
 
 .result-row {
   display: flex; align-items: center; gap: var(--sp-3);

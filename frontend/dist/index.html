@@ -93,7 +93,7 @@
             </li>
             <li>
               <span class="gs-no">4</span>
-              <div><b>렌더·QA·다운로드</b><span>mp4·pptx 를 뽑고 품질 게이트를 돌립니다.</span></div>
+              <div><b>렌더·QA·다운로드</b><span>영상·슬라이드 또는 문서(html·pdf·docx)를 뽑고 품질 게이트를 돌립니다.</span></div>
             </li>
           </ol>
           <p class="guide-note">진행 중에도 화면을 떠날 수 있습니다. <b>실행 이력</b> 탭에서 다시 열면 이어서 볼 수 있습니다.</p>
@@ -133,7 +133,20 @@
           <span class="sum-msg-v" id="sum-core">–</span>
         </div>
         <div class="sum-actions" id="run-actions" hidden>
-          <button class="btn" id="render-btn" type="button">렌더 (mp4 + pptx)</button>
+          <fieldset class="seg" id="output-kind">
+            <legend class="sr-only">산출물 갈래</legend>
+            <label><input type="radio" name="output-kind" value="av" checked><span>영상·슬라이드</span></label>
+            <label><input type="radio" name="output-kind" value="doc"><span>문서</span></label>
+          </fieldset>
+          <label class="inline-field" id="doc-style-wrap" hidden>
+            <span class="inline-k">문체</span>
+            <select id="doc-style">
+              <option value="report">보고서</option>
+              <option value="brief">요약본</option>
+              <option value="memo">메모</option>
+            </select>
+          </label>
+          <button class="btn" id="render-btn" type="button">영상·슬라이드 만들기</button>
           <button class="btn" id="qa-btn" type="button">QA 게이트</button>
         </div>
       </div>

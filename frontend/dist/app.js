@@ -419,6 +419,7 @@ function renderRunDetail(run) {
     note.textContent = '';
   }
   $('render-btn').disabled = ['queued', 'rendering'].includes(render.status || '');
+  syncOutputControls();   // 다시 눌릴 수 있게 된 버튼의 라벨을 현재 갈래에 맞춘다
 
   if (built) {
     const wrap = $('preview-wrap');
@@ -451,26 +452,60 @@ async function refreshDownloads(runId) {
     };
     add('mp4', '영상 mp4');
     add('pptx', '슬라이드 pptx');
+    // 읽는 산출물 — 보는 것(영상·슬라이드)과 갈래가 달라 뒤에 묶는다
+    add('html', '문서 html');
+    add('pdf', '문서 pdf');
+    add('docx', '문서 docx');
     add('scenario', '시나리오 json');
     box.innerHTML = links.join('');
   } catch (_) { /* 다운로드 목록은 부가 정보 */ }
 }
 
+// 산출물 갈래 — '보는 것'과 '읽는 것'. 버튼을 나란히 늘리는 대신 한 액션이 갈래를 받는다.
+const OUTPUT_KINDS = {
+  av: { targets: ['video', 'pptx'], label: '영상·슬라이드', note: 'mp4 와 pptx 를 뽑습니다' },
+  doc: { targets: ['html', 'pdf', 'docx'], label: '문서', note: 'html·pdf·docx 를 뽑습니다' },
+};
+
+function selectedOutput() {
+  const el = document.querySelector('input[name="output-kind"]:checked');
+  return OUTPUT_KINDS[(el && el.value) || 'av'] || OUTPUT_KINDS.av;
+}
+
+function syncOutputControls() {
+  const kind = document.querySelector('input[name="output-kind"]:checked');
+  const isDoc = !!kind && kind.value === 'doc';
+  const styleWrap = $('doc-style-wrap');
+  if (styleWrap) styleWrap.hidden = !isDoc;   // 문체는 문서에만 있는 선택지다
+  const btn = $('render-btn');
+  if (btn && !btn.disabled) btn.textContent = selectedOutput().label + ' 만들기';
+}
+
+document.querySelectorAll('input[name="output-kind"]').forEach((el) => {
+  el.addEventListener('change', syncOutputControls);
+});
+
 $('render-btn').addEventListener('click', async () => {
   if (!currentRunId) return;
   const btn = $('render-btn');
+  const kind = selectedOutput();
+  const body = { targets: kind.targets };
+  if (kind.targets.includes('pdf')) {
+    const sel = $('doc-style');
+    if (sel && sel.value) body.doc_style = sel.value;
+  }
   btn.disabled = true;
-  $('render-status').textContent = '렌더를 요청하는 중…';
+  $('render-status').textContent = kind.label + ' 를 요청하는 중…';
   try {
     await api('api/runs/' + encodeURIComponent(currentRunId) + '/render', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ targets: ['video', 'pptx'] }),
+      body: JSON.stringify(body),
     });
-    announce('렌더를 시작했습니다.');
+    announce(kind.label + ' 생성을 시작했습니다.');
     if (!pollTimer) pollTimer = setInterval(refreshRun, 1500);
   } catch (e) {
-    $('run-error').textContent = '렌더를 시작하지 못했습니다: ' + e.message
+    $('run-error').textContent = '산출물 생성을 시작하지 못했습니다: ' + e.message
       + '. 빌드가 끝난 뒤 다시 시도하세요.';
     btn.disabled = false;
   }
