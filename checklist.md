@@ -88,3 +88,32 @@ PLAN.md의 마일스톤을 실행 단위로 분해. 완료 시 체크하고, 검
 - [ ] 모듈 승격 루프 실가동 — 신규 창작 모듈 1건 등록→pilot 승격 실증
 - [ ] 지표 대시보드 — 게이트 1회차 통과율·모듈 재사용률(80% 목표)·토큰/산출물 추이
 - [ ] HITL 5지점 + 무인 모드 자동 확정 규칙 구현
+
+## 2026-08-28 — MCP·웹 기능 대칭 (사용자 지시: "둘다 모든 기능이 있어야지")
+
+두 호출 경로가 같은 플랫폼의 두 창구인데 창구마다 되는 일이 달랐다. 전수 대조로 결여를 메운다.
+
+### 웹에 없던 것
+- [x] `POST /api/meetings` — 심의 개회 (meeting_start 사영)
+- [x] `GET /api/meetings/{id}/briefing` — 다음 발언자 브리핑
+- [x] `POST /api/meetings/{id}/turns` — 턴 제출
+- [x] `GET /api/meetings/{id}` — 심의 상태
+- [x] `POST /api/meetings/{id}/close` — 폐회
+- [x] `POST /api/meetings/{id}/scenario` — 심의 산출물 → 시나리오 (scenario_build 사영)
+- [x] `POST /api/meetings/{id}/autorun` — vLLM 무인 완주 (웹 전용 경로, 계획 외 추가)
+- [x] `POST /api/runs/{id}/render` 에 `doc_style`
+- [x] 기본 targets 원복 — 문서 3형식을 기본에 넣으면 영상 한 번 뽑자고 5종을 다 굽는다
+- [x] 문서 3종 다운로드 경로 (작업 중 발견 — 열람 URL 은 주는데 받을 수 없었다)
+- [x] 콘솔 UI — 산출물 갈래·문체 선택, 심의 개회·상태판·자율 실행·폐회
+
+### MCP 에 없던 것
+- [x] `module_list` — 모듈·템플릿 카탈로그 (웹 GET /api/modules 사영)
+- [x] `meeting_list` — 회의 목록
+- [x] `meeting_minutes` — 회의록 열람
+
+### 검증
+- [x] 대칭 계약 테스트 — 능력 18종 × (MCP 도구, 웹 라우트) 표. 타깃·문체 집합 일치,
+      열람 URL 을 주는 모든 타깃이 다운로드 가능한지도 함께 막는다
+- [x] 웹 REST 만으로 심의 왕복 — 개회→브리핑→턴→상태→재브리핑(원장 full→recall 확인)
+- [x] 콘솔 브라우저 완주 — 개회→상태판→폐회→회의록, 콘솔 오류 0
+- [x] 전체 2300 passed, 8 skipped

@@ -202,3 +202,24 @@ Pretendard 폰트를 CDN → 로컬 @font-face(`web/fonts/PretendardVariable.wof
 - 해요체 청유(-세요/-으세요/-시죠)는 십시오 규칙과 같은 꼴로 권고형(`~는 것을 권한다`)으로 보낸다.
 - 검사기도 `하세요` → `세요` 로 넓혔다. '읽으세요' 같은 비-하 어간을 놓치면 검사기가 통과시켜 구어체가 보고서에 실린다.
 - 표본 11종으로 불변식 회귀 고정 (`test_every_residue_pattern_has_a_converting_rule`).
+
+## 2026-08-28 — MCP·웹 기능 대칭
+
+### 결정 27. 웹은 심의 로직을 복제하지 않고 MCP 도구 본체를 호출한다
+- 웹에는 심의가 아예 없었다(규칙기반 데모 조립뿐). 두 창구가 서로 다른 품질의 자료를 냈다.
+- 브리핑 조립·인용 화이트리스트·차례 검증을 웹에 다시 쓰면 그 순간 두 창구의 심의 규칙이 갈라진다 → `wdweb.deliberation.call_tool` 이 `wdmcp.server` 의 함수를 **그대로** 부른다. FastMCP 의 `@mcp.tool()` 은 원함수를 반환하므로 가능하다.
+- 그러려면 세션을 호출자가 실을 수 있어야 한다 → `wdmcp.session.use_session` (contextvar 오버라이드).
+
+### 결정 28. 회의 원장(known_refs)의 진짜 집은 회의 디렉터리다
+- stdio 는 프로세스 = 회의라 메모리 원장으로 충분했다. 웹은 요청마다 이어지지 않는다.
+- 원장이 사라지면 브리핑으로 전달한 ref 가 잊히고, **정당한 인용이 환각으로 거부**된다.
+- `MeetingLedger.to_dict/from_dict` + `{회의dir}/web_ledger.json`. 실측 검증은 "2회차 브리핑에서 모듈 전달이 full→recall 로 바뀌는가" 로 했다.
+- 회의 루트는 직접 계산하지 않고 `wdmcp.server._engine().store.root` 를 쓴다 — wdweb 은 repo 루트, wdmcp 는 CWD 기준이라 따로 풀면 원장이 회의와 다른 곳에 떨어진다.
+
+### 결정 29. 자율 실행(autorun)은 웹에만 있는 경로다 — 대칭의 예외
+- MCP 는 클라이언트(Claude)가 페르소나를 연기한다. 브라우저에는 그 주체가 없다.
+- 같은 엔진·같은 검증 위에 발언자만 LLM 으로 바꾼 `wdllm.orchestrator` 를 웹에서 연다(PLAN 경로 B). 기능이 한쪽에만 있는 게 아니라 **연기 주체가 다르므로 진입점이 다른** 것이다.
+
+### 실측으로 잡은 결함
+- 열람 URL 은 주는데 받을 수 없던 문서 — `render_status` 가 html·pdf·docx URL 을 돌려주면서 `_JOB_DOWNLOAD_META` 에는 video·pptx 만 있어 3종 전부 404. 대칭 테스트가 이 부류를 통째로 막는다.
+- 콘솔 상태판이 `round_no`·`turn_count` 를 읽어 전 항목이 `-` — 실제 스키마는 `round_index`·`turns_total` 이다.
