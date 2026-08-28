@@ -20,6 +20,8 @@ from wdcore.config import get_settings
 from wdmcp.server import mcp as _wdmcp
 
 from . import runs as runledger
+from wdmcp.schemas import DOC_STYLES
+
 from .runs import REPO_ROOT, RENDER_TARGETS, data_dir
 
 # wdmcp(경로 A stdio 어댑터)와 동일한 FastMCP 서버를 /mcp 로도 서빙 — heax 매니페스트
@@ -177,7 +179,7 @@ def get_run(run_id: str) -> dict:
 
 @app.post("/api/runs/{run_id}/render", status_code=status.HTTP_202_ACCEPTED)
 async def render_run(run_id: str, request: Request) -> JSONResponse:
-    """wdrender exporter(mp4+pptx)를 백그라운드로 실행한다. body: {targets?, fps?}."""
+    """wdrender exporter 를 백그라운드로 실행한다. body: {targets?, fps?, doc_style?}."""
     run = _run_or_404(run_id)
     if not run.get("build_dir") or not run.get("entry"):
         raise HTTPException(status_code=409, detail="빌드가 완료된 실행만 렌더할 수 있습니다")
@@ -191,14 +193,19 @@ async def render_run(run_id: str, request: Request) -> JSONResponse:
             body = await request.json()
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=f"본문이 JSON 이 아닙니다: {exc}") from exc
-    targets = body.get("targets") or list(RENDER_TARGETS)
+    # 기본값은 영상·PPT 다. 문서 3형식까지 기본에 넣으면 영상 한 번 뽑자고 5종을 다 굽는다.
+    targets = body.get("targets") or ["video", "pptx"]
     if not isinstance(targets, list) or not targets or any(t not in RENDER_TARGETS for t in targets):
         raise HTTPException(status_code=400, detail=f"targets 는 {list(RENDER_TARGETS)} 의 부분집합이어야 합니다")
     fps = body.get("fps")
     if fps is not None and (not isinstance(fps, int) or fps <= 0):
         raise HTTPException(status_code=400, detail="fps 는 양의 정수여야 합니다")
+    doc_style = body.get("doc_style") or "report"
+    if doc_style not in DOC_STYLES:
+        raise HTTPException(status_code=400,
+                            detail=f"doc_style 은 {list(DOC_STYLES)} 중 하나여야 합니다")
 
-    updated = runledger.submit_render(run_id, targets=targets, fps=fps)
+    updated = runledger.submit_render(run_id, targets=targets, fps=fps, doc_style=doc_style)
     return JSONResponse(
         status_code=status.HTTP_202_ACCEPTED,
         content=envelope({"run_id": run_id, "render": updated["render"]},
@@ -359,10 +366,14 @@ def run_artifacts(run_id: str) -> dict:
     return envelope(runledger.artifacts_status(run))
 
 
+_DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 _DOWNLOAD_META = {
     "mp4": ("video/mp4", "video.mp4"),
     "pptx": ("application/vnd.openxmlformats-officedocument.presentationml.presentation", "slides.pptx"),
     "scenario": ("application/json", "scenario.json"),
+    "html": ("text/html; charset=utf-8", "report.html"),
+    "pdf": ("application/pdf", "report.pdf"),
+    "docx": (_DOCX_MIME, "report.docx"),
 }
 
 
@@ -394,9 +405,14 @@ def run_preview(run_id: str, path: str) -> FileResponse:
 # 잡 원장 기준 라우트를 두어 job_id 만으로 재생·다운로드가 되게 한다.
 # (media_type, 기본 파일명, Content-Disposition) — 영상은 inline 이어야 새 탭에서 다운로드가
 # 아니라 재생으로 열린다. PPTX 는 브라우저가 표시할 수 없으니 attachment 가 맞다.
+# 문서 3형식이 빠져 있으면 render_status 가 알려준 열람 URL 이 그대로 404 가 된다.
+# html·pdf 는 inline(브라우저·chat 임베드로 바로 보게), docx 는 attachment.
 _JOB_DOWNLOAD_META = {
     "video": ("video/mp4", "video.mp4", "inline"),
     "pptx": (_DOWNLOAD_META["pptx"][0], "slides.pptx", "attachment"),
+    "html": (_DOWNLOAD_META["html"][0], "report.html", "inline"),
+    "pdf": (_DOWNLOAD_META["pdf"][0], "report.pdf", "inline"),
+    "docx": (_DOCX_MIME, "report.docx", "attachment"),
 }
 
 
@@ -455,6 +471,116 @@ def get_minutes(meeting_id: str) -> dict:
     if not minutes.is_file():
         raise HTTPException(status_code=404, detail="minutes.md 가 아직 없습니다")
     return envelope({"meeting_id": meeting_id, "markdown": minutes.read_text(encoding="utf-8")})
+
+
+# ── 심의 창구 (MCP meeting_* 도구의 REST 사영) ───────────────────────────────
+#
+# 웹에도 심의가 있어야 한다. 없으면 웹은 규칙기반 데모 조립밖에 못 하고, 같은 플랫폼의
+# 두 창구가 서로 다른 품질의 자료를 낸다. 구현은 wdweb/deliberation.call_tool 이
+# MCP 도구 **본체를 그대로** 호출한다 — 검증 규칙을 복제하지 않기 위해서다.
+
+
+def _tool(name: str, *, meeting_id: str | None = None, **kwargs) -> dict:
+    """도구 호출 후 MCP 봉투를 웹 봉투로 바꾼다. ok=false 는 400 으로 올린다."""
+    from wdweb.deliberation import call_tool
+
+    try:
+        out = call_tool(name, meeting_id=meeting_id, **kwargs)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    if not out.get("ok", True):
+        err = out.get("error") or {}
+        detail = err.get("message") or "요청을 처리하지 못했습니다"
+        hint = err.get("hint")
+        raise HTTPException(status_code=400, detail=f"{detail} — {hint}" if hint else detail)
+    # claude_instructions 는 MCP 클라이언트(연기자)용 지시문이다. 웹 UI 도 자율 실행 대신
+    # 사람이 턴을 쓸 수 있으므로 같이 싣는다 — 무엇을 써야 하는지가 거기 적혀 있다.
+    data = dict(out.get("data") or {})
+    if out.get("claude_instructions"):
+        data["instructions"] = out["claude_instructions"]
+    return envelope(data)
+
+
+@app.get("/api/personas/roster")
+def get_persona_roster() -> dict:
+    """페르소나 로스터 (meeting_personas 사영) — 참가자를 고를 때 쓴다."""
+    return _tool("meeting_personas")
+
+
+@app.post("/api/meetings", status_code=status.HTTP_201_CREATED)
+def post_meeting(body: dict = Body(...)) -> dict:
+    """심의 개회. body: {topic, type, participants[], run_id?}"""
+    for key in ("topic", "type", "participants"):
+        if not body.get(key):
+            raise HTTPException(status_code=400, detail=f"{key} 는 필수입니다")
+    return _tool(
+        "meeting_start", topic=body["topic"], type=body["type"],
+        participants=list(body["participants"]), run_id=body.get("run_id"),
+    )
+
+
+@app.get("/api/meetings/{meeting_id}")
+def get_meeting(meeting_id: str) -> dict:
+    """심의 진행 현황 (meeting_status 사영)."""
+    return _tool("meeting_status", meeting_id=meeting_id)
+
+
+@app.get("/api/meetings/{meeting_id}/briefing")
+def get_briefing(meeting_id: str) -> dict:
+    """다음 발언자 브리핑 (meeting_get_briefing 사영). 전달한 ref 는 원장에 축적된다."""
+    return _tool("meeting_get_briefing", meeting_id=meeting_id)
+
+
+@app.post("/api/meetings/{meeting_id}/turns")
+def post_turn(meeting_id: str, body: dict = Body(...)) -> dict:
+    """발언 턴 제출 (meeting_submit_turn 사영). 엔진 검증 거부는 400 이다."""
+    if body.get("round_no") is None or not body.get("role") or not body.get("content_md"):
+        raise HTTPException(status_code=400, detail="round_no·role·content_md 는 필수입니다")
+    return _tool(
+        "meeting_submit_turn", meeting_id=meeting_id,
+        round_no=int(body["round_no"]), role=body["role"], content_md=body["content_md"],
+        expert_id=body.get("expert_id"), stance=body.get("stance"),
+        citations=body.get("citations"), artifacts=body.get("artifacts"),
+    )
+
+
+@app.post("/api/meetings/{meeting_id}/close")
+def post_close(meeting_id: str) -> dict:
+    """폐회 — 회의록(minutes.md)을 굽고 미해결 쟁점을 뽑는다."""
+    return _tool("meeting_close", meeting_id=meeting_id)
+
+
+@app.post("/api/meetings/{meeting_id}/scenario")
+def post_scenario(meeting_id: str, body: dict | None = Body(default=None)) -> dict:
+    """심의 산출물 → 시나리오 초안 (scenario_build 사영). body: {run_id?, format?}"""
+    body = body or {}
+    kwargs: dict = {}
+    for key in ("run_id", "format"):
+        if body.get(key):
+            kwargs[key] = body[key]
+    return _tool("scenario_build", meeting_id=meeting_id, **kwargs)
+
+
+@app.post("/api/meetings/{meeting_id}/autorun", status_code=status.HTTP_202_ACCEPTED)
+def post_autorun(meeting_id: str, body: dict | None = Body(default=None)) -> JSONResponse:
+    """vLLM(GLM)이 전 라운드를 무인 완주한다. body: {max_turns?, run_id?}
+
+    브라우저에는 페르소나를 연기할 주체가 없다 — MCP 는 클라이언트가 연기하지만
+    웹은 이 경로(PLAN 경로 B)로 같은 엔진 위에서 심의를 돌린다.
+    """
+    body = body or {}
+    from wdweb.deliberation import autonomous_run
+
+    try:
+        result = autonomous_run(
+            meeting_id, max_turns=body.get("max_turns"), run_id=body.get("run_id")
+        )
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:  # LLM 미설정·연결 실패를 사유째 올린다
+        raise HTTPException(status_code=502, detail=f"{type(exc).__name__}: {exc}") from exc
+    return JSONResponse(status_code=status.HTTP_202_ACCEPTED,
+                        content=envelope(result, message="심의를 실행했습니다"))
 
 
 # ── 모듈 갤러리 ──────────────────────────────────────────────────────────────

@@ -1,6 +1,8 @@
 # wdmcp 세션 원장 — 회의별 known_refs 인용 화이트리스트와 페르소나/카드/조각/모듈 델타 전달 기록
 from __future__ import annotations
 
+import contextlib
+import contextvars
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -35,6 +37,33 @@ class MeetingLedger:
         markers = [f"[F{self.fact_counter + i + 1}]" for i in range(n)]
         self.fact_counter += n
         return markers
+
+    # ── 영속화 ────────────────────────────────────────────────────────────
+    # stdio 는 프로세스 = 회의라 메모리로 충분했다. 웹은 요청마다 프로세스가 이어지지
+    # 않으므로 원장이 사라지면 known_refs 가 비고, 정당한 인용이 환각으로 거부된다.
+    # 그래서 원장의 진짜 집은 회의 디렉터리다.
+    def to_dict(self) -> dict:
+        return {
+            "run_id": self.run_id,
+            "delivered_personas": sorted(self.delivered_personas),
+            "delivered_cards": sorted(self.delivered_cards),
+            "delivered_fragments": sorted(self.delivered_fragments),
+            "modules_delivered": self.modules_delivered,
+            "known_refs": sorted(self.known_refs),
+            "fact_counter": self.fact_counter,
+        }
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "MeetingLedger":
+        return cls(
+            run_id=d.get("run_id"),
+            delivered_personas=set(d.get("delivered_personas") or []),
+            delivered_cards=set(d.get("delivered_cards") or []),
+            delivered_fragments=set(d.get("delivered_fragments") or []),
+            modules_delivered=bool(d.get("modules_delivered")),
+            known_refs=set(d.get("known_refs") or []),
+            fact_counter=int(d.get("fact_counter") or 0),
+        )
 
     def summary(self) -> MeetingLedgerSummary:
         return MeetingLedgerSummary(
@@ -164,8 +193,28 @@ def _session_key() -> str | None:
     return None
 
 
+# 호출자가 세션을 직접 지정하는 통로. 웹(wdweb.deliberation)이 회의별 영속 원장을
+# 실어 MCP 도구 본체를 그대로 호출하는 데 쓴다 — 브리핑 로직을 복제하지 않기 위해서다.
+_override: contextvars.ContextVar[SessionState | None] = contextvars.ContextVar(
+    "wdmcp_session_override", default=None
+)
+
+
+@contextlib.contextmanager
+def use_session(state: SessionState):
+    """이 블록 안의 get_session() 이 state 를 돌려주게 한다."""
+    token = _override.set(state)
+    try:
+        yield state
+    finally:
+        _override.reset(token)
+
+
 def get_session() -> SessionState:
     """이 호출자의 세션 상태를 반환한다(없으면 생성)."""
+    forced = _override.get()
+    if forced is not None:
+        return forced
     key = _session_key()
     if key is None:
         return _state
