@@ -82,6 +82,7 @@ PLAN.md의 마일스톤을 실행 단위로 분해. 완료 시 체크하고, 검
 - [ ] 내레이터 참조음성 등록 (POST /api/voices → voice_id)
 - [x] HEAXHub 등록 — `integrations/web_design_agents/.portal/manifest.yaml` (mcp: expose 포함) + 런타임 3계약($PORT/$ROOT_PATH/$HEAX_DATA_DIR) 준수 + status beta 승격
 - [ ] VoiceRecorder manifest status draft → beta 승격 (HEAXHub 쪽)
+- [x] PDF 숫자 검색·복사 (tnum 제거 + 숫자 열 우측 정렬 + 부록 번호 텍스트화 — PUA 109→0)
 - [ ] 하이브리드 PPTX ③ 승격 — data-pptx-role + bbox 추출 + 폰트 대체 매핑 표 + 좌표 오차 기준
 - [ ] Apptainer SIF 렌더 노드 (chromium·ffmpeg·Pretendard·vendor 내장) — egress 0 렌더 검증
 - [x] 골든 스냅샷 회귀 CI — .github/workflows/ci.yml (전체 테스트 + 재현력 3층 별도 잡).
