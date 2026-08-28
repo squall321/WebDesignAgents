@@ -245,23 +245,25 @@ def _run_pipeline(run_id: str, raw_path: Path, slug: str, droot: Path) -> None:
 # ── 렌더 실행 (POST /api/runs/{id}/render) ───────────────────────────────────
 
 
-def submit_render(run_id: str, targets: list[str], fps: int | None = None) -> dict:
+def submit_render(run_id: str, targets: list[str], fps: int | None = None,
+                  doc_style: str = "report") -> dict:
     """빌드 완료된 실행에 wdrender exporter 를 백그라운드로 돌린다. 상태는 run.render 에 기록."""
     run = read_run(run_id)
     assert run is not None
     _update_render(
-        run_id, status="queued", targets=targets, outputs={}, error=None,
+        run_id, status="queued", targets=targets, doc_style=doc_style, outputs={}, error=None,
         started_at=_now_iso(),
     )
     t = threading.Thread(
-        target=_run_render, args=(run_id, targets, fps, data_dir()), daemon=True,
+        target=_run_render, args=(run_id, targets, fps, data_dir(), doc_style), daemon=True,
         name=f"wdweb-render-{run_id}",
     )
     t.start()
     return read_run(run_id)  # type: ignore[return-value]
 
 
-def _run_render(run_id: str, targets: list[str], fps: int | None, droot: Path) -> None:
+def _run_render(run_id: str, targets: list[str], fps: int | None, droot: Path,
+                doc_style: str = "report") -> None:
     """렌더 워커 — wdmcp/jobs.py 의 exporter 실행부 동형. 실패는 render.status=failed 로 기록."""
     try:
         run = read_run(run_id)
@@ -331,7 +333,7 @@ def _run_render(run_id: str, targets: list[str], fps: int | None, droot: Path) -
 
             run_dir = (droot / "pipeline" / run_id).resolve()
             _capture_doc_stills(root, rel, run_dir / "stills", resources)
-            ddoc = assemble_document(run_dir, build_dir=root, style="report")
+            ddoc = assemble_document(run_dir, build_dir=root, style=doc_style)
             errs = validate_document(ddoc)
             if errs:
                 raise ValueError("문서 검증 실패: " + "; ".join(errs))
@@ -382,12 +384,17 @@ def run_qa(run_id: str, gates: list[str] | None = None) -> dict:
 
 
 def artifact_paths(run: dict) -> dict[str, Path | None]:
-    """실행 1건의 mp4/pptx/qa.json/scenario.json 경로를 계산한다 (존재 보장 없음)."""
-    out: dict[str, Path | None] = {"mp4": None, "pptx": None, "qa": None, "scenario": None}
+    """실행 1건의 mp4/pptx/문서3종/qa.json/scenario.json 경로를 계산한다 (존재 보장 없음)."""
+    out: dict[str, Path | None] = {
+        "mp4": None, "pptx": None, "html": None, "pdf": None, "docx": None,
+        "qa": None, "scenario": None,
+    }
     if run.get("build_dir"):
         renders = data_dir() / "renders" / Path(run["build_dir"]).name
         out["mp4"] = renders / "video.mp4"
         out["pptx"] = renders / "slides.pptx"
+        for kind in ("html", "pdf", "docx"):  # exporter_doc 의 stem 은 "report"
+            out[kind] = renders / f"report.{kind}"
     qa = run.get("qa") or {}
     if qa.get("report_path"):
         out["qa"] = Path(qa["report_path"])
