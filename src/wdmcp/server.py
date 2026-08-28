@@ -294,6 +294,63 @@ def _facts_for_briefing(
     return facts
 
 
+def _format_facts_for_briefing(ledger: MeetingLedger, top_k: int = 6) -> list[BriefingFact]:
+    """포맷이 쌓아 온 노하우를 인용 가능한 근거로 만든다 (프리셋·교훈·골든·실적).
+
+    포맷 심의의 증거는 보고서 조각이 아니라 그 장르 자신이다. 이걸 싣지 않으면
+    지식카드가 없는 페르소나는 인용 필수 라운드에서 발언 자체가 불가능하다 —
+    format_review 가 열리지 않던 실제 이유다(2026-08-28).
+    """
+    if not ledger.format_id:
+        return []
+    try:
+        from wdpipeline.format import load_format
+    except ImportError:
+        return []
+    try:
+        spec = load_format(ledger.format_id)
+    except (FileNotFoundError, ValueError):
+        return []
+
+    fid = ledger.format_id
+    rows: list[tuple[str, str, str]] = []   # (ref, type, text)
+    rows.append((
+        f"FMT:{fid}#spec", "format_spec",
+        f"무대 {spec.stage.w}×{spec.stage.h} · 길이 target {spec.duration.target}s "
+        f"(min {spec.duration.min} / max {spec.duration.max}) · 골격 {len(spec.skeleton)}씬 "
+        f"({' → '.join(spec.skeleton)}) · 산출 {', '.join(spec.outputs)} · 테마 {spec.theme}",
+    ))
+    rows.append((
+        f"FMT:{fid}#status", "format_status",
+        f"status={spec.status} · usage_count={spec.usage_count} · "
+        f"골든 run_id={spec.golden.run_id or '(미등록)'} 산출물 {len(spec.golden.artifacts)}건 · "
+        f"qa_report={spec.golden.qa_report or '(없음)'}",
+    ))
+    if spec.presets.dur_plan:
+        total = sum(spec.presets.dur_plan.values())
+        rows.append((
+            f"FMT:{fid}#dur_plan", "format_preset",
+            f"확정 구간 예산 Σ{total:.1f}초 — "
+            + ", ".join(f"{k} {v}" for k, v in spec.presets.dur_plan.items()),
+        ))
+    if spec.presets.copy_guide:
+        rows.append((
+            f"FMT:{fid}#copy_guide", "format_preset",
+            f"자수 상한 {len(spec.presets.copy_guide)}개 필드 — "
+            + ", ".join(f"{k}≤{v}" for k, v in list(spec.presets.copy_guide.items())[:8])
+            + (" …" if len(spec.presets.copy_guide) > 8 else ""),
+        ))
+    for i, lesson in enumerate(spec.lessons, start=1):
+        rows.append((f"FMT:{fid}#lesson-{i}", "format_lesson", lesson))
+
+    fresh = [r for r in rows if r[0] not in ledger.delivered_fragments][:top_k]
+    markers = ledger.next_fact_markers(len(fresh))
+    return [
+        BriefingFact(marker=m, ref=ref, type=typ, text=text, source=f"formats/{fid}/format.yaml")
+        for m, (ref, typ, text) in zip(markers, fresh)
+    ]
+
+
 # ── 회의 툴 5종 ───────────────────────────────────────────────────────
 
 
@@ -339,12 +396,18 @@ def meeting_personas() -> dict:
 
 @mcp.tool()
 def meeting_start(
-    topic: str, type: str, participants: list[str], run_id: str | None = None
+    topic: str, type: str, participants: list[str], run_id: str | None = None,
+    format_id: str | None = None,
 ) -> dict:
     """회의를 생성한다. participants(페르소나 id 배열)는 명시 필수 — 확정 순서가 곧 발언 순서다.
 
     run_id를 주면 data/pipeline/{run_id}/fragments.json의 frag_id들이 브리핑 [F#] 근거이자
     인용 화이트리스트(known_refs)의 원천이 된다.
+
+    format_id를 주면 그 포맷의 명세·프리셋·교훈·골든이 [F#] 근거로 실린다
+    (ref 는 `FMT:{format_id}#lesson-1` 꼴). format_review 처럼 보고서가 아니라 장르
+    자체를 심사하는 회의는 이것이 유일한 증거다 — 없으면 지식카드가 없는 페르소나는
+    인용 필수 라운드에서 발언할 수 없다.
     """
     state = get_session()
     try:
@@ -363,6 +426,15 @@ def meeting_start(
             "participants가 비어 있다. 참가 페르소나를 명시해야 회의를 생성할 수 있다.",
             f"meeting_personas 로 목록을 받을 수 있다. 로스터: {_roster_line()}",
         )
+    if format_id:
+        from wdpipeline.format import list_formats
+
+        known = list_formats()
+        if format_id not in known:
+            return error_envelope(
+                state, "FORMAT_NOT_FOUND", f"알 수 없는 포맷: {format_id}",
+                f"쓸 수 있는 포맷: {', '.join(known)}",
+            )
     fragments_loaded = 0
     if run_id:
         try:
@@ -389,6 +461,7 @@ def meeting_start(
         )
     ledger = state.ledger(meta.id)
     ledger.run_id = run_id
+    ledger.format_id = format_id
     data = MeetingStartOut(
         meeting_id=meta.id,
         type=meta.type.value,
@@ -499,7 +572,8 @@ def meeting_get_briefing(meeting_id: str) -> dict:
         for c in new_cards
     ]
     query = " ".join([meta.topic, instruction] + [r.gist for r in recent])
-    facts = _facts_for_briefing(ledger, query)
+    # 포맷 근거를 먼저 싣는다 — 포맷 심의에서는 이게 유일한 증거다
+    facts = _format_facts_for_briefing(ledger) + _facts_for_briefing(ledger, query)
 
     ledger.delivered_cards.update(c.card_id for c in cards)
     ledger.delivered_fragments.update(f.ref for f in facts)

@@ -509,13 +509,14 @@ def get_persona_roster() -> dict:
 
 @app.post("/api/meetings", status_code=status.HTTP_201_CREATED)
 def post_meeting(body: dict = Body(...)) -> dict:
-    """심의 개회. body: {topic, type, participants[], run_id?}"""
+    """심의 개회. body: {topic, type, participants[], run_id?, format_id?}"""
     for key in ("topic", "type", "participants"):
         if not body.get(key):
             raise HTTPException(status_code=400, detail=f"{key} 는 필수입니다")
     return _tool(
         "meeting_start", topic=body["topic"], type=body["type"],
         participants=list(body["participants"]), run_id=body.get("run_id"),
+        format_id=body.get("format_id"),
     )
 
 

@@ -25,6 +25,9 @@ class MeetingLedger:
     """
 
     run_id: str | None = None  # meeting_start에 연결된 파이프라인 run (조각 화이트리스트 원천)
+    # 포맷 심의(format_review)의 근거는 보고서 조각이 아니라 그 장르가 쌓아 온 노하우다.
+    # 이게 없으면 카드 없는 페르소나는 인용 필수 라운드에서 아예 발언할 수 없다.
+    format_id: str | None = None
     delivered_personas: set[str] = field(default_factory=set)
     delivered_cards: set[str] = field(default_factory=set)
     delivered_fragments: set[str] = field(default_factory=set)
@@ -45,6 +48,7 @@ class MeetingLedger:
     def to_dict(self) -> dict:
         return {
             "run_id": self.run_id,
+            "format_id": self.format_id,
             "delivered_personas": sorted(self.delivered_personas),
             "delivered_cards": sorted(self.delivered_cards),
             "delivered_fragments": sorted(self.delivered_fragments),
@@ -57,6 +61,7 @@ class MeetingLedger:
     def from_dict(cls, d: dict) -> "MeetingLedger":
         return cls(
             run_id=d.get("run_id"),
+            format_id=d.get("format_id"),
             delivered_personas=set(d.get("delivered_personas") or []),
             delivered_cards=set(d.get("delivered_cards") or []),
             delivered_fragments=set(d.get("delivered_fragments") or []),
