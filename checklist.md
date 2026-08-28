@@ -84,7 +84,9 @@ PLAN.md의 마일스톤을 실행 단위로 분해. 완료 시 체크하고, 검
 - [ ] VoiceRecorder manifest status draft → beta 승격 (HEAXHub 쪽)
 - [ ] 하이브리드 PPTX ③ 승격 — data-pptx-role + bbox 추출 + 폰트 대체 매핑 표 + 좌표 오차 기준
 - [ ] Apptainer SIF 렌더 노드 (chromium·ffmpeg·Pretendard·vendor 내장) — egress 0 렌더 검증
-- [ ] 게이트 7(frame-match) + 골든 스냅샷 회귀 CI
+- [x] 골든 스냅샷 회귀 CI — .github/workflows/ci.yml (전체 테스트 + 재현력 3층 별도 잡).
+      임계를 frame_match 에서 분리(0.02→0.002)해 1px 변경도 잡는다. 실패는 환경/회귀/비결정성으로 구분해 보고.
+- [ ] 게이트 7(frame-match) 자체의 CI 편입 — 현재는 pytest 안에서만 돈다
 - [ ] 모듈 승격 루프 실가동 — 신규 창작 모듈 1건 등록→pilot 승격 실증
 - [ ] 지표 대시보드 — 게이트 1회차 통과율·모듈 재사용률(80% 목표)·토큰/산출물 추이
 - [ ] HITL 5지점 + 무인 모드 자동 확정 규칙 구현
