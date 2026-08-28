@@ -1048,6 +1048,69 @@ def _scene_ctx(state, run_id: str):
 
 
 @mcp.tool()
+def module_list(kind: str | None = None) -> dict:
+    """모듈·템플릿 카탈로그를 반환한다 — 씬을 무엇으로 채울 수 있는지의 정본 목록.
+
+    브리핑의 축약 인덱스는 회의 중 1회만 실리므로, 회의 밖에서(예: scenario_patch 로
+    tpl 을 갈아끼울 때) 고를 수 있는 것을 보려면 이 도구를 쓴다.
+    kind 를 주면 그 종류만 추린다 (scene-template / metaphor / theme).
+    """
+    state = get_session()
+    index = _load_module_index()
+    rows = [m.model_dump(mode="json") for m in index]
+    if kind:
+        rows = [r for r in rows if r.get("type") == kind]
+        if not rows:
+            kinds = sorted({str(m.type) for m in index})
+            return error_envelope(
+                state, "NO_SUCH_KIND", f"해당 종류의 모듈이 없다: {kind}",
+                f"쓸 수 있는 kind: {', '.join(kinds)}",
+            )
+    return ok_envelope(
+        state, {"count": len(rows), "kind": kind, "modules": rows},
+        "모듈 카탈로그다. id 를 scenario_patch 의 set_tpl 대상이나 씬 조립의 tpl 로 쓴다.",
+    )
+
+
+@mcp.tool()
+def meeting_list(limit: int = 20) -> dict:
+    """저장된 심의 목록을 최신순으로 반환한다 (id·유형·주제·상태·생성시각)."""
+    state = get_session()
+    metas = _engine().store.list_meetings()
+    rows = [json.loads(m.model_dump_json()) for m in metas]
+    rows.sort(key=lambda m: m.get("created_at") or "", reverse=True)
+    rows = rows[: max(1, int(limit))]
+    return ok_envelope(
+        state, {"count": len(rows), "meetings": rows},
+        "심의 목록이다. meeting_status 로 진행 현황을, meeting_minutes 로 회의록을 읽어라.",
+    )
+
+
+@mcp.tool()
+def meeting_minutes(meeting_id: str) -> dict:
+    """폐회한 심의의 회의록(minutes.md) 원문을 반환한다."""
+    state = get_session()
+    try:
+        d = _engine().store.find_dir(meeting_id)
+    except (FileNotFoundError, ValueError) as exc:
+        return error_envelope(state, "NOT_FOUND", str(exc),
+                              "meeting_list 로 저장된 회의 id 를 확인하라.", meeting_id)
+    path = d / "minutes.md"
+    if not path.is_file():
+        return error_envelope(
+            state, "MINUTES_NOT_READY", "회의록이 아직 없다 — 폐회 전이다.",
+            "meeting_close 를 먼저 호출하라.", meeting_id,
+        )
+    return ok_envelope(
+        state,
+        {"meeting_id": meeting_id, "path": str(path),
+         "markdown": path.read_text(encoding="utf-8")},
+        "회의록이다. 결정·미해결 쟁점이 문서 부록과 시나리오 근거의 원천이다.",
+        meeting_id,
+    )
+
+
+@mcp.tool()
 def scene_list(run_id: str) -> dict:
     """씬 목록(name/tpl/dur/내레이션·데이터 요약)을 반환한다 — 핀포인트 수정의 탐색 진입점.
 

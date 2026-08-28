@@ -30,6 +30,10 @@ EXPECTED_TOOLS = {
     "scene_html",
     "scene_still",
     "scenario_patch",
+    # 카탈로그·회의 열람 3종 — 웹 창구에만 있던 능력을 MCP 에도 (기능 대칭)
+    "module_list",
+    "meeting_list",
+    "meeting_minutes",
 }
 
 
@@ -53,7 +57,7 @@ def test_stdio_server_lists_all_tools_and_returns_envelope(tmp_path: Path):
 
                 tools = await session.list_tools()
                 names = {t.name for t in tools.tools}
-                assert names == EXPECTED_TOOLS, f"툴 16종 정확 노출 실패: {sorted(names)}"
+                assert names == EXPECTED_TOOLS, f"툴 19종 정확 노출 실패: {sorted(names)}"
 
                 # participants 미명시 → 오류 봉투 (예외 전파가 아니라 구조화 응답)
                 res = await session.call_tool(
