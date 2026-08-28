@@ -417,9 +417,26 @@ def apply_patch_to_run(run: dict, ops: list[dict]) -> dict:
     scenario = json.loads(scen_path.read_text(encoding="utf-8"))
 
     patched, diffs = patch_scenario(scenario, ops)  # PatchError 시 여기서 중단 (원본 무손상)
-    doc = ScenarioDoc.model_validate(patched)
-
     scen_path.write_text(json.dumps(patched, ensure_ascii=False, indent=2), encoding="utf-8")
+    return {"applied": diffs, **rebuild_run(run)}
+
+
+def rebuild_run(run: dict) -> dict:
+    """디스크의 scenario.json 으로 렌더 패키지를 다시 굽고 원장을 갱신한다.
+
+    핀포인트 패치와 심의 시나리오가 같은 마무리를 쓴다 — 심의로 시나리오를 만들어도
+    이 단계를 밟지 않으면 실행의 build 는 옛 시나리오 그대로라 렌더에 반영되지 않는다.
+    """
+    from wdpipeline.build import build_render_package
+
+    from wdcore.models.scenario import ScenarioDoc
+
+    run_id = run["run_id"]
+    scen_path = data_dir() / "pipeline" / run_id / "scenario.json"
+    if not scen_path.is_file():
+        raise FileNotFoundError(f"scenario.json 이 없다: {scen_path}")
+    doc = ScenarioDoc.model_validate(json.loads(scen_path.read_text(encoding="utf-8")))
+
     build_dir = Path(run["build_dir"]) if run.get("build_dir") else data_dir() / "build" / run["slug"]
     entry = Path(build_render_package(doc, build_dir))
     summary = {
@@ -430,4 +447,4 @@ def apply_patch_to_run(run: dict, ops: list[dict]) -> dict:
     runledger.update_run(
         run_id, build_dir=str(entry.parent), entry=entry.name, scenario_summary=summary,
     )
-    return {"applied": diffs, "rebuilt": True, "scenario_summary": summary}
+    return {"rebuilt": True, "scenario_summary": summary}

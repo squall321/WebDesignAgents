@@ -978,6 +978,14 @@ $('meeting-new-btn').addEventListener('click', async () => {
   form.hidden = !form.hidden;
   if (form.hidden) return;
   $('mt-topic').focus();
+  // 대상 실행 — 조각([F#] 근거)의 출처다. 연결해야 심의가 보고서를 인용할 수 있다.
+  try {
+    const runs = (await api('api/runs')).runs || [];
+    const sel = $('mt-run');
+    sel.innerHTML = '<option value="">연결 안 함 — 조각 근거 없이 심의만</option>'
+      + runs.filter((r) => r.status === 'done')
+            .map((r) => `<option value="${esc(r.run_id)}">${esc(r.slug || r.run_id)}</option>`).join('');
+  } catch (_) { /* 실행 목록은 선택 사항 */ }
   const box = $('mt-personas');
   if (box.dataset.loaded) return;
   try {
@@ -1014,7 +1022,10 @@ $('meeting-new').addEventListener('submit', async (e) => {
   try {
     const data = await api('api/meetings', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ topic, type: $('mt-type').value, participants }),
+      body: JSON.stringify({
+        topic, type: $('mt-type').value, participants,
+        run_id: $('mt-run').value || null,
+      }),
     });
     $('meeting-new').hidden = true;
     announce('심의를 개회했습니다.');
@@ -1057,7 +1068,11 @@ async function selectMeeting(id) {
   const meta = meetingsCache.find((m) => m.id === id) || {};
   const body = $('minutes-body');
   const closed = meta.status === 'closed';
-  $('meeting-actions').hidden = closed;
+  // 폐회 뒤에도 액션 줄은 남는다 — 심의 결과를 시나리오로 넘기는 게 여기서 끝나는 일이다
+  $('meeting-actions').hidden = false;
+  $('mt-autorun').hidden = closed;
+  $('mt-close').hidden = closed;
+  $('mt-scenario').hidden = !closed;
   $('meeting-state').hidden = true;
   if (!closed) {
     try {
@@ -1079,27 +1094,78 @@ async function selectMeeting(id) {
   }
 }
 
+// 자율 실행은 LLM 턴이 수십 번이라 백그라운드 잡이다 — 시작 요청은 즉시 돌아오고 폴링한다
+let autorunTimer = null;
+
+async function pollAutorun(id) {
+  try {
+    const st = await api('api/meetings/' + encodeURIComponent(id) + '/autorun');
+    const note = $('autorun-note');
+    if (st.status === 'running') {
+      if (note) note.textContent = '심의 진행 중… 라운드를 완주하면 회의록이 생성됩니다.';
+      try { renderMeetingState(await api('api/meetings/' + encodeURIComponent(id))); } catch (_) {}
+      return;
+    }
+    clearInterval(autorunTimer); autorunTimer = null;
+    $('mt-autorun').disabled = false;
+    if (st.status === 'failed') {
+      $('meeting-state').insertAdjacentHTML('beforeend',
+        `<p class="form-error">자율 실행에 실패했습니다: ${esc(st.error || '')} — `
+        + `vLLM(GLM) 설정을 확인하거나 MCP 창구에서 직접 발언하세요.</p>`);
+      return;
+    }
+    announce('심의를 완주했습니다.');
+    await loadMeetings();
+    await selectMeeting(id);
+  } catch (e) {
+    clearInterval(autorunTimer); autorunTimer = null;
+    $('mt-autorun').disabled = false;
+  }
+}
+
 $('mt-autorun').addEventListener('click', async () => {
   if (!currentMeetingId) return;
   const btn = $('mt-autorun');
   btn.disabled = true;
-  const prev = btn.textContent;
-  btn.textContent = '심의 중…';
   try {
     await api('api/meetings/' + encodeURIComponent(currentMeetingId) + '/autorun', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({}),
     });
-    announce('심의를 완주했습니다.');
-    await loadMeetings();
-    await selectMeeting(currentMeetingId);
+    $('meeting-state').insertAdjacentHTML('beforeend',
+      '<p class="ms-note" id="autorun-note">심의를 시작했습니다…</p>');
+    if (autorunTimer) clearInterval(autorunTimer);
+    autorunTimer = setInterval(() => pollAutorun(currentMeetingId), 2000);
+  } catch (e) {
+    btn.disabled = false;
+    $('meeting-state').insertAdjacentHTML('beforeend',
+      `<p class="form-error">자율 실행을 시작하지 못했습니다: ${esc(e.message)}</p>`);
+  }
+});
+
+$('mt-scenario').addEventListener('click', async () => {
+  if (!currentMeetingId) return;
+  const btn = $('mt-scenario');
+  btn.disabled = true;
+  try {
+    const data = await api('api/meetings/' + encodeURIComponent(currentMeetingId) + '/scenario', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}),
+    });
+    const rb = data.rebuild || {};
+    if (rb.rebuilt) {
+      announce('심의 시나리오를 실행에 반영했습니다. 생성 탭에서 렌더할 수 있습니다.');
+      switchTab('create');
+      await openRun(data.run_id);
+    } else {
+      $('meeting-state').insertAdjacentHTML('beforeend',
+        `<p class="form-error">시나리오는 만들었지만 반영하지 못했습니다: `
+        + `${esc(rb.error || rb.note || '대상 실행이 없습니다')}</p>`);
+    }
   } catch (e) {
     $('meeting-state').insertAdjacentHTML('beforeend',
-      `<p class="form-error">자율 실행에 실패했습니다: ${esc(e.message)} — `
-      + `vLLM(GLM) 설정을 확인하거나 MCP 창구에서 직접 발언하세요.</p>`);
+      `<p class="form-error">시나리오를 만들지 못했습니다: ${esc(e.message)}</p>`);
   } finally {
     btn.disabled = false;
-    btn.textContent = prev;
   }
 });
 

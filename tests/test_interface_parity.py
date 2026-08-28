@@ -106,3 +106,30 @@ def test_run_artifact_paths_cover_documents():
     for kind in ("html", "pdf", "docx"):
         assert kind in kinds, f"artifact_paths 에 {kind} 가 없다"
         assert kind in _DOWNLOAD_META, f"_DOWNLOAD_META 에 {kind} 가 없다"
+
+
+def test_autorun_does_not_block_the_request():
+    """자율 심의는 백그라운드 잡이어야 한다 — 시작(POST)과 조회(GET)가 갈려 있는지 본다."""
+    routes = _web_routes()
+    assert ("POST", "/api/meetings/{meeting_id}/autorun") in routes
+    assert ("GET", "/api/meetings/{meeting_id}/autorun") in routes
+
+    from wdweb import deliberation
+
+    assert hasattr(deliberation, "start_autorun")
+    assert hasattr(deliberation, "autorun_state")
+
+
+def test_run_result_serialization_survives_dataclass_and_path():
+    """RunResult 는 데이터클래스이고 minutes_path 는 Path 다 — 둘 다 dict() 로는 안 된다(실측)."""
+    import json
+    from pathlib import Path as P
+
+    from wdllm.orchestrator import RunResult
+    from wdweb.deliberation import _as_json
+
+    out = _as_json(RunResult(meeting_id="m", status="closed", turns_submitted=3,
+                             minutes_path=P("/tmp/x/minutes.md")))
+    assert out["turns_submitted"] == 3
+    assert isinstance(out["minutes_path"], str)
+    json.dumps(out)  # 봉투에 실리려면 JSON 이어야 한다

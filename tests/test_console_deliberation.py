@@ -48,3 +48,15 @@ def test_console_offers_document_outputs():
     for kind in ("html", "pdf", "docx"):
         assert f"add('{kind}'" in APP_JS, f"다운로드 목록에 {kind} 가 없다"
     assert "doc_style" in APP_JS, "콘솔이 문체를 보내지 않는다"
+
+
+@pytest.mark.parametrize("element_id", ["mt-run", "mt-scenario"])
+def test_console_closes_the_loop(element_id):
+    """심의로 만든 시나리오가 렌더까지 못 가면 심의 화면은 장식이다."""
+    assert f'id="{element_id}"' in INDEX, f"콘솔에 {element_id} 가 없다"
+
+
+def test_autorun_is_polled_not_awaited():
+    """전 라운드 완주는 LLM 턴이 수십 번 — 동기 요청이면 프록시 타임아웃에 먼저 걸린다."""
+    assert "pollAutorun" in APP_JS
+    assert "api/meetings/' + encodeURIComponent(id) + '/autorun'" in APP_JS

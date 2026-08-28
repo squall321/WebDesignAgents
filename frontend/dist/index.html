@@ -257,6 +257,12 @@
               <option value="format_review">포맷 심의</option>
             </select>
           </label>
+          <label class="field">
+            <span class="field-k">대상 실행 (선택)</span>
+            <select id="mt-run">
+              <option value="">연결 안 함 — 조각 근거 없이 심의만</option>
+            </select>
+          </label>
           <fieldset class="field">
             <legend class="field-k">참가 페르소나</legend>
             <div class="persona-pick" id="mt-personas">불러오는 중…</div>
@@ -276,6 +282,7 @@
           <div class="head-actions" id="meeting-actions" hidden>
             <button class="btn" id="mt-autorun" type="button">자율 실행</button>
             <button class="btn" id="mt-close" type="button">폐회</button>
+            <button class="btn primary" id="mt-scenario" type="button" hidden>시나리오 만들기</button>
           </div>
         </div>
         <div id="meeting-state" class="meeting-state" hidden aria-live="polite"></div>

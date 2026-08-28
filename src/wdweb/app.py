@@ -552,35 +552,65 @@ def post_close(meeting_id: str) -> dict:
 
 @app.post("/api/meetings/{meeting_id}/scenario")
 def post_scenario(meeting_id: str, body: dict | None = Body(default=None)) -> dict:
-    """심의 산출물 → 시나리오 초안 (scenario_build 사영). body: {run_id?, format?}"""
+    """심의 산출물 → 시나리오 (scenario_build 사영) + 그 실행의 렌더 패키지 재빌드.
+
+    body: {run_id?, format?}. 재빌드까지 해야 루프가 닫힌다 — scenario.json 만 갈아두면
+    실행의 build 는 옛 시나리오 그대로라 렌더·문서에 심의 결과가 반영되지 않는다.
+    """
     body = body or {}
     kwargs: dict = {}
     for key in ("run_id", "format"):
         if body.get(key):
             kwargs[key] = body[key]
-    return _tool("scenario_build", meeting_id=meeting_id, **kwargs)
+    out = _tool("scenario_build", meeting_id=meeting_id, **kwargs)
+    rid = (out.get("data") or {}).get("run_id")
+    run = runledger.read_run(rid) if rid else None
+    if run is not None:
+        from . import scenes as sceneops
+
+        try:
+            out["data"]["rebuild"] = sceneops.rebuild_run(run)
+        except (FileNotFoundError, ValueError) as exc:
+            out["data"]["rebuild"] = {"rebuilt": False, "error": f"{type(exc).__name__}: {exc}"}
+    else:
+        out["data"]["rebuild"] = {
+            "rebuilt": False,
+            "note": "웹 실행 원장에 없는 run 이다 — 콘솔에서 만든 실행에 연결하면 재빌드된다.",
+        }
+    return out
 
 
 @app.post("/api/meetings/{meeting_id}/autorun", status_code=status.HTTP_202_ACCEPTED)
 def post_autorun(meeting_id: str, body: dict | None = Body(default=None)) -> JSONResponse:
-    """vLLM(GLM)이 전 라운드를 무인 완주한다. body: {max_turns?, run_id?}
+    """vLLM(GLM) 무인 완주를 백그라운드로 시작한다. body: {max_turns?, run_id?}
 
     브라우저에는 페르소나를 연기할 주체가 없다 — MCP 는 클라이언트가 연기하지만
     웹은 이 경로(PLAN 경로 B)로 같은 엔진 위에서 심의를 돌린다.
+    전 라운드 완주는 LLM 턴이 수십 번이라 동기 요청으로는 프록시 타임아웃에 걸린다.
     """
-    body = body or {}
-    from wdweb.deliberation import autonomous_run
+    from wdweb.deliberation import start_autorun
 
+    body = body or {}
     try:
-        result = autonomous_run(
-            meeting_id, max_turns=body.get("max_turns"), run_id=body.get("run_id")
-        )
+        state = start_autorun(meeting_id, max_turns=body.get("max_turns"),
+                              run_id=body.get("run_id"))
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except Exception as exc:  # LLM 미설정·연결 실패를 사유째 올린다
-        raise HTTPException(status_code=502, detail=f"{type(exc).__name__}: {exc}") from exc
+    except RuntimeError as exc:  # 이미 진행 중
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     return JSONResponse(status_code=status.HTTP_202_ACCEPTED,
-                        content=envelope(result, message="심의를 실행했습니다"))
+                        content=envelope(state, message="심의를 시작했습니다"))
+
+
+@app.get("/api/meetings/{meeting_id}/autorun")
+def get_autorun(meeting_id: str) -> dict:
+    """자율 심의 진행 상태 — 콘솔이 폴링한다."""
+    from wdweb.deliberation import autorun_state
+
+    state = autorun_state(meeting_id)
+    if state is None:
+        raise HTTPException(status_code=404, detail="이 심의에는 자율 실행 기록이 없습니다")
+    return envelope(state)
 
 
 # ── 모듈 갤러리 ──────────────────────────────────────────────────────────────
