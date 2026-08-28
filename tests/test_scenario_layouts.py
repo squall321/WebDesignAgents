@@ -267,4 +267,8 @@ def test_layout_fit_record_matches_thresholds():
     if "render" in rec:
         assert rec["render"]["qa_passed"] is True
         stills = REPO_ROOT / "data" / "quality_compare" / "layouts"
+        # 스틸 PNG 는 용량 때문에 버전 관리하지 않는다 — 없으면 이 단언만 건너뛴다.
+        # 위의 수치 기록(reach·placed·qa_passed) 검사는 그대로 돈다.
+        if not stills.is_dir():
+            pytest.skip("data/quality_compare/layouts 없음 — 렌더 스틸이 필요한 단언 (CI 에서는 건너뜀)")
         assert {p.stem.split("_", 1)[1] for p in stills.glob("*.png")} >= NEW_SHORTS

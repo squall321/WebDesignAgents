@@ -154,6 +154,10 @@ def test_tables_keep_original_row_count_when_truncated(doc: dict):
 # ── 심의 부록 ───────────────────────────────────────────────────────────
 
 
+@pytest.mark.skipif(
+    not (REPO_ROOT / "data" / "meetings").is_dir(),
+    reason="data/meetings 없음 — 회의록(부록 원천)이 필요한 검사 (CI 새 체크아웃에서는 건너뜀)",
+)
 def test_appendix_carries_deliberation_with_open_issues(doc: dict):
     delib = doc["appendix"]["deliberation"]
     assert delib["meeting_id"]
