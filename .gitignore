@@ -2,7 +2,32 @@
 __pycache__/
 *.pyc
 .env
-data/
+# data/ 가 아니라 data/* 다 — git 은 부모 디렉터리가 제외되면 자식을 되살리지 못한다.
+# 테스트 픽스처(JSON)만 예외로 추적한다. 통째로 무시하면 새 체크아웃(CI)에서 39건이
+# 실패·에러로 죽는다(2026-08-28 실측). 렌더 산출물(mp4·png·pptx)은 계속 무시한다.
+data/*
+!data/pipeline/
+data/pipeline/*
+!data/pipeline/short_v1/
+!data/pipeline/delib_v1/
+!data/pipeline/delib_v2/
+data/pipeline/*/*
+!data/pipeline/*/*.json
+!data/widget_check/
+data/widget_check/*
+!data/widget_check/*.json
+!data/widget_check/*.md
+!data/widget_check/*.py
+!data/widget_check/assets/
+!data/layout_check/
+data/layout_check/*
+!data/layout_check/*.json
+!data/layout_check/*.py
+!data/layout_check/formats/
+!data/layout_check/formats_quad/
+!data/quality_compare/
+data/quality_compare/*
+!data/quality_compare/*.json
 var/
 node_modules/
 .bkit/
@@ -11,3 +36,4 @@ node_modules/
 
 # SIF 산출물 (603MB — Drive/레지스트리로 배포)
 deploy/apptainer/*.sif
+

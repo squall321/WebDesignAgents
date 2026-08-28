@@ -26,6 +26,19 @@ FORMATS = REPO_ROOT / "formats"
 # ── 실물 포맷: 경험이 실제로 채워졌는가 ─────────────────────────────────
 
 
+# 실제 산출물(시나리오·렌더·QA 리포트)은 data/(gitignore) 에 있다 — 새 체크아웃(CI)에는 없다.
+# 건너뛰되 조용히 넘어가지 않는다. 사유가 로그에 남아야 "검사했다" 는 착각을 막는다.
+needs_local_data = pytest.mark.skipif(
+    not (REPO_ROOT / "data" / "pipeline" / "short_v1" / "scenario.json").is_file(),
+    reason="시나리오 픽스처 없음 (CI 새 체크아웃에서는 건너뜀)",
+)
+# 렌더 산출물(mp4·pptx)과 QA 리포트는 용량 때문에 버전 관리하지 않는다.
+needs_render_data = pytest.mark.skipif(
+    not (REPO_ROOT / "data" / "renders").is_dir(),
+    reason="data/renders 없음 — 렌더 산출물이 필요한 검사 (CI 새 체크아웃에서는 건너뜀)",
+)
+
+
 def test_short_9x16_carries_the_short_v1_experience():
     """세로 숏폼 심의 19턴의 실측이 format.yaml 에 남아 있어야 한다."""
     spec = load_format("short-9x16")
@@ -71,6 +84,7 @@ def test_short_9x16_copy_guide_matches_vertical_schemas():
         assert node["maxLength"] == limit, f"{key} 가이드 {limit} ≠ 스키마 {node.get('maxLength')}"
 
 
+@needs_local_data
 def test_short_v1_scenario_obeys_its_own_presets():
     """골든 시나리오가 프리셋(구간 예산·자수 상한)을 실제로 지켰는가 — 프리셋이 사후 창작이 아님을 증명."""
     spec = load_format("short-9x16")
@@ -99,14 +113,18 @@ def test_short_v1_scenario_obeys_its_own_presets():
 
 def test_wide_16x9_carries_the_delib_v2_experience():
     spec = load_format("wide-16x9")
-    assert spec.status == "pilot"
+    # format_review(2026-08-28, 4인 14턴, Conditional-Go)로 active 승격됨
+    assert spec.status == "active"
     assert spec.usage_count == 2  # delib_v1 · delib_v2
     assert round(sum(spec.presets.dur_plan.values()), 2) == 78.0
     assert spec.golden.run_id == "delib_v2" and spec.golden.registered()
-    assert (REPO_ROOT / spec.golden.qa_report).is_file()
     assert any("dataviz" in t for t in spec.lessons)
+    # 파일 실재는 리포트가 있는 로컬에서만 확인할 수 있다 (data/qa_reports 는 버전 관리 밖)
+    if (REPO_ROOT / "data" / "qa_reports").is_dir():
+        assert (REPO_ROOT / spec.golden.qa_report).is_file()
 
 
+@needs_render_data
 def test_golden_artifacts_exist():
     """골든이 회귀 기준선이 되려면 파일이 실재해야 한다."""
     for fid in ("short-9x16", "wide-16x9"):
@@ -122,14 +140,20 @@ def test_usage_ledger_matches_usage_count():
         assert all(r["gate_errors"] == 0 for r in runs)
 
 
-def test_wide_active_promotion_blocked_by_missing_format_review():
-    """가로는 산출물 2건·골든 등록을 채웠고 남은 미충족은 format_review 하나뿐이다 (apply=False 로 판정만)."""
-    r = promote_format("wide-16x9", evidence={"verdicts": []}, apply=False)
+def test_active_promotion_blocked_by_missing_format_review(tmp_path: Path):
+    """심의 없이는 active 로 못 간다 — 다른 조건을 다 채워도 판정이 없으면 막힌다.
+
+    종전에는 wide-16x9 로 검증했으나 그 포맷이 실제로 승격돼(2026-08-28) 대상이 사라졌다.
+    승격 여부와 무관하게 규칙 자체를 보도록 샌드박스로 옮긴다.
+    """
+    root = _sandbox(tmp_path, status="pilot")
+    ev = {"runs": [{"run_id": "r1", "gate_errors": 0}, {"run_id": "r2", "gate_errors": 0}],
+          "verdicts": []}
+    r = promote_format("short-9x16", evidence=ev, formats_root=root, apply=False)
     assert r["target"] == "active" and r["promoted"] is False
     named = {c["name"]: c for c in r["checks"]}
-    assert named["산출물"]["ok"] and named["골든"]["ok"]
     assert named["format_review"]["ok"] is False
-    assert r["missing"] == [named["format_review"]["detail"]]
+    assert named["format_review"]["detail"] in r["missing"]
 
 
 # ── 승격 판정 규칙 (임시 포맷으로 격리 검증) ────────────────────────────
@@ -204,7 +228,11 @@ def test_pilot_to_active_needs_golden_and_format_review(tmp_path: Path):
 
 
 def test_pilot_to_active_succeeds_with_format_review_go(tmp_path: Path):
-    root = _sandbox(tmp_path, status="pilot")
+    # 승격 검사가 golden.qa_report 를 실제로 읽으므로 샌드박스도 리포트를 갖춰야 한다
+    rep = tmp_path / "qa.json"
+    rep.write_text(json.dumps({"summary": {"error": 0}}), encoding="utf-8")
+    root = _sandbox(tmp_path, status="pilot",
+                    golden={"run_id": "sbx", "artifacts": ["a"], "qa_report": str(rep)})
     ev = {
         "runs": [{"run_id": "r1", "gate_errors": 0}, {"run_id": "r2", "gate_errors": 0}],
         "verdicts": [{"meeting_id": "m9", "type": "format_review", "verdict": "Go"}],
@@ -334,3 +362,67 @@ def test_format_review_matches_design_review_shape():
     assert [(r.name, r.speaker_order, r.cycles, r.citation_required) for r in got] == [
         (r.name, r.speaker_order, r.cycles, r.citation_required) for r in base
     ]
+
+
+# ── format_review(2026-08-28, wide-16x9) 가 요구한 승격 검사 ──────────────────
+
+
+def test_no_format_declares_a_min_font_below_the_gate():
+    """명세가 게이트보다 낮은 하한을 적으면, 그걸 믿고 만든 사람이 전량 error 를 맞는다.
+
+    등호가 아니라 부등호다 — 장르가 스스로 더 엄격해지는 것은 막을 이유가 없다.
+    실제로 deck-4x3·deck-doc-16x9 가 근거 없이 21 을 적고 있었다(이 검사가 찾아냈다).
+    """
+    from wdpipeline.format import list_formats, load_format
+    from wdqa.config import QAConfig
+
+    gate = QAConfig().min_font_px
+    bad = {
+        fid: load_format(fid).constraints.min_font
+        for fid in list_formats()
+        if load_format(fid).constraints.min_font < gate
+    }
+    assert not bad, f"게이트({gate:.0f}px)보다 낮은 min_font 를 적은 포맷: {bad}"
+
+
+def test_active_promotion_runs_spec_consistency_checks():
+    """조건은 검사되지 않으면 조건이 아니다 — 세 등식이 승격 판정에 실제로 실린다."""
+    from wdpipeline.format import load_format, promote_format
+
+    spec = load_format("short-9x16")
+    assert spec.status == "pilot", "이 검사는 pilot→active 경로를 본다"
+    r = promote_format("short-9x16", evidence={}, apply=False)
+    names = {c["name"] for c in r["checks"]}
+    assert {"최소폰트", "구간예산", "골든 QA"} <= names, f"승격 검사에 등식이 없다: {names}"
+
+
+def test_wide_16x9_is_active_with_the_deliberation_on_record():
+    """승격은 심의 판정으로만 일어난다 — 근거 회의가 회의록으로 남아 있어야 한다."""
+    from pathlib import Path
+
+    from wdpipeline.format import load_format
+
+    spec = load_format("wide-16x9")
+    assert spec.status == "active"
+    assert spec.constraints.min_font == 24 and spec.constraints.icon_font == 17, (
+        "한 필드에 최소값과 아이콘 크기를 다시 섞지 마라"
+    )
+    # 회의록은 data/(gitignore) 라 다른 체크아웃에 없다 — 근거는 명세에 남아야 검증된다
+    pr = [x for x in spec.promotions if x.to == "active"]
+    assert pr, "active 승격 이력이 없다 — 근거가 사라졌다"
+    assert pr[0].meeting_id and pr[0].verdict, f"승격 근거가 비었다: {pr[0]}"
+
+
+def test_dur_plan_stays_inside_the_duration_window():
+    """dur_plan 이 duration 범위 밖이면 예산과 목표가 서로를 부정한다."""
+    from wdpipeline.format import list_formats, load_format
+
+    for fid in list_formats():
+        spec = load_format(fid)
+        plan = spec.presets.dur_plan or {}
+        if not plan:
+            continue
+        total = sum(plan.values())
+        assert spec.duration.min <= total <= spec.duration.max, (
+            f"{fid}: Σdur_plan {total} ∉ [{spec.duration.min}, {spec.duration.max}]"
+        )

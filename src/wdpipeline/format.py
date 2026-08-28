@@ -136,10 +136,33 @@ class FormatPptx(StrictModel):
 
 
 class FormatConstraints(StrictModel):
-    """무대 공통 제약 — QA 게이트/템플릿 설계의 하한선(서술값)."""
+    """무대 공통 제약.
+
+    ⚠ 여기 세 필드는 성격이 다르다 — format_review(2026-08-28) 가 분리를 요구한 이유다.
+      · min_font   — **강제됨**. 게이트 4 가 이 하한을 실측으로 검사한다.
+      · icon_font  — 서술. data-qa-icon 으로 게이트 4 에서 면제되는 아이콘 글자 크기.
+      · safe_margin— 서술. layout.marginX. 게이트의 safe_margin_px(허용 오차)와 다른 것을 잰다.
+    종전에는 min_font 하나에 최소값과 아이콘 크기가 섞여 17 이 적혀 있었다. 그 값을 하한선으로
+    읽은 사람은 게이트 4(24px)에 전량 걸린다.
+    """
 
     min_font: int = Field(default=0, ge=0)
+    icon_font: int = Field(default=0, ge=0, description="게이트 4 면제 대상 아이콘 글자 크기 (서술)")
     safe_margin: int = Field(default=0, ge=0)
+
+
+class FormatPromotion(StrictModel):
+    """승격 1건의 감사 기록 — 누가 무엇을 근거로 이 상태를 올렸나.
+
+    회의록은 data/(gitignore) 에 있어 다른 사람 손에 없다. 승격이 검증 가능하려면
+    최소한 무엇이 근거였는지가 **명세와 함께** 남아야 한다.
+    """
+
+    to: str = Field(description="승격된 상태 (pilot|active)")
+    meeting_id: str = ""
+    verdict: str = ""
+    date: str = Field(default="", description="YYYY-MM-DD")
+    note: str = ""
 
 
 class FormatOrigin(StrictModel):
@@ -218,6 +241,9 @@ class FormatSpec(StrictModel):
     presets: FormatPresets = Field(default_factory=FormatPresets)
     golden: FormatGolden = Field(default_factory=FormatGolden)
     lessons: list[str] = Field(default_factory=list, description="심의가 남긴 교훈 — 다음 회의가 인용한다")
+    promotions: list[FormatPromotion] = Field(
+        default_factory=list, description="승격 이력 — 근거 회의·판정. 회의록은 data/ 라 여기 남긴다"
+    )
 
     @model_validator(mode="before")
     @classmethod
@@ -667,6 +693,59 @@ def _verdict_check(verdicts: list[dict], *, meeting_types: frozenset[str], label
     return _check(label, False, f"{label} 없음 — {need} 심의를 열고 판정을 evidence.verdicts 로 제출하라")
 
 
+def _spec_consistency_checks(spec) -> list[dict]:
+    """명세가 실제 강제값과 어긋나지 않는지 — active 승격 전용 등식 3개.
+
+    active 는 다음 사람이 의심 없이 집어 쓰는 기본값이다. 그 문서가 게이트와 다른 숫자를
+    말하면, 그것을 믿고 만든 사람이 게이트에 걸리고도 명세가 아니라 게이트를 의심한다.
+    """
+    from wdqa.config import QAConfig
+
+    out: list[dict] = []
+    gate_min = QAConfig().min_font_px
+
+    # 1) 등호가 아니라 부등호다. 게이트의 값은 WCAG 근거의 하한선이고 명세는 장르 편의
+    #    문서다 — 어긋났을 때 명세를 낮춰 "일치" 시키면 등식은 만족하며 접근성은 무너진다.
+    #    장르가 스스로 더 엄격해지는 것(더 큰 값)은 막을 이유가 없다.
+    mf = spec.constraints.min_font
+    out.append(_check(
+        "최소폰트", mf >= gate_min,
+        f"constraints.min_font {mf} vs 게이트 하한 {gate_min:.0f}"
+        + ("" if mf >= gate_min
+           else f" — 명세가 게이트보다 낮다. {gate_min:.0f} 이상으로 올려라"
+                " (면제되는 아이콘 크기는 icon_font 에 적는다)"),
+    ))
+
+    # 2) dur_plan 이 있으면 그것이 target 을 지배한다 — 최소한 duration 범위 안이어야 한다.
+    plan = spec.presets.dur_plan or {}
+    if plan:
+        total = sum(plan.values())
+        ok = spec.duration.min <= total <= spec.duration.max
+        out.append(_check(
+            "구간예산", ok,
+            f"Σdur_plan {total:.1f}s vs duration {spec.duration.min:.0f}~{spec.duration.max:.0f}s"
+            + ("" if ok else " — 예산 합이 허용 범위 밖이다"),
+        ))
+
+    # 3) 골든의 qa_report 를 실제로 열어 본다. 지금까지는 아무도 열지 않았다.
+    rep = spec.golden.qa_report
+    if rep:
+        path = Path(rep)
+        if not path.is_absolute():
+            path = _REPO_ROOT / rep
+        if not path.is_file():
+            out.append(_check("골든 QA", False, f"qa_report 파일 없음: {rep}"))
+        else:
+            try:
+                summary = json.loads(path.read_text(encoding="utf-8")).get("summary") or {}
+                errs = int(summary.get("error") or 0)
+                out.append(_check("골든 QA", errs == 0,
+                                  f"골든 qa_report error {errs}건 / 허용 0건"))
+            except (ValueError, OSError) as exc:
+                out.append(_check("골든 QA", False, f"qa_report 를 읽을 수 없다: {exc}"))
+    return out
+
+
 def promote_format(
     format_id: str,
     *,
@@ -714,6 +793,9 @@ def promote_format(
         checks.append(_check("골든", spec.golden.registered(),
                              f"골든 run_id={spec.golden.run_id or '(미등록)'} · 산출물 {len(spec.golden.artifacts)}건"
                              + ("" if spec.golden.registered() else " — golden.run_id 와 artifacts 를 채워라")))
+        # A3(format_review 2026-08-28) — 조건은 검사되지 않으면 조건이 아니다.
+        # 아래 셋은 파일을 읽어 숫자를 비교할 뿐이라 렌더가 필요 없다.
+        checks.extend(_spec_consistency_checks(spec))
         checks.append(_verdict_check(verdicts, meeting_types=frozenset({"format_review"}), label="format_review"))
 
     missing = [c["detail"] for c in checks if not c["ok"]]

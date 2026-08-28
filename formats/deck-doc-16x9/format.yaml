@@ -22,7 +22,10 @@ narration: { enabled: false, rate: 5.5 }   # 낭독 없음 — 읽는 자료다
 outputs: [pptx]
 pptx: { slide_w_in: 13.333, slide_h_in: 7.5 }      # PowerPoint 표준 16:9
 # 실측값 — safe_margin = min(mx 119, my 81), min_font = 쪽번호·꼬리말 0.020×1080 = 21.6px
-constraints: { min_font: 21, safe_margin: 81 }
+# min_font 는 게이트 4 가 실측으로 강제한다 — 포맷과 무관하게 24px 이다.
+# 종전 21 은 근거 없이 게이트보다 낮았고, 그대로 믿고 만들면 전량 error 가 난다
+# (wide-16x9 format_review 2026-08-28 이 도입한 승격 검사가 찾아냈다).
+constraints: { min_font: 24, safe_margin: 81 }
 theme: hwax-blue
 
 status: draft

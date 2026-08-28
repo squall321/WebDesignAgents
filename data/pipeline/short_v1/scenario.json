@@ -1,0 +1,191 @@
+{
+  "version": "1.0",
+  "format": "short-9x16",
+  "meta": {
+    "core_message": "복사하지 말고 연결하라 — 원본을 게시하면 주간보고 취합이 따라온다.",
+    "audience": "보고서를 직접 쓰는 실무자 (모바일 피드)",
+    "duration_sec": 46.0,
+    "tone": "숏폼 직설",
+    "meeting_id": "67bd5d0d-e44f-47f1-bc80-d9fa1c10e5ea",
+    "source_report_id": null
+  },
+  "content": {
+    "hook": {
+      "kicker": "60초 브리핑",
+      "line": {
+        "accent": "최신본",
+        "post": "이 어디 있습니까"
+      },
+      "focus": {
+        "label": "리포트아카이브",
+        "word": "원본 하나",
+        "caption": "사본을 만들지 않습니다"
+      },
+      "hint": {
+        "text": "60초 안에 정리해 드립니다",
+        "beats": [
+          "문제",
+          "해법",
+          "근거",
+          "시작"
+        ]
+      }
+    },
+    "problem": {
+      "kicker": "매주 반복되는 일",
+      "title": "왜 매주 같은 일을 하나",
+      "tone": "problem",
+      "cards": [
+        {
+          "title": "최신본이 메일함에 숨는다",
+          "desc": "사본 넷 중 하나"
+        },
+        {
+          "title": "초안과 공식 보고가 한 곳에",
+          "desc": "공간이 나뉘지 않았다"
+        },
+        {
+          "title": "주간보고 취합이 손에 남았다",
+          "desc": "매주 같은 작업을 반복한다"
+        }
+      ],
+      "conclusion": "일은 작성이 아니라 취합이다",
+      "frame": {
+        "brand": "리포트아카이브",
+        "idx": 2,
+        "total": 5
+      }
+    },
+    "solution": {
+      "kicker": "해법은 하나",
+      "title": "복사하지 말고 연결한다",
+      "tone": "solution",
+      "cards": [
+        {
+          "title": "보고서는 내 공간에서 태어난다",
+          "desc": "초안과 공식이 갈린다"
+        },
+        {
+          "title": "게시해도 사본이 생기지 않는다",
+          "desc": "원본이 그대로 걸린다"
+        },
+        {
+          "title": "주간보고가 게시물을 묶는다",
+          "desc": "본부 종합보고로 오른다"
+        }
+      ],
+      "conclusion": "고치면 게시판에 바로 반영",
+      "frame": {
+        "brand": "리포트아카이브",
+        "idx": 3,
+        "total": 5
+      }
+    },
+    "proof": {
+      "kicker": "숫자로 확인",
+      "title": "게시와 잠금은 이미 끝났다",
+      "label": "게시·작성자 잠금 구축률",
+      "value": "100",
+      "unit": "%",
+      "delta": {
+        "dir": "up",
+        "tone": "good",
+        "text": "편집권 판정 70%"
+      },
+      "evidence": "사본 없는 게시와 잠금이 지금 돌아갑니다",
+      "source": "의사결정 4건 확정 2026-05-25",
+      "frame": {
+        "brand": "리포트아카이브",
+        "idx": 4,
+        "total": 5
+      }
+    },
+    "cta": {
+      "kicker": "다음 주간보고부터",
+      "headline": {
+        "pre": "이제 ",
+        "accent": "취합",
+        "post": "을 넘기세요"
+      },
+      "sub": "보고서는 한 번만 쓰고 나머지는 시스템이 합니다",
+      "entries": [
+        {
+          "text": "내 공간에서 써보기",
+          "kind": "primary"
+        },
+        {
+          "text": "팀 게시판에 올리기",
+          "kind": "secondary"
+        }
+      ],
+      "footnote": "2026-05-27 사용 설명서 기준"
+    }
+  },
+  "scenes": [
+    {
+      "name": "후킹",
+      "dur": 6.2,
+      "nat": 6.0,
+      "tpl": "hook@1",
+      "stills": [
+        4.4
+      ],
+      "data_ref": "content.hook",
+      "narration": "이번 주 최신본, 어디 있습니까. 리포트아카이브는 사본을 만들지 않습니다.",
+      "transition": "cut"
+    },
+    {
+      "name": "문제",
+      "dur": 11.2,
+      "nat": 12.0,
+      "tpl": "stack@1",
+      "stills": [
+        7.9
+      ],
+      "data_ref": "content.problem",
+      "narration": "메일함을 열어 보십시오. 사본이 네 개인데 어느 것이 최신입니까. 개인 초안과 공식 보고가 한 곳에 섞이고, 주간보고 취합은 매주 손에 남습니다.",
+      "transition": "cut"
+    },
+    {
+      "name": "해법",
+      "dur": 11.6,
+      "nat": 12.0,
+      "tpl": "stack@1",
+      "stills": [
+        7.9
+      ],
+      "data_ref": "content.solution",
+      "narration": "방법은 하나입니다. 복사하지 말고 연결하십시오. 원본을 게시판에 걸면 고칠 때마다 그대로 반영되고, 주간보고는 그 게시물을 묶기만 하면 됩니다.",
+      "transition": "cut"
+    },
+    {
+      "name": "근거",
+      "dur": 9.6,
+      "nat": 10.0,
+      "tpl": "metric@1",
+      "stills": [
+        5.0
+      ],
+      "data_ref": "content.proof",
+      "narration": "숫자 하나만 보십시오. 사본 없는 게시와 작성자 잠금은 이미 백 퍼센트 가동 중이고, 편집권 판정은 칠십 퍼센트 지점입니다.",
+      "transition": "cut"
+    },
+    {
+      "name": "행동",
+      "dur": 7.4,
+      "nat": 8.0,
+      "tpl": "cta@1",
+      "stills": [
+        4.8
+      ],
+      "data_ref": "content.cta",
+      "narration": "오늘 쓰는 보고서부터 내 공간에서 시작해 보십시오. 게시만 하면 주간보고 취합은 따라옵니다.",
+      "transition": "cut"
+    }
+  ],
+  "tokens_theme": "hwax-blue",
+  "playback": {
+    "mode": "times",
+    "count": 1
+  }
+}

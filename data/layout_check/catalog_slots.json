@@ -1,0 +1,256 @@
+[
+  {
+    "template": "tpl.opening",
+    "slot": "title",
+    "min": null,
+    "max": null,
+    "text_max": null,
+    "labels": {}
+  },
+  {
+    "template": "tpl.problem",
+    "slot": "failures",
+    "min": 2,
+    "max": 4,
+    "text_max": null,
+    "labels": {}
+  },
+  {
+    "template": "tpl.concept",
+    "slot": "nodes",
+    "min": 4,
+    "max": 8,
+    "text_max": null,
+    "labels": {
+      "ini": 2,
+      "name": 12
+    }
+  },
+  {
+    "template": "tpl.process",
+    "slot": "steps",
+    "min": 3,
+    "max": 6,
+    "text_max": null,
+    "labels": {
+      "n": 4,
+      "name": 12,
+      "desc": 40
+    }
+  },
+  {
+    "template": "tpl.differentiator",
+    "slot": "flow",
+    "min": 1,
+    "max": 2,
+    "text_max": null,
+    "labels": {
+      "chip": 4,
+      "label": 16,
+      "quote": 40,
+      "tag": 24
+    }
+  },
+  {
+    "template": "tpl.proof",
+    "slot": "cases",
+    "min": 2,
+    "max": 3,
+    "text_max": null,
+    "labels": {
+      "rpt": 12,
+      "meta": 16,
+      "title": 24,
+      "desc": 70,
+      "badge": 24
+    }
+  },
+  {
+    "template": "tpl.closing",
+    "slot": "stats",
+    "min": 2,
+    "max": 3,
+    "text_max": null,
+    "labels": {
+      "v": 14,
+      "d": 24
+    }
+  },
+  {
+    "template": "tpl.dataviz",
+    "slot": "bars",
+    "min": 2,
+    "max": 5,
+    "text_max": null,
+    "labels": {
+      "label": 9,
+      "display": 7
+    }
+  },
+  {
+    "template": "tpl.timeline",
+    "slot": "milestones",
+    "min": 3,
+    "max": 6,
+    "text_max": null,
+    "labels": {
+      "date": 10,
+      "name": 14,
+      "desc": 34,
+      "tag": 6
+    }
+  },
+  {
+    "template": "tpl.compare",
+    "slot": "rows",
+    "min": 2,
+    "max": 4,
+    "text_max": null,
+    "labels": {
+      "aspect": 4,
+      "a": 44,
+      "b": 44
+    }
+  },
+  {
+    "template": "tpl.d-matrix",
+    "slot": "rows",
+    "min": 2,
+    "max": 8,
+    "text_max": null,
+    "labels": {
+      "label": 24
+    }
+  },
+  {
+    "template": "tpl.d-media",
+    "slot": "files",
+    "min": 1,
+    "max": 3,
+    "text_max": null,
+    "labels": {
+      "src": 200,
+      "caption": 18,
+      "alt": 80,
+      "source": 14,
+      "badge": 6
+    }
+  },
+  {
+    "template": "tpl.d-multi",
+    "slot": "series",
+    "min": 2,
+    "max": 4,
+    "text_max": null,
+    "labels": {
+      "name": 10
+    }
+  },
+  {
+    "template": "tpl.l-split",
+    "slot": "bullets",
+    "min": 3,
+    "max": 5,
+    "text_max": null,
+    "labels": {
+      "text": 40
+    }
+  },
+  {
+    "template": "tpl.l-split",
+    "slot": "visual.table.rows",
+    "min": 3,
+    "max": 6,
+    "text_max": null,
+    "labels": {
+      "label": 20
+    }
+  },
+  {
+    "template": "tpl.l-list",
+    "slot": "rows",
+    "min": 5,
+    "max": 8,
+    "text_max": null,
+    "labels": {
+      "num": 2,
+      "icon": 2,
+      "title": 30,
+      "desc": 100
+    }
+  },
+  {
+    "template": "tpl.l-tree",
+    "slot": "nodes",
+    "min": 3,
+    "max": 13,
+    "text_max": null,
+    "labels": {
+      "id": 60,
+      "label": 22,
+      "note": 13
+    }
+  },
+  {
+    "template": "tpl.l-quote",
+    "slot": "quote",
+    "min": null,
+    "max": null,
+    "text_max": 70,
+    "labels": {}
+  },
+  {
+    "template": "tpl.l-kpi",
+    "slot": "metrics",
+    "min": 4,
+    "max": 6,
+    "text_max": null,
+    "labels": {
+      "label": 14,
+      "value": 6,
+      "unit": 3
+    }
+  },
+  {
+    "template": "tpl.l-quad",
+    "slot": "items",
+    "min": 4,
+    "max": 10,
+    "text_max": null,
+    "labels": {
+      "label": 18,
+      "tone": 8
+    }
+  },
+  {
+    "template": "tpl.l-ba",
+    "slot": "before.items",
+    "min": 3,
+    "max": 5,
+    "text_max": null,
+    "labels": {
+      "text": 22
+    }
+  },
+  {
+    "template": "tpl.l-mix",
+    "slot": "table.rows",
+    "min": 3,
+    "max": 5,
+    "text_max": null,
+    "labels": {
+      "label": 13
+    }
+  },
+  {
+    "template": "tpl.l-mix",
+    "slot": "chart.bars",
+    "min": 3,
+    "max": 4,
+    "text_max": null,
+    "labels": {
+      "label": 18,
+      "display": 6
+    }
+  }
+]

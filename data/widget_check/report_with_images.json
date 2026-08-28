@@ -1,0 +1,69 @@
+{
+  "_type": "report_archive_draft_v1",
+  "title": "자산 참조 보고서",
+  "report_date": "2026-07-01",
+  "tags": [
+    "자산"
+  ],
+  "pages": [
+    {
+      "name": "1. 화면",
+      "extra_blocks": [
+        {
+          "id": "h1",
+          "type": "heading",
+          "props": {
+            "level": 1
+          }
+        },
+        {
+          "id": "img_hero",
+          "type": "image",
+          "props": {
+            "file_id": "f-hero"
+          }
+        },
+        {
+          "id": "img_diagram",
+          "type": "image",
+          "props": {
+            "file_id": "f-diagram"
+          }
+        },
+        {
+          "id": "img_logo",
+          "type": "image",
+          "props": {
+            "file_id": "f-logo"
+          }
+        },
+        {
+          "id": "img_missing",
+          "type": "image",
+          "props": {
+            "file_id": "f-nowhere"
+          }
+        }
+      ],
+      "content": {
+        "h1": {
+          "text": "자산 참조 보고서"
+        },
+        "img_hero": {
+          "caption": "히어로 이미지"
+        },
+        "img_diagram": {
+          "caption": "구조도"
+        },
+        "img_logo": {
+          "caption": "로고"
+        },
+        "img_missing": {
+          "caption": "빠진 그림"
+        }
+      },
+      "blocks_order": [],
+      "block_sections": {}
+    }
+  ]
+}

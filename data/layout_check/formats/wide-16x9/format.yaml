@@ -1,0 +1,32 @@
+# wide-16x9 발표 레이아웃 풀 오버라이드 — 배치 다양성 실증 전용 (WDA_FORMATS_ROOT 로 주입)
+#
+# 현행 formats/wide-16x9/format.yaml 과의 차이는 두 가지뿐이다.
+#   ① 골격이 7역할 → 11역할. 신규 레이아웃은 기존 역할을 뺏는 게 아니라 **자리가 없어
+#      버려지던 근거**(9쌍 키값 · 6열×8행 격자 · 15노드 위계)를 위한 자리를 새로 연다.
+#   ② 각 역할의 1순위를 신규 레이아웃으로 두고 기존 템플릿을 대안으로 남겼다 —
+#      구조 payload 가 없으면 _pick_module 이 알아서 기존 템플릿으로 떨어진다.
+# 이 파일은 병합 대상이 아니다. 본 formats/wide-16x9 에 무엇을 열지는 심의가 정한다.
+id: wide-16x9
+name_ko: 가로 브리핑 영상 (발표 레이아웃 풀)
+stage: { w: 1920, h: 1080 }
+duration: { target: 150, min: 20, max: 600 }
+skeleton:
+  [opening, problem, concept, detail, process, differentiator,
+   evidence, matrix, dashboard, verdict, closing]
+template_pool:
+  opening: [tpl.opening]
+  problem: [tpl.l-split, tpl.problem]          # 표/계열이 있으면 좌 설명 + 우 근거 2단
+  concept: [tpl.l-tree, tpl.concept]           # 위계면 트리, 동등하면 방사형
+  detail: [tpl.l-list, tpl.proof]              # 키값 5쌍 이상이면 목록형 상세
+  process: [tpl.process, tpl.timeline]
+  differentiator: [tpl.l-ba, tpl.compare, tpl.differentiator]
+  evidence: [tpl.proof]                        # 그룹 요약 표는 계속 proof 가 받는다
+  matrix: [tpl.l-mix, tpl.d-matrix, tpl.proof]  # 표+계열 동시면 혼합판
+  dashboard: [tpl.l-kpi, tpl.closing]          # 지표 4개 이상이면 계기판
+  verdict: [tpl.l-quote]                       # 결론 문장 각인 (구조 payload 무대응)
+  closing: [tpl.closing]
+narration: { enabled: true, rate: 5.5 }
+outputs: [video, pptx]
+pptx: { slide_w_in: 13.333, slide_h_in: 7.5 }
+constraints: { min_font: 17, safe_margin: 140 }
+theme: hwax-blue

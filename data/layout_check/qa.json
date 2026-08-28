@@ -1,0 +1,11 @@
+{
+  "passed": true,
+  "results": [],
+  "summary": {
+    "error": 0,
+    "warning": 0,
+    "info": 0,
+    "by_gate": {}
+  },
+  "report_path": "/home/koopark/claude/WebDesignAgents/data/qa_reports/20260729-040042-4f73fe/qa.json"
+}

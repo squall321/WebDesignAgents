@@ -1,0 +1,211 @@
+[
+  {
+    "module": "tpl.l-split",
+    "meeting_id": "4c808cd5-19f6-4c4c-abe1-b6b13cd08102",
+    "topic": "tpl.l-split 모듈 승격 심사 — 좌 설명 + 우 근거 2단",
+    "panel": [
+      "impl-technical-director",
+      "qa-consistency",
+      "mot-motion-director",
+      "vis-layout-grid",
+      "vis-typographer"
+    ],
+    "turns": 17,
+    "findings": [
+      "F3(minor) ratio enum 이 저작 전용 자유도인데 default 미선언 — 자동 경로는 항상 6:4",
+      "F1(major) conclusion 34자 슬롯에 '소결론'을 담을 수 없다 — 이름과 용량 불일치, 자동 경로는 출처 문구로 우회 중",
+      "F2(minor) 생략 표기 자리가 12자 하나뿐 — 열 생략과 행 생략이 동시에 나면 한쪽이 사라진다"
+    ],
+    "decision": "tpl.l-split — Conditional-Go (F1 해소 시 draft→pilot). 구조 매핑 도달 기여 확인: 표 1건이 none→ok",
+    "action_items": [
+      "F1: conclusion 을 tail 로 개명하고 '한 줄 꼬리표' 계약을 description 에 명시 (vis-typographer)",
+      "F2: 생략 표기 전용 필드 신설 — 열·행 생략이 서로를 지우지 않게 (vis-typographer)",
+      "F3: ratio default '6:4' 선언 (vis-typographer)",
+      "수정 후 게이트 7종 재실행 (impl-technical-director)"
+    ],
+    "open_issues": [
+      "표를 받는 씬 5개의 우선순위가 조립기 if/elif 에만 있다 — 포맷 풀 규약으로 올려야 한다"
+    ],
+    "minutes": "/home/koopark/claude/WebDesignAgents/data/meetings/20260729-032041_module_review_tpl-l-split-2_4c80/minutes.md"
+  },
+  {
+    "module": "tpl.l-list",
+    "meeting_id": "1255ab65-9e3d-4bb0-a423-a19b8786c473",
+    "topic": "tpl.l-list 모듈 승격 심사 — 목록형 상세 5~8행",
+    "panel": [
+      "impl-technical-director",
+      "qa-consistency",
+      "mot-motion-director",
+      "vis-layout-grid",
+      "vis-typographer"
+    ],
+    "turns": 17,
+    "findings": [
+      "F1(blocking) omitted 필드 부재 — 생략 표기가 타이틀 26자를 잠식한다. 같은 카탈로그의 l-tree·l-kpi·d-matrix 와 불일치",
+      "F2(minor) chip 은 구조 payload 로 채울 수 없다 — 자동 경로에서 우측 180px 상시 공백"
+    ],
+    "decision": "tpl.l-list — Conditional-Go (blocking F1 해소 시 draft→pilot). 키값 payload 도달 개선 확인: proof.cases split → l-list.rows",
+    "action_items": [
+      "F1: omitted 필드 신설 + 렌더 표기 (vis-typographer)",
+      "F2: chip 을 저작 전용으로 명시, 위젯 status 전달 시 자동 경로 개방 (vis-typographer)",
+      "필드 추가 후 픽스처 3종 갱신 + 게이트 재실행 (impl-technical-director)"
+    ],
+    "open_issues": [],
+    "minutes": "/home/koopark/claude/WebDesignAgents/data/meetings/20260729-032041_module_review_tpl-l-list-5-8_1255/minutes.md"
+  },
+  {
+    "module": "tpl.l-tree",
+    "meeting_id": "3b72d623-23f8-40f0-9c72-c05d37d2beb1",
+    "topic": "tpl.l-tree 모듈 승격 심사 — 계층 구조도",
+    "panel": [
+      "impl-technical-director",
+      "qa-consistency",
+      "mot-motion-director",
+      "vis-layout-grid"
+    ],
+    "turns": 14,
+    "findings": [
+      "F1(major) 가지당 리프 상한이 description 문구뿐 — 한 가지 8리프 입력이 스키마 유효이고 세로 예산을 깬다",
+      "F3(minor) concept 과의 payload 소유권이 스키마가 아니라 _assign 코드 순서로 결정된다",
+      "F2(minor) note 가 level 1 에서만 렌더되는데 스키마는 전 레벨 허용 — 리프 note 는 무언의 손실"
+    ],
+    "decision": "tpl.l-tree — Conditional-Go (F1 해소 시 draft→pilot). concept 대비 정보 보존 우위 실측: 엣지 0 → 11",
+    "action_items": [
+      "F1: 가지당 리프 초과분을 렌더가 omitted 로 계상 + '한 가지 8리프' 회귀 테스트 (vis-layout-grid · qa-consistency)",
+      "F2: level 2 에서 note 금지를 조건부 allOf 로 (vis-layout-grid)"
+    ],
+    "open_issues": [
+      "F3: concept 과의 graph payload 소유권 규약 — 포맷 풀 우선순위로 올릴지 조립기 규칙으로 둘지 미결"
+    ],
+    "minutes": "/home/koopark/claude/WebDesignAgents/data/meetings/20260729-032041_module_review_tpl-l-tree_3b72/minutes.md"
+  },
+  {
+    "module": "tpl.l-quote",
+    "meeting_id": "7f0970ca-e726-4696-af39-9f95c1279554",
+    "topic": "tpl.l-quote 모듈 승격 심사 — 핵심 문장 강조",
+    "panel": [
+      "impl-technical-director",
+      "qa-consistency",
+      "mot-motion-director",
+      "vis-layout-grid",
+      "narr-copywriter"
+    ],
+    "turns": 17,
+    "findings": [
+      "F1(minor) 각인 문장 선택 규칙이 조립기에만 있다 — 템플릿 계약에 '원문 문장만' 이 명시돼 있지 않다"
+    ],
+    "decision": "tpl.l-quote — Go (draft→pilot 승격 가능). blocking·major Finding 없음",
+    "action_items": [
+      "F1: '각인 문장은 원문에서만 온다' 를 module.yaml 계약과 카탈로그에 명시 (narr-copywriter)"
+    ],
+    "open_issues": [],
+    "minutes": "/home/koopark/claude/WebDesignAgents/data/meetings/20260729-032041_module_review_tpl-l-quote_7f09/minutes.md"
+  },
+  {
+    "module": "tpl.l-kpi",
+    "meeting_id": "bafc5ef9-2d1c-4dc8-a49d-5b4596a4de76",
+    "topic": "tpl.l-kpi 모듈 승격 심사 — 다지표 계기판",
+    "panel": [
+      "impl-technical-director",
+      "qa-consistency",
+      "mot-motion-director",
+      "vis-layout-grid",
+      "vis-dataviz"
+    ],
+    "turns": 17,
+    "findings": [
+      "F3(minor) value 6자 + 지수 금지 + 축약 단위 필드 부재 — 백만 단위 수치를 담을 방법이 스키마에 없다",
+      "F1(major) delta·spark 부재 시 타일 하단이 비어 68자 — 12씬 중 최소 밀도. 계기판의 존재 이유가 자동 경로에서 무너진다",
+      "F2(minor) label 14자 대비 원문 38자 — 앞머리 절단 규칙이 템플릿 계약이 아니라 조립기에 있다"
+    ],
+    "decision": "tpl.l-kpi — Conditional-Go (F1 해소 시 draft→pilot). 다지표 도달 개선 확인: closing.stats 3 → l-kpi.metrics 6 + omitted 1",
+    "action_items": [
+      "F1: delta·spark 부재 시 타일 높이 축소 레이아웃 (vis-dataviz)",
+      "F2: label '이름 — 설명' 관례 명시 + 앞머리 규칙 카탈로그 이관 (vis-dataviz)",
+      "F3: unit 4자 확장으로 축약 접두(k/M) 허용 (vis-dataviz)"
+    ],
+    "open_issues": [
+      "수치 슬롯 3종(closing.stats·dataviz.bars·l-kpi.metrics)의 선택 기준을 '축의 유무·개수'로 카탈로그에 명문화"
+    ],
+    "minutes": "/home/koopark/claude/WebDesignAgents/data/meetings/20260729-032041_module_review_tpl-l-kpi_bafc/minutes.md"
+  },
+  {
+    "module": "tpl.l-quad",
+    "meeting_id": "11ed89e9-7b0b-4ad1-afb2-a8fba89c7573",
+    "topic": "tpl.l-quad 모듈 승격 심사 — 4분면 포지셔닝",
+    "panel": [
+      "impl-technical-director",
+      "qa-consistency",
+      "mot-motion-director",
+      "vis-layout-grid",
+      "vis-dataviz"
+    ],
+    "turns": 17,
+    "findings": [
+      "F2(blocking) 가로 범위가 payload 에 없어 정규화 기준이 데이터 범위로 떨어진다 — 사분면 귀속이 뒤바뀔 수 있다 (widgets.py 계약)",
+      "F1(blocking) 사분면 이름과 극단 좌표 점이 34×32px 겹친다 (겹침 영역 x<0.335 ∧ y>0.904) — 게이트 5 무능 구간"
+    ],
+    "decision": "tpl.l-quad — No-Go (등록 보류). blocking 2건 — 사분면 이름 겹침, 정규화 기준 불일치. 판/범례 분리 설계는 재심에서 재론하지 않는다",
+    "action_items": [
+      "F1: 사분면 이름을 판 밖 스트립으로 이동하거나 점 inset 을 라벨 상자만큼 확대 (vis-dataviz)",
+      "F2: series payload 에 axis.x{min,max}·축 이름을 싣도록 widgets._x_quadrant 계약 확장 요청 (wdpipeline 소유자)",
+      "F1 회귀: 극단 좌표(x≤0.04·y≥0.96) 항목과 사분면 이름 겹침 0 을 렌더 테스트로 고정 (qa-consistency)"
+    ],
+    "open_issues": [
+      "게이트 5는 스크롤 넘침만 본다 — 요소 간 겹침 검사는 어느 게이트도 하지 않는다"
+    ],
+    "minutes": "/home/koopark/claude/WebDesignAgents/data/meetings/20260729-032041_module_review_tpl-l-quad-4_11ed/minutes.md"
+  },
+  {
+    "module": "tpl.l-ba",
+    "meeting_id": "1e2be9c3-b953-48f2-b0a1-e489d0c9fecf",
+    "topic": "tpl.l-ba 모듈 승격 심사 — Before/After 반반",
+    "panel": [
+      "impl-technical-director",
+      "qa-consistency",
+      "mot-motion-director",
+      "vis-layout-grid",
+      "narr-story-architect"
+    ],
+    "turns": 17,
+    "findings": [
+      "F1(blocking) summary required 인데 comparison payload 에 수치가 없다 — 좌우가 같은 '5 개 관점'을 92px 로 띄운다",
+      "F2(major) tpl.compare 와 동일 payload 경쟁 — 스키마가 아니라 조립기 if/elif 순서가 정본이다"
+    ],
+    "decision": "tpl.l-ba — Conditional-Go (blocking F1 해소 시 draft→pilot)",
+    "action_items": [
+      "F1: summary 를 optional 로 내리고 좌우 동시 요구(dependentRequired) — 자동 조립의 '관점 수' 대체값 제거 (narr-story-architect)",
+      "F2: 'compare = 행 짝 / l-ba = 상태 서술' 경계를 카탈로그에 명시 + 포맷 풀 우선순위 규약 (narr-story-architect · vis-layout-grid)"
+    ],
+    "open_issues": [
+      "comparison payload 하나를 5개 씬이 받을 수 있다 — 우선순위의 정본을 조립기에서 포맷 스펙으로 옮길지 미결"
+    ],
+    "minutes": "/home/koopark/claude/WebDesignAgents/data/meetings/20260729-032041_module_review_tpl-l-ba-before-after_1e2b/minutes.md"
+  },
+  {
+    "module": "tpl.l-mix",
+    "meeting_id": "ddf693fb-3309-4068-8c40-6cb5f469cd20",
+    "topic": "tpl.l-mix 모듈 승격 심사 — 표 + 차트 혼합",
+    "panel": [
+      "impl-technical-director",
+      "qa-consistency",
+      "mot-motion-director",
+      "vis-layout-grid",
+      "vis-dataviz"
+    ],
+    "turns": 17,
+    "findings": [
+      "F1(major) stats 는 자동 경로에서 파생 집계로만 채워진다 — '평균'의 산식이 화면에 없다(label 14자)",
+      "F2(major) '짧은 값 열만'이라는 실질 제약이 스키마 밖(조립기)에 있다 — 저작 경로는 긴 셀을 넣고 전부 잘린다",
+      "F3(minor) oneOf 의 lead 갈래는 상단 226px 를 한 줄이 차지 — 두 갈래의 밀도가 비대칭"
+    ],
+    "decision": "tpl.l-mix — Conditional-Go (F1·F2 해소 시 draft→pilot). table+series 동시 수용 확인: 표 5행 + 막대 4개 + 생략 표기",
+    "action_items": [
+      "F1: stats.label 18자 확장 — 파생 집계의 산식을 표기 가능하게 (vis-dataviz)",
+      "F2: cells.v 6자의 '수치·코드값 전용' 의도를 description 과 카탈로그에 명시 (vis-dataviz)",
+      "F3: lead 갈래의 사용 조건을 description 에 한정 (vis-dataviz)"
+    ],
+    "open_issues": [],
+    "minutes": "/home/koopark/claude/WebDesignAgents/data/meetings/20260729-032041_module_review_tpl-l-mix_ddf6/minutes.md"
+  }
+]

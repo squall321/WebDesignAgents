@@ -1,0 +1,425 @@
+{
+  "real": {
+    "source": "examples/reportarchive/report_sample.json",
+    "coverage": {
+      "total_blocks": 44,
+      "structured": 12,
+      "text_group": 32,
+      "failed": 0,
+      "unknown_types": {},
+      "by_type": {
+        "heading": {
+          "blocks": 21,
+          "structured": 0,
+          "group": "text"
+        },
+        "rich_text": {
+          "blocks": 7,
+          "structured": 0,
+          "group": "text"
+        },
+        "bulleted_list": {
+          "blocks": 4,
+          "structured": 0,
+          "group": "text"
+        },
+        "key_value": {
+          "blocks": 2,
+          "structured": 2,
+          "group": "pairs"
+        },
+        "tree": {
+          "blocks": 1,
+          "structured": 1,
+          "group": "graph"
+        },
+        "flowchart": {
+          "blocks": 3,
+          "structured": 3,
+          "group": "graph"
+        },
+        "comparison": {
+          "blocks": 2,
+          "structured": 2,
+          "group": "table"
+        },
+        "table": {
+          "blocks": 2,
+          "structured": 2,
+          "group": "table"
+        },
+        "raci_matrix": {
+          "blocks": 1,
+          "structured": 1,
+          "group": "table"
+        },
+        "progress_bar": {
+          "blocks": 1,
+          "structured": 1,
+          "group": "series"
+        }
+      },
+      "by_kind": {
+        "pairs": 2,
+        "graph": 4,
+        "table": 5,
+        "series": 1
+      }
+    },
+    "fragments": 63,
+    "fragments_with_structured": 12,
+    "media": 0,
+    "summaries": [
+      {
+        "block_id": "kv_stack",
+        "widget": "key_value",
+        "summary": "키값 9쌍: 백엔드/프론트엔드/데이터베이스/ORM / 마이그레이션…"
+      },
+      {
+        "block_id": "tree_layers",
+        "widget": "tree",
+        "summary": "트리 15노드 3단"
+      },
+      {
+        "block_id": "fc_flow",
+        "widget": "flowchart",
+        "summary": "흐름도 6노드 선형"
+      },
+      {
+        "block_id": "cmp_rel",
+        "widget": "comparison",
+        "summary": "표 4열×5행: 항목/게시 (Mount)/참조 복제 (Fork)/종합 포함 (Composite Item)"
+      },
+      {
+        "block_id": "tbl_widgets",
+        "widget": "table",
+        "summary": "표 3열×33행: 카테고리/위젯/용도"
+      },
+      {
+        "block_id": "fc_can_edit",
+        "widget": "flowchart",
+        "summary": "흐름도 6노드 선형"
+      },
+      {
+        "block_id": "raci_perm",
+        "widget": "raci_matrix",
+        "summary": "표 6열×8행: 작업/작성자/추가 편집자/보직장…"
+      },
+      {
+        "block_id": "kv_endpoints",
+        "widget": "key_value",
+        "summary": "키값 8쌍: 백엔드 (uvicorn)/프론트엔드 (개발)/PostgreSQL/API 루트…"
+      },
+      {
+        "block_id": "cmp_modes",
+        "widget": "comparison",
+        "summary": "표 3열×5행: 항목/A. 독립 (서로 다른 서버)/B. 결합 (한 서버, 백엔드가 dist 서빙)"
+      },
+      {
+        "block_id": "fc_deploy",
+        "widget": "flowchart",
+        "summary": "흐름도 6노드 선형"
+      },
+      {
+        "block_id": "pb_progress",
+        "widget": "progress_bar",
+        "summary": "진행률 7계열: 100%/100%/100%"
+      },
+      {
+        "block_id": "tbl_quick",
+        "widget": "table",
+        "summary": "표 4열×2행: 쪽/경로/기본 파일/등록 위치"
+      }
+    ]
+  },
+  "synthetic": {
+    "source": "data/widget_check/synthetic_blocks.json",
+    "blocks": 40,
+    "structured_ok": 34,
+    "failed": 0,
+    "text_group": 5,
+    "unknown": 1,
+    "rows": [
+      {
+        "type": "heading",
+        "group": "text",
+        "status": "text",
+        "kind": null,
+        "summary": ""
+      },
+      {
+        "type": "rich_text",
+        "group": "text",
+        "status": "text",
+        "kind": null,
+        "summary": ""
+      },
+      {
+        "type": "bulleted_list",
+        "group": "text",
+        "status": "text",
+        "kind": null,
+        "summary": ""
+      },
+      {
+        "type": "card",
+        "group": "text",
+        "status": "text",
+        "kind": null,
+        "summary": ""
+      },
+      {
+        "type": "equation",
+        "group": "text",
+        "status": "text",
+        "kind": null,
+        "summary": ""
+      },
+      {
+        "type": "table",
+        "group": "table",
+        "status": "ok",
+        "kind": "table",
+        "summary": "표 4열×2행: 단계/담당/기한/상태"
+      },
+      {
+        "type": "comparison",
+        "group": "table",
+        "status": "ok",
+        "kind": "table",
+        "summary": "표 3열×2행: 항목/AS-IS/TO-BE"
+      },
+      {
+        "type": "raci_matrix",
+        "group": "table",
+        "status": "ok",
+        "kind": "table",
+        "summary": "표 3열×1행: 작업/PM/개발"
+      },
+      {
+        "type": "fmea",
+        "group": "table",
+        "status": "ok",
+        "kind": "table",
+        "summary": "표 12열×1행: 고장 모드/영향/원인/현 관리…"
+      },
+      {
+        "type": "record_table",
+        "group": "table",
+        "status": "ok",
+        "kind": "table",
+        "summary": "표 3열×2행: 이름/tonnage/line"
+      },
+      {
+        "type": "record",
+        "group": "pairs",
+        "status": "ok",
+        "kind": "pairs",
+        "summary": "키값 3쌍: 이름/tonnage/line"
+      },
+      {
+        "type": "flowchart",
+        "group": "graph",
+        "status": "ok",
+        "kind": "graph",
+        "summary": "흐름도 3노드 선형"
+      },
+      {
+        "type": "tree",
+        "group": "graph",
+        "status": "ok",
+        "kind": "graph",
+        "summary": "트리 4노드 3단"
+      },
+      {
+        "type": "mind_map",
+        "group": "graph",
+        "status": "ok",
+        "kind": "graph",
+        "summary": "트리 3노드 2단"
+      },
+      {
+        "type": "network",
+        "group": "graph",
+        "status": "ok",
+        "kind": "graph",
+        "summary": "네트워크 3노드 2엣지"
+      },
+      {
+        "type": "sankey",
+        "group": "graph",
+        "status": "ok",
+        "kind": "graph",
+        "summary": "네트워크 3노드 2엣지"
+      },
+      {
+        "type": "chart",
+        "group": "series",
+        "status": "ok",
+        "kind": "series",
+        "summary": "막대 4계열: 100/92/110"
+      },
+      {
+        "type": "scatter",
+        "group": "series",
+        "status": "ok",
+        "kind": "series",
+        "summary": "산점도 2계열: 91.2/95.4"
+      },
+      {
+        "type": "scatter3d",
+        "group": "series",
+        "status": "ok",
+        "kind": "series",
+        "summary": "3D 산점도 2계열: 2/4"
+      },
+      {
+        "type": "heatmap",
+        "group": "series",
+        "status": "ok",
+        "kind": "series",
+        "summary": "히트맵 3계열: 1.2/3.4/5.6"
+      },
+      {
+        "type": "contour",
+        "group": "series",
+        "status": "ok",
+        "kind": "series",
+        "summary": "등고선 2계열: 10/14"
+      },
+      {
+        "type": "treemap",
+        "group": "series",
+        "status": "ok",
+        "kind": "series",
+        "summary": "트리맵 3계열: 120억원/80억원"
+      },
+      {
+        "type": "packing",
+        "group": "series",
+        "status": "ok",
+        "kind": "series",
+        "summary": "원형 패킹 2계열: 12건/7건"
+      },
+      {
+        "type": "pie",
+        "group": "series",
+        "status": "ok",
+        "kind": "series",
+        "summary": "도넛 3계열: 82%/13%/5%"
+      },
+      {
+        "type": "waffle",
+        "group": "series",
+        "status": "ok",
+        "kind": "series",
+        "summary": "와플 2계열: 70%/30%"
+      },
+      {
+        "type": "box",
+        "group": "series",
+        "status": "ok",
+        "kind": "series",
+        "summary": "박스플롯 2계열: A n=2/B n=1"
+      },
+      {
+        "type": "density",
+        "group": "series",
+        "status": "ok",
+        "kind": "series",
+        "summary": "밀도 2계열: before n=3/after n=2"
+      },
+      {
+        "type": "radar",
+        "group": "series",
+        "status": "ok",
+        "kind": "series",
+        "summary": "레이더 6계열: 3/4/2"
+      },
+      {
+        "type": "progress_bar",
+        "group": "series",
+        "status": "ok",
+        "kind": "series",
+        "summary": "진행률 2계열: 100%/60%"
+      },
+      {
+        "type": "quadrant",
+        "group": "series",
+        "status": "ok",
+        "kind": "series",
+        "summary": "2x2 매트릭스 2계열: 8/7"
+      },
+      {
+        "type": "quadrant",
+        "group": "series",
+        "status": "ok",
+        "kind": "series",
+        "summary": "2x2 매트릭스 2계열: 2"
+      },
+      {
+        "type": "milestone",
+        "group": "timeline",
+        "status": "ok",
+        "kind": "timeline",
+        "summary": "일정 3건: 2026-02 ~ 2026-11"
+      },
+      {
+        "type": "key_value",
+        "group": "pairs",
+        "status": "ok",
+        "kind": "pairs",
+        "summary": "키값 2쌍: CPU/메모리"
+      },
+      {
+        "type": "image",
+        "group": "media",
+        "status": "ok",
+        "kind": "media",
+        "summary": "이미지 2건"
+      },
+      {
+        "type": "video",
+        "group": "media",
+        "status": "ok",
+        "kind": "media",
+        "summary": "영상 1건"
+      },
+      {
+        "type": "attachment",
+        "group": "media",
+        "status": "ok",
+        "kind": "media",
+        "summary": "첨부 1건"
+      },
+      {
+        "type": "cad_3d",
+        "group": "media",
+        "status": "ok",
+        "kind": "media",
+        "summary": "3D 모델 1건"
+      },
+      {
+        "type": "doc_viewer",
+        "group": "media",
+        "status": "ok",
+        "kind": "media",
+        "summary": "문서 1건"
+      },
+      {
+        "type": "html_embed",
+        "group": "media",
+        "status": "ok",
+        "kind": "media",
+        "summary": "임베드 1건"
+      },
+      {
+        "type": "gantt_v2",
+        "group": null,
+        "status": "unknown",
+        "kind": null,
+        "summary": ""
+      }
+    ]
+  }
+}

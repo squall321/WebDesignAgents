@@ -1,0 +1,383 @@
+{
+  "version": "1.0",
+  "meta": {
+    "core_message": "보고서는 한 번만 작성한다 — 사본 없는 게시(Mount)와 자동 종합보고가 반복 취합 노동을 없앤다.",
+    "audience": "경영진",
+    "duration_sec": 78.0,
+    "tone": "브리핑",
+    "meeting_id": "339e3bac-18dd-415c-b1f0-ea022ed36843",
+    "source_report_id": null
+  },
+  "content": {
+    "opening": {
+      "badge": "경영 브리핑 — 조직 보고 플랫폼",
+      "title": {
+        "pre": "보고서는 ",
+        "accent": "한 번만",
+        "post": " 작성한다"
+      },
+      "subtitle": "ReportArchive — 사본 없이 흐르는 조직 보고",
+      "footnote": "사용 설명서 2026-05-27 기준",
+      "dotCount": 7
+    },
+    "problem": {
+      "kicker": "문제 인식",
+      "title": "취합 보고가 반복 노동이 되고 있다",
+      "chat": {
+        "windowLabel": "기존 방식 — 메일 취합",
+        "question": "이번 주 팀 실적 보고, 최신본이 어느 파일입니까?",
+        "barWidths": [
+          500,
+          560,
+          460,
+          320
+        ],
+        "verdict": "메일함에 사본 네 개, 최신본은 알 수 없음"
+      },
+      "claim": {
+        "lead": "개인 초안과 공식 보고가 뒤섞이고",
+        "strong": {
+          "pre": "취합은 ",
+          "accent": "수작업",
+          "post": "으로 남았다"
+        },
+        "tail": " — 지금까지는"
+      },
+      "failures": [
+        "개인 초안과 공식 보고 뒤섞임",
+        "게시판마다 따로 도는 사본",
+        "주간보고 취합의 반복 수작업"
+      ],
+      "conclusion": "보고 흐름 자체를 시스템으로 옮겨야 합니다",
+      "frame": {
+        "brand": "ReportArchive",
+        "idx": "02",
+        "total": "07"
+      }
+    },
+    "concept": {
+      "kicker": "해법 — 3계층",
+      "title": "보고서는 한 곳에서 태어나 조직으로 흐른다",
+      "center": "원본 1",
+      "nodes": [
+        {
+          "ini": "개",
+          "name": "개인 작업공간"
+        },
+        {
+          "ini": "팀",
+          "name": "팀 게시판"
+        },
+        {
+          "ini": "본",
+          "name": "본부 게시판"
+        },
+        {
+          "ini": "종",
+          "name": "종합보고"
+        },
+        {
+          "ini": "임",
+          "name": "임원 보고"
+        }
+      ],
+      "rounds": [
+        {
+          "chip": "L1",
+          "name": "개인 작업공간",
+          "desc": "모든 보고서가 여기서 태어난다"
+        },
+        {
+          "chip": "L2",
+          "name": "조직 게시판",
+          "desc": "원본을 사본 없이 그대로 게시한다"
+        },
+        {
+          "chip": "L3",
+          "name": "종합보고",
+          "desc": "게시된 보고를 묶어 위로 올린다"
+        }
+      ],
+      "outcome": {
+        "title": "원리는 하나",
+        "desc": "복사가 아니라 연결로 보고가 흐른다"
+      },
+      "frame": {
+        "brand": "ReportArchive",
+        "idx": "03",
+        "total": "07"
+      }
+    },
+    "process": {
+      "kicker": "작동 방식",
+      "title": "작성에서 임원 보고까지 여섯 단계",
+      "steps": [
+        {
+          "n": "01",
+          "name": "작성",
+          "desc": "개인 공간에서 초안을 작성한다"
+        },
+        {
+          "n": "02",
+          "name": "게시",
+          "desc": "조직 게시판에 올려도 사본이 없다"
+        },
+        {
+          "n": "03",
+          "name": "검토",
+          "desc": "보직장이 인라인으로 의견을 단다"
+        },
+        {
+          "n": "04",
+          "name": "취합",
+          "desc": "팀 주간보고가 게시물을 묶는다"
+        },
+        {
+          "n": "05",
+          "name": "롤업",
+          "desc": "본부 종합보고로 다시 묶인다"
+        },
+        {
+          "n": "06",
+          "name": "추적",
+          "desc": "임원은 회차 간 변동만 본다"
+        }
+      ],
+      "footnote": {
+        "pre": "원본을 고치면 ",
+        "strong": "게시판에 즉시 반영",
+        "post": " — 버전 불일치가 사라진다"
+      },
+      "frame": {
+        "brand": "ReportArchive",
+        "idx": "04",
+        "total": "07"
+      }
+    },
+    "differentiator": {
+      "kicker": "차별점",
+      "title": "사본이 아니라 살아 있는 연결이다",
+      "flow": [
+        {
+          "chip": "AS",
+          "label": "기존 — 사본 회람",
+          "quote": "복사할수록 버전이 갈라진다",
+          "tag": "버전 불일치",
+          "tagTone": "error"
+        },
+        {
+          "chip": "TO",
+          "label": "게시 — 원본 연결",
+          "quote": "원본을 고치면 게시판에 바로 반영된다",
+          "tag": "live link 게시",
+          "tagTone": "accept"
+        }
+      ],
+      "converge": {
+        "chip": "권한",
+        "label": "권한 분리",
+        "members": [
+          {
+            "ini": "작"
+          },
+          {
+            "ini": "편"
+          },
+          {
+            "ini": "보"
+          },
+          {
+            "ini": "멤"
+          },
+          {
+            "ini": "관"
+          }
+        ],
+        "verdict": "편집권 판정은 can_edit 하나"
+      },
+      "footnote": {
+        "pre": "민감 보고서는 ",
+        "strong": "작성자 수정 잠금",
+        "post": "으로 제출 직전을 지킨다"
+      },
+      "frame": {
+        "brand": "ReportArchive",
+        "idx": "05",
+        "total": "07"
+      }
+    },
+    "dataviz": {
+      "kicker": "실증",
+      "title": "구축 진행도 — 수치로 확인한다",
+      "unit": "%",
+      "axisMax": 100,
+      "bars": [
+        {
+          "label": "게시 Mount",
+          "value": 100,
+          "display": "100%"
+        },
+        {
+          "label": "작성자 잠금",
+          "value": 100,
+          "display": "100%"
+        },
+        {
+          "label": "편집권 판정",
+          "value": 70,
+          "display": "70%",
+          "emphasis": true
+        }
+      ],
+      "headline": {
+        "value": "70%",
+        "desc": "편집권 판정 진행률"
+      },
+      "insights": [
+        {
+          "text": "의사결정 4건 확정 2026-05-25"
+        },
+        {
+          "text": "검증으로 버그 수정 이력 확보"
+        },
+        {
+          "text": "위젯 35종이 본문 작성을 받친다"
+        }
+      ],
+      "claim": {
+        "text": "기반은 가동, 판정은 마무리 단계다"
+      },
+      "frame": {
+        "brand": "ReportArchive",
+        "idx": "06",
+        "total": "07"
+      }
+    },
+    "closing": {
+      "stats": [
+        {
+          "v": "1곳",
+          "d": "보고서가 태어나는 자리"
+        },
+        {
+          "v": "0개",
+          "d": "게시로 생기는 사본"
+        },
+        {
+          "v": "100%",
+          "d": "게시·잠금 구축 완료율"
+        }
+      ],
+      "title": {
+        "pre": "이제 ",
+        "accent": "취합",
+        "post": "을 맡기십시오"
+      },
+      "subtitle": "다음 주간보고부터 시작할 수 있습니다",
+      "ctas": [
+        {
+          "text": "시범 팀 한 곳 지정"
+        },
+        {
+          "text": "주간보고부터 전환"
+        },
+        {
+          "text": "회차 변동으로 확인"
+        }
+      ],
+      "footnote": "ReportArchive — 사용 설명서 2026-05-27 기준"
+    }
+  },
+  "scenes": [
+    {
+      "name": "오프닝",
+      "dur": 7.0,
+      "nat": 8.0,
+      "tpl": "opening@1",
+      "stills": [
+        6.1
+      ],
+      "data_ref": "content.opening",
+      "narration": "보고서는 한 번만 작성합니다. 경영진을 위한 리포트아카이브 브리핑을 시작합니다.",
+      "transition": "cut"
+    },
+    {
+      "name": "문제",
+      "dur": 11.5,
+      "nat": 13.0,
+      "tpl": "problem@1",
+      "stills": [
+        10.9
+      ],
+      "data_ref": "content.problem",
+      "narration": "개인 초안과 공식 보고가 뒤섞입니다. 최신본은 메일함 사본 속에 숨었습니다. 취합은 매주 반복되는 수작업, 보고 흐름을 시스템으로 옮겨야 합니다.",
+      "transition": "cut"
+    },
+    {
+      "name": "개념",
+      "dur": 9.5,
+      "nat": 11.0,
+      "tpl": "concept@1",
+      "stills": [
+        9.1
+      ],
+      "data_ref": "content.concept",
+      "narration": "구조는 세 계층입니다. 보고서는 개인 공간에서 태어나, 조직 게시판에 사본 없이 게시되고, 종합보고로 묶여 올라갑니다.",
+      "transition": "cut"
+    },
+    {
+      "name": "절차",
+      "dur": 15.5,
+      "nat": 18.0,
+      "tpl": "process@1",
+      "stills": [
+        14.8
+      ],
+      "data_ref": "content.process",
+      "narration": "작성, 게시, 검토, 취합, 롤업, 추적의 여섯 단계입니다. 게시된 보고서는 사본 없이 팀 주간보고로 묶이고 본부 종합보고로 올라가며, 임원은 회차 간 변동만 확인합니다. 수정은 즉시 반영됩니다.",
+      "transition": "cut"
+    },
+    {
+      "name": "차별점",
+      "dur": 12.0,
+      "nat": 13.0,
+      "tpl": "differentiator@1",
+      "stills": [
+        11.2
+      ],
+      "data_ref": "content.differentiator",
+      "narration": "게시는 사본이 아니라 살아 있는 연결입니다. 고치면 바로 반영됩니다. 편집 권한은 단일 함수로 판정하고, 민감한 보고서는 작성자 잠금으로 지킵니다.",
+      "transition": "cut"
+    },
+    {
+      "name": "실증",
+      "dur": 12.0,
+      "nat": 13.0,
+      "tpl": "dataviz@1",
+      "stills": [
+        11.0
+      ],
+      "data_ref": "content.dataviz",
+      "narration": "게시와 잠금은 백 퍼센트로 가동 중입니다. 편집권 판정은 의사결정 네 건을 확정하며 칠십 퍼센트까지 왔고, 위젯 서른다섯 종이 본문 작성을 받칩니다.",
+      "transition": "cut"
+    },
+    {
+      "name": "클로징",
+      "dur": 10.5,
+      "nat": 12.0,
+      "tpl": "closing@1",
+      "stills": [
+        3.9,
+        9.8
+      ],
+      "data_ref": "content.closing",
+      "narration": "보고서는 한 번만 작성합니다. 게시로 생기는 사본은 없습니다. 다음 주간보고부터, 취합은 리포트아카이브에 맡기십시오.",
+      "transition": "cut"
+    }
+  ],
+  "tokens_theme": "hwax-blue",
+  "playback": {
+    "mode": "times",
+    "count": 1
+  }
+}

@@ -1,0 +1,31 @@
+# wide-16x9 발표 레이아웃 풀 + 좌표 역할 — l-quad 실증 전용 오버라이드
+#
+# formats/ 쪽과 유일한 차이는 position 역할(tpl.l-quad) 하나다. 좌표(x·y) payload 를
+# 만드는 위젯은 quadrant·scatter·matrix 뿐인데 report_sample 에는 그 블록이 없어,
+# 이 역할은 좌표 부록을 얹은 입력(report_sample_quad.json)에서만 쓴다.
+# 도달률 비교는 부록 없는 원본으로 재므로 이 파일은 렌더 실증에만 쓰인다.
+id: wide-16x9
+name_ko: 가로 브리핑 영상 (발표 레이아웃 풀 + 좌표)
+stage: { w: 1920, h: 1080 }
+duration: { target: 165, min: 20, max: 600 }
+skeleton:
+  [opening, problem, concept, detail, process, differentiator,
+   evidence, matrix, position, dashboard, verdict, closing]
+template_pool:
+  opening: [tpl.opening]
+  problem: [tpl.l-split, tpl.problem]
+  concept: [tpl.l-tree, tpl.concept]
+  detail: [tpl.l-list, tpl.proof]
+  process: [tpl.process, tpl.timeline]
+  differentiator: [tpl.l-ba, tpl.compare, tpl.differentiator]
+  evidence: [tpl.proof]
+  matrix: [tpl.l-mix, tpl.d-matrix, tpl.proof]
+  position: [tpl.l-quad, tpl.concept]          # 좌표 payload 가 있을 때만 4분면
+  dashboard: [tpl.l-kpi, tpl.closing]
+  verdict: [tpl.l-quote]
+  closing: [tpl.closing]
+narration: { enabled: true, rate: 5.5 }
+outputs: [video, pptx]
+pptx: { slide_w_in: 13.333, slide_h_in: 7.5 }
+constraints: { min_font: 17, safe_margin: 140 }
+theme: hwax-blue
