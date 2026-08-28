@@ -832,3 +832,49 @@ main { padding: var(--sp-5) var(--sp-6) var(--sp-7); max-width: 1280px; margin: 
   font-size: var(--fs-2); color: var(--c-ink); margin-top: var(--sp-3);
 }
 .minutes-notice b { font-size: var(--fs-3); }
+
+
+/* ── 심의 패널 ─────────────────────────────────────────────────────────────
+   진행의 서사(UI 원칙 2) — 스피너가 아니라 "지금 누가 발언 중인가" 를 보여준다. */
+.head-actions { display: flex; gap: var(--sp-2); align-items: center; }
+
+.meeting-new {
+  display: grid; gap: var(--sp-3); padding: var(--sp-4);
+  border: 1px solid var(--c-blue-border); border-radius: var(--r-md);
+  background: var(--c-blue-soft); margin-bottom: var(--sp-4);
+}
+.meeting-new .field { display: grid; gap: var(--sp-1); border: 0; padding: 0; margin: 0; }
+.field-k { font-size: var(--fs-1); color: var(--c-sub); font-weight: 600; padding: 0; }
+.meeting-new input[type="text"], .meeting-new select {
+  font: inherit; font-size: var(--fs-3); color: var(--c-ink); background: var(--c-card);
+  border: 1px solid var(--c-line); border-radius: var(--r-sm); padding: var(--sp-2) var(--sp-3);
+}
+.meeting-new input:focus-visible, .meeting-new select:focus-visible {
+  outline: 2px solid var(--c-focus); outline-offset: 2px;
+}
+.persona-pick { display: flex; flex-wrap: wrap; gap: var(--sp-2); max-height: 168px; overflow-y: auto; }
+.persona-pick label { position: relative; }
+.persona-pick input { position: absolute; inset: 0; opacity: 0; cursor: pointer; margin: 0; }
+.persona-pick span {
+  display: block; padding: var(--sp-1) var(--sp-3); border-radius: var(--r-pill);
+  border: 1px solid var(--c-line); background: var(--c-card);
+  font-size: var(--fs-2); color: var(--c-sub); cursor: pointer;
+}
+.persona-pick input:checked + span {
+  background: var(--c-blue); border-color: var(--c-blue); color: var(--c-white); font-weight: 600;
+}
+.persona-pick input:focus-visible + span { outline: 2px solid var(--c-focus); outline-offset: 2px; }
+.meeting-new-actions { display: flex; gap: var(--sp-2); }
+
+.meeting-state {
+  display: grid; gap: var(--sp-2); padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--c-line); border-radius: var(--r-md);
+  background: var(--c-card); margin-bottom: var(--sp-3);
+}
+.ms-row { display: flex; gap: var(--sp-3); flex-wrap: wrap; align-items: baseline; }
+.ms-k { font-size: var(--fs-1); color: var(--c-sub); }
+.ms-v { font-size: var(--fs-3); color: var(--c-ink); font-weight: 600; }
+.ms-speaker {
+  font-size: var(--fs-4); color: var(--c-blue); font-weight: 700;
+}
+.ms-note { font-size: var(--fs-2); color: var(--c-sub); }

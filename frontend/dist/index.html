@@ -30,7 +30,7 @@
   <button class="tab active" id="tab-create" role="tab" aria-selected="true" aria-controls="panel-create" data-tab="create">생성</button>
   <button class="tab" id="tab-history" role="tab" aria-selected="false" aria-controls="panel-history" tabindex="-1" data-tab="history">실행 이력</button>
   <button class="tab" id="tab-modules" role="tab" aria-selected="false" aria-controls="panel-modules" tabindex="-1" data-tab="modules">모듈 갤러리</button>
-  <button class="tab" id="tab-meetings" role="tab" aria-selected="false" aria-controls="panel-meetings" tabindex="-1" data-tab="meetings">회의록</button>
+  <button class="tab" id="tab-meetings" role="tab" aria-selected="false" aria-controls="panel-meetings" tabindex="-1" data-tab="meetings">심의</button>
 </nav>
 
 <main id="main">
@@ -235,17 +235,52 @@
       <div class="card">
         <div class="panel-head">
           <div>
-            <h2>회의 목록</h2>
+            <h2>심의 목록</h2>
             <p class="hint" id="meetings-meta">불러오는 중…</p>
           </div>
-          <button class="btn" id="meetings-refresh" type="button">새로고침</button>
+          <div class="head-actions">
+            <button class="btn" id="meeting-new-btn" type="button">새 심의</button>
+            <button class="btn" id="meetings-refresh" type="button">새로고침</button>
+          </div>
         </div>
+
+        <form class="meeting-new" id="meeting-new" hidden>
+          <label class="field">
+            <span class="field-k">주제</span>
+            <input type="text" id="mt-topic" placeholder="무엇을 심의합니까" required>
+          </label>
+          <label class="field">
+            <span class="field-k">유형</span>
+            <select id="mt-type">
+              <option value="design_review">설계 심의</option>
+              <option value="content_review">내용 심의</option>
+              <option value="format_review">포맷 심의</option>
+            </select>
+          </label>
+          <fieldset class="field">
+            <legend class="field-k">참가 페르소나</legend>
+            <div class="persona-pick" id="mt-personas">불러오는 중…</div>
+          </fieldset>
+          <p class="form-error" id="mt-error" role="alert"></p>
+          <div class="meeting-new-actions">
+            <button class="btn primary" id="mt-open" type="submit">개회</button>
+            <button class="btn" id="mt-cancel" type="button">취소</button>
+          </div>
+        </form>
+
         <div id="meetings-list" class="list compact"></div>
       </div>
       <div class="card">
-        <h2 id="minutes-title">회의록</h2>
+        <div class="panel-head">
+          <h2 id="minutes-title">심의 내용</h2>
+          <div class="head-actions" id="meeting-actions" hidden>
+            <button class="btn" id="mt-autorun" type="button">자율 실행</button>
+            <button class="btn" id="mt-close" type="button">폐회</button>
+          </div>
+        </div>
+        <div id="meeting-state" class="meeting-state" hidden aria-live="polite"></div>
         <div id="minutes-body" class="minutes" aria-live="polite">
-          <p class="empty">왼쪽에서 회의를 선택하면 회의록이 여기에 표시됩니다.</p>
+          <p class="empty">왼쪽에서 심의를 선택하면 진행 현황과 회의록이 여기에 표시됩니다.</p>
         </div>
       </div>
     </div>

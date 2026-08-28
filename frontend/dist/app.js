@@ -43,6 +43,14 @@ const STATUS_KO = {
 };
 const ko = (v) => STATUS_KO[v] || (v ? String(v) : '');
 
+// 라운드 이름 — 엔진 값은 영어다. 화면은 한국어여야 지금 무슨 라운드인지 읽힌다.
+const ROUND_KO = {
+  present: '발제', diverge: '발산', structure_diverge: '구조 발산', build_on: '보강',
+  advocate: '변론', attack: '공박', critique: '크리틱', rebuttal: '반론',
+  cross_rebuttal: '교차 반론', review: '검토', score: '채점', converge: '수렴',
+  converge_timeline: '타임라인 수렴', decide: '결정', verdict: '판정',
+};
+
 const MEETING_TYPE_KO = {
   brainstorm: '컨셉 발산', design_review: '시안 크리틱', tradeoff: '시안 선정',
   scenario_build: '시나리오 빌드', module_review: '모듈 승격 심사',
@@ -959,18 +967,104 @@ async function loadMeetings() {
   }
 }
 
-$('meetings-list').addEventListener('click', async (e) => {
-  const item = e.target.closest('[data-meeting]');
-  if (!item) return;
-  document.querySelectorAll('#meetings-list .list-item')
-    .forEach((el) => el.setAttribute('aria-current', el === item ? 'true' : 'false'));
-  const id = item.dataset.meeting;
+// ── 심의 개회·진행·폐회 ────────────────────────────────────────────────────
+// 웹에도 심의가 있어야 창구가 대칭이다. API 는 MCP 도구 본체를 그대로 호출하므로
+// 여기서는 화면만 다룬다 — 진행의 서사(UI 원칙 2)는 "지금 누가 발언 중인가" 다.
+
+let currentMeetingId = null;
+
+$('meeting-new-btn').addEventListener('click', async () => {
+  const form = $('meeting-new');
+  form.hidden = !form.hidden;
+  if (form.hidden) return;
+  $('mt-topic').focus();
+  const box = $('mt-personas');
+  if (box.dataset.loaded) return;
+  try {
+    const data = await api('api/personas/roster');
+    const rows = data.personas || [];
+    box.innerHTML = rows.map((p) => `
+      <label><input type="checkbox" name="mt-persona" value="${esc(p.id)}">
+      <span>${esc(p.name_ko || p.id)}</span></label>`).join('');
+    box.dataset.loaded = '1';
+  } catch (e) {
+    box.innerHTML = `<p class="empty">페르소나 목록을 불러오지 못했습니다: ${esc(e.message)}</p>`;
+  }
+});
+
+$('mt-cancel').addEventListener('click', () => {
+  $('meeting-new').hidden = true;
+  $('meeting-new-btn').focus();
+});
+
+$('meeting-new').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const topic = $('mt-topic').value.trim();
+  const participants = Array.from(
+    document.querySelectorAll('input[name="mt-persona"]:checked')).map((el) => el.value);
+  const err = $('mt-error');
+  if (!topic) { err.textContent = '주제를 입력하세요.'; $('mt-topic').focus(); return; }
+  if (!participants.length) {
+    err.textContent = '참가 페르소나를 한 명 이상 고르세요 — 확정 순서가 곧 발언 순서입니다.';
+    return;
+  }
+  err.textContent = '';
+  const btn = $('mt-open');
+  btn.disabled = true;
+  try {
+    const data = await api('api/meetings', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ topic, type: $('mt-type').value, participants }),
+    });
+    $('meeting-new').hidden = true;
+    announce('심의를 개회했습니다.');
+    await loadMeetings();
+    await selectMeeting(data.meeting_id);
+  } catch (ex) {
+    err.textContent = '개회하지 못했습니다: ' + ex.message;
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+function renderMeetingState(state) {
+  const box = $('meeting-state');
+  const next = state.next_speaker || {};
+  const who = next.name_ko || next.expert_id || (next.role === 'moderator' ? '모더레이터' : null);
+  // 필드명은 meeting_status 스키마 그대로 — round_index/total_rounds/turns_total
+  const rnd = (state.round_index ?? null) === null ? '-'
+    : `${state.round_index + 1}/${state.total_rounds ?? '?'}`
+      + (state.current_round
+         ? ` · ${ROUND_KO[state.current_round] || state.current_round}` : '');
+  box.innerHTML = `
+    <div class="ms-row">
+      <span><span class="ms-k">상태</span> <span class="ms-v">${esc(ko(state.status) || state.status || '-')}</span></span>
+      <span><span class="ms-k">라운드</span> <span class="ms-v">${esc(rnd)}</span></span>
+      <span><span class="ms-k">턴</span> <span class="ms-v">${esc(String(state.turns_total ?? '-'))}</span></span>
+      <span><span class="ms-k">인용 가능</span> <span class="ms-v">${esc(String(state.known_refs_count ?? 0))}건</span></span>
+    </div>
+    ${who ? `<div class="ms-row"><span class="ms-k">다음 발언</span>
+       <span class="ms-speaker">${esc(who)}</span></div>` : ''}
+    <p class="ms-note">자율 실행은 vLLM(GLM)이 전 라운드를 대신 발언합니다. 브라우저에는
+    페르소나를 연기할 주체가 없기 때문입니다.</p>`;
+  box.hidden = false;
+}
+
+async function selectMeeting(id) {
+  currentMeetingId = id;
+  document.querySelectorAll('#meetings-list .list-item').forEach((el) =>
+    el.setAttribute('aria-current', el.dataset.meeting === id ? 'true' : 'false'));
   const meta = meetingsCache.find((m) => m.id === id) || {};
   const body = $('minutes-body');
-  // 진행 중 회의는 minutes.md 가 아직 없다 — 404 를 오류로 옮기지 않고 상태로 안내한다
-  if (meta.status && meta.status !== 'closed') {
-    body.innerHTML = '<div class="minutes-notice"><b>아직 진행 중인 회의입니다.</b>'
-      + '<span>회의가 폐회되면 회의록(minutes.md)이 생성되어 여기에 표시됩니다. '
+  const closed = meta.status === 'closed';
+  $('meeting-actions').hidden = closed;
+  $('meeting-state').hidden = true;
+  if (!closed) {
+    try {
+      renderMeetingState(await api('api/meetings/' + encodeURIComponent(id)));
+    } catch (_) { /* 상태 조회 실패는 회의록 안내로 대체 */ }
+    body.innerHTML = '<div class="minutes-notice"><b>아직 진행 중인 심의입니다.</b>'
+      + '<span>폐회하면 회의록(minutes.md)이 생성되어 여기에 표시됩니다. '
       + '지금은 라운드가 진행 중이라 확정된 결론이 없습니다.</span></div>';
     return;
   }
@@ -981,8 +1075,56 @@ $('meetings-list').addEventListener('click', async (e) => {
     body.scrollTop = 0;
   } catch (err) {
     body.innerHTML = `<div class="minutes-notice"><b>회의록을 불러오지 못했습니다.</b>`
-      + `<span>${esc(err.message)} — 회의가 폐회됐는지 확인한 뒤 새로고침하세요.</span></div>`;
+      + `<span>${esc(err.message)} — 폐회됐는지 확인한 뒤 새로고침하세요.</span></div>`;
   }
+}
+
+$('mt-autorun').addEventListener('click', async () => {
+  if (!currentMeetingId) return;
+  const btn = $('mt-autorun');
+  btn.disabled = true;
+  const prev = btn.textContent;
+  btn.textContent = '심의 중…';
+  try {
+    await api('api/meetings/' + encodeURIComponent(currentMeetingId) + '/autorun', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    announce('심의를 완주했습니다.');
+    await loadMeetings();
+    await selectMeeting(currentMeetingId);
+  } catch (e) {
+    $('meeting-state').insertAdjacentHTML('beforeend',
+      `<p class="form-error">자율 실행에 실패했습니다: ${esc(e.message)} — `
+      + `vLLM(GLM) 설정을 확인하거나 MCP 창구에서 직접 발언하세요.</p>`);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = prev;
+  }
+});
+
+$('mt-close').addEventListener('click', async () => {
+  if (!currentMeetingId) return;
+  const btn = $('mt-close');
+  btn.disabled = true;
+  try {
+    await api('api/meetings/' + encodeURIComponent(currentMeetingId) + '/close',
+      { method: 'POST' });
+    announce('폐회했습니다. 회의록이 생성됐습니다.');
+    await loadMeetings();
+    await selectMeeting(currentMeetingId);
+  } catch (e) {
+    $('meeting-state').insertAdjacentHTML('beforeend',
+      `<p class="form-error">폐회하지 못했습니다: ${esc(e.message)}</p>`);
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+$('meetings-list').addEventListener('click', async (e) => {
+  const item = e.target.closest('[data-meeting]');
+  if (!item) return;
+  await selectMeeting(item.dataset.meeting);
 });
 
 $('meetings-refresh').addEventListener('click', loadMeetings);
