@@ -223,3 +223,15 @@ Pretendard 폰트를 CDN → 로컬 @font-face(`web/fonts/PretendardVariable.wof
 ### 실측으로 잡은 결함
 - 열람 URL 은 주는데 받을 수 없던 문서 — `render_status` 가 html·pdf·docx URL 을 돌려주면서 `_JOB_DOWNLOAD_META` 에는 video·pptx 만 있어 3종 전부 404. 대칭 테스트가 이 부류를 통째로 막는다.
 - 콘솔 상태판이 `round_no`·`turn_count` 를 읽어 전 항목이 `-` — 실제 스키마는 `round_index`·`turns_total` 이다.
+
+### 결정 30. 심의 시나리오는 재빌드까지가 한 동작이다
+- `scenario_build` 는 `scenario.json` 만 쓴다. 웹에서 그대로 두면 실행의 `build/` 는 옛 시나리오라 렌더·문서에 심의 결과가 **반영되지 않는다** — 심의 화면이 장식이 된다.
+- 핀포인트 패치가 이미 쓰던 마무리(`검증 → build_render_package → 원장 갱신`)를 `scenes.rebuild_run` 으로 뽑아 두 경로가 같은 끝을 쓴다.
+- 콘솔 개회 폼에 **대상 실행 선택**을 넣었다. 조각([F#] 근거)의 출처이자 시나리오가 돌아갈 자리다 — 연결하지 않으면 `scenario_build` 가 쓸 run 이 없다.
+
+### 결정 31. 자율 심의는 백그라운드 잡 (동기 요청 금지)
+- 전 라운드 완주는 LLM 턴이 수십 번이고 GLM 타임아웃이 120~600s 다. 동기 POST 는 프록시·브라우저 타임아웃에 먼저 걸린다.
+- 렌더 잡과 같은 규약 — 파일이 진실(`{회의dir}/autorun.json`), POST 202 즉시 반환, GET 폴링, 중복 시작 409, 실패는 사유째 기록.
+- 이 형태 덕에 배선 결함 2건이 **사유와 함께** 드러났다. 동기였다면 502 하나로 뭉개져 "LLM 미설정" 으로 오독했을 것이다.
+  - `Orchestrator` → 실제 클래스명은 `AutoOrchestrator`.
+  - `RunResult` 는 데이터클래스이고 `minutes_path` 는 `Path` — `dict()` 도 `asdict()` 만으로도 JSON 이 안 된다.
