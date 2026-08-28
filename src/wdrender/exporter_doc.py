@@ -519,9 +519,17 @@ def _blocks_html(blocks: list[dict], out_dir: Path, embed: bool) -> str:
                 f'<figure><img src="{src}" alt="{_html.escape(b["alt"])}">{cap}</figure>'
             )
         elif t == "table":
-            head = "".join(f"<th>{_inline_html(c)}</th>" for c in b["columns"])
+            # 열 단위로 숫자열인지 판정한다 — 셀마다 다르게 정렬하면 표가 흔들린다
+            numeric = _numeric_columns(b["columns"], b["rows"])
+            head = "".join(
+                f'<th{" class=\"num\"" if numeric[i] else ""}>{_inline_html(c)}</th>'
+                for i, c in enumerate(b["columns"])
+            )
             body = "".join(
-                "<tr>" + "".join(f"<td>{_inline_html(c)}</td>" for c in r) + "</tr>"
+                "<tr>" + "".join(
+                    f'<td{" class=\"num\"" if i < len(numeric) and numeric[i] else ""}>'
+                    f"{_inline_html(c)}</td>" for i, c in enumerate(r)
+                ) + "</tr>"
                 for r in b["rows"]
             )
             cap = (
@@ -547,6 +555,26 @@ def _blocks_html(blocks: list[dict], out_dir: Path, embed: bool) -> str:
     return "\n".join(parts)
 
 
+_NUMERIC_CELL = re.compile(r"^[\s]*[+\-−]?[0-9][0-9,\s]*(?:\.[0-9]+)?\s*[%°만억원건개초s]*$")
+
+
+def _numeric_columns(columns: list[str], rows: list[list[str]]) -> list[bool]:
+    """열마다 '숫자 열인가' 를 판정한다 — 셀 단위로 정렬을 바꾸면 표가 흔들린다.
+
+    비어 있지 않은 셀의 과반이 수치면 숫자 열로 본다. 단위가 붙은 값(12.5%, 1,234억)도
+    수치로 센다 — 보고서 표에서 자릿수를 맞춰 읽는 대상은 그쪽이다.
+    """
+    out: list[bool] = []
+    for i in range(len(columns)):
+        cells = [str(r[i]).strip() for r in rows if i < len(r) and str(r[i]).strip()]
+        if not cells:
+            out.append(False)
+            continue
+        hits = sum(1 for c in cells if _NUMERIC_CELL.match(c))
+        out.append(hits * 2 > len(cells))
+    return out
+
+
 def _css(theme: DocTheme, font_src: str | None) -> str:
     face = font_face_css(font_src) if font_src else ""
     return f"""{face}
@@ -554,7 +582,7 @@ def _css(theme: DocTheme, font_src: str | None) -> str:
 html{{-webkit-text-size-adjust:100%;}}
 body{{margin:0;background:{theme.shade};color:{theme.ink};
   font-family:{theme.font_stack};font-size:16px;line-height:1.7;
-  font-feature-settings:'tnum' 1;}}
+  }}
 .doc{{max-width:760px;margin:0 auto;padding:56px 28px 96px;background:{theme.page};}}
 .cover{{padding:12px 0 40px;border-bottom:1px solid {theme.line};margin-bottom:40px;}}
 .kicker{{display:flex;align-items:center;gap:12px;color:{theme.accent};
@@ -603,6 +631,12 @@ th,td{{text-align:left;padding:9px 12px;border-bottom:1px solid {theme.line};
   vertical-align:top;line-height:1.55;word-break:keep-all;overflow-wrap:break-word;}}
 thead th{{border-bottom:1.5px solid {theme.ink};font-weight:700;font-size:13.5px;
   color:{theme.ink};}}
+/* 숫자 열은 우측 정렬로 자릿수를 맞춘다.
+   종전에는 body 에 font-feature-settings:'tnum' 을 걸어 등폭 숫자로 정렬했는데,
+   그 대체 글리프는 서브셋 폰트에서 유니코드 매핑이 없어 PDF ToUnicode 가 사용자 정의 영역(PUA)으로
+   떨어진다 — 화면은 멀쩡한데 **숫자를 검색·복사할 수 없다**(실측: 12쪽 문서에 109자).
+   우측 정렬은 그 대가 없이 같은 목적을 달성한다. */
+th.num,td.num{{text-align:right;font-variant-numeric:lining-nums;}}
 tbody tr:last-child td{{border-bottom:1px solid {theme.line};}}
 .callout{{border-left:3px solid {theme.accent};background:{theme.shade};
   padding:14px 18px;margin:24px 0;border-radius:0 10px 10px 0;}}
@@ -621,6 +655,8 @@ sup.fnref a::after{{content:']';}}
 .notes h2{{font-size:16px;border:0;padding:0;margin:0 0 10px;color:{theme.faint};
   letter-spacing:.08em;text-transform:uppercase;}}
 .notes ol{{padding-left:20px;}}
+.notes ol.plain{{list-style:none;padding-left:0;}}
+.notes .fn-n{{color:{theme.faint};font-weight:700;}}
 .notes li{{margin:6px 0;line-height:1.6;}}
 .notes .src{{color:{theme.faint};}}
 .notes a{{color:{theme.accent};text-decoration:none;}}
@@ -675,13 +711,17 @@ def render_html(ndoc: dict, *, out_dir: Path, mode: str = "light",
 
     notes = ""
     if ndoc["footnotes"]:
+        # 번호를 브라우저 자동 마커에 맡기지 않고 본문 텍스트로 적는다.
+        # CSS 생성 콘텐츠(list-item 마커·counter)는 PDF ToUnicode 매핑이 없어
+        # 추출하면 PUA 로 떨어진다 — 부록을 복사하면 번호 자리가 깨진 글자가 된다(실측 48자).
         lis = "".join(
-            f'<li id="fn-{f["n"]}">{_inline_html(f["text"])}'
+            f'<li id="fn-{f["n"]}"><span class="fn-n">{f["n"]}.</span> '
+            + _inline_html(f["text"])
             + (f' <span class="src">— {_html.escape(f["source"])}</span>' if f["source"] else "")
             + f' <a href="#fnref-{f["n"]}">↩</a></li>'
             for f in ndoc["footnotes"]
         )
-        notes = f'<section class="notes"><h2>출처</h2><ol>{lis}</ol></section>'
+        notes = f'<section class="notes"><h2>출처</h2><ol class="plain">{lis}</ol></section>'
 
     meta_html = ""
     if ndoc["meta_rows"]:

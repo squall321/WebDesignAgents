@@ -379,3 +379,81 @@ def test_실데이터_심의산출_3형식(tmp_path):
     shutil.copy2(tmp_path / "r.html", moved)
     text = moved.read_text(encoding="utf-8")
     assert not re.search(r'src="(?!data:)', text) and "<link" not in text
+
+
+# ── PDF 텍스트 추출 가능성 (2026-08-28) ──────────────────────────────────────
+
+
+def test_numeric_columns_are_detected_by_majority():
+    """열 단위 판정 — 셀마다 정렬이 달라지면 표가 흔들린다."""
+    from wdrender.exporter_doc import _numeric_columns
+
+    assert _numeric_columns(
+        ["항목", "매출", "비고"],
+        [["A", "1,234억", "증가"], ["B", "2,010억", "유지"], ["C", "980억", ""]],
+    ) == [False, True, False]
+    assert _numeric_columns(
+        ["씬", "길이(초)", "비율"], [["오프닝", "7.0", "9%"], ["문제", "11.5", "15%"]]
+    ) == [False, True, True]
+    assert _numeric_columns(["이름", "설명"], [["a", "긴 설명"], ["b", "또 다른 설명"]]) == [False, False]
+
+
+def test_css_does_not_set_tnum_globally():
+    """body 의 tnum 은 서브셋 폰트에서 유니코드 매핑 없는 대체 글리프를 쓴다.
+
+    화면은 멀쩡한데 PDF 에서 숫자를 검색·복사할 수 없게 된다(실측 12쪽에 109자).
+    정렬은 숫자 열 우측 정렬로 대신한다.
+    """
+    from wdrender.doc_theme import DocTheme
+    from wdrender.exporter_doc import _css
+
+    import re as _re
+
+    # 주석에 경위가 적혀 있으므로 주석을 걷어내고 선언만 본다
+    css = _re.sub(r"/\*.*?\*/", "", _css(DocTheme(), None), flags=_re.S)
+    decls = [ln for ln in css.splitlines() if "font-feature-settings" in ln]
+    assert not decls, f"전역 tnum 이 되살아났다 — PDF 숫자가 다시 PUA 가 된다: {decls}"
+    assert "th.num,td.num" in css, "숫자 열 정렬 규칙이 없다"
+
+
+def test_footnote_numbers_are_real_text_not_list_markers():
+    """CSS 생성 콘텐츠(list-item 마커)는 PDF ToUnicode 매핑이 없다 — 번호를 본문에 적는다."""
+    from pathlib import Path
+
+    import wdrender.exporter_doc as E
+
+    src = Path(E.__file__).read_text(encoding="utf-8")
+    assert 'class="fn-n"' in src, "부록 번호를 텍스트로 적지 않는다"
+    assert '<ol class="plain">{lis}</ol>' in src, "자동 마커를 다시 쓰고 있다"
+
+
+def test_pdf_numbers_are_searchable_and_copyable(tmp_path: Path):
+    """PDF 에서 숫자가 추출되는가 — 화면이 멀쩡해도 여기서 깨지면 보고서로 못 쓴다.
+
+    실측 결함(2026-08-28): body 의 font-feature-settings:'tnum' 이 서브셋 폰트의
+    유니코드 매핑 없는 대체 글리프를 쓰게 해, 12쪽 문서에서 109자가 PUA 로 떨어졌다.
+    날짜·수치·표 값이 전부 검색·복사 불가였다. 자동 리스트 마커도 같은 이유로 깨졌다.
+    """
+    from pypdf import PdfReader
+
+    from wdrender.exporter_doc import export_document
+
+    doc = {
+        "meta": {"title": "숫자 추출 회귀", "date": "2026-08-28"},
+        "sections": [{
+            "no": 1, "heading": "수치",
+            "blocks": [
+                {"type": "paragraph", "text": "매출은 1,234억 원으로 12.5% 늘었다.", "refs": ["f1"]},
+                {"type": "table", "columns": ["항목", "값"],
+                 "rows": [["A", "7.0"], ["B", "11.5"]]},
+            ],
+        }],
+        "footnotes": [{"id": "f1", "text": "근거 문장", "source": {"page": "3", "block_id": "b1"}}],
+    }
+    export_document(doc, tmp_path, stem="n", formats=("pdf",), log=lambda m: None)
+
+    text = "".join((p.extract_text() or "") for p in PdfReader(tmp_path / "n.pdf").pages)
+    pua = [c for c in text if 0xE000 <= ord(c) <= 0xF8FF]
+    assert not pua, f"PDF 에 사용자 정의 영역 문자 {len(pua)}자 — 숫자를 검색·복사할 수 없다"
+    for want in ("2026-08-28", "1,234", "12.5", "7.0", "11.5"):
+        assert want in text, f"PDF 에서 {want!r} 를 추출하지 못했다"
