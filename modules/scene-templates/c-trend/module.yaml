@@ -47,9 +47,11 @@ widget_intake:
   mapping: "payload.series[].label → points[].label, payload.series[].group → lines[].label, payload.series[].value → lines[].values[i], payload.axis → axis, payload.unit → unit"
 quality:
   reproducibility:
-    verdict: pass          # 독립 컨텍스트 2회 렌더 × 3픽스처 — 스틸 PNG 바이트 동일
+    # wda repro 가 매 실행마다 다시 쓴다 — 여기 손으로 적은 주석은 남지 않는다
+    verdict: pass
+    # 독립 세션 2회 렌더 + 골든 대비 픽셀 diff 의 최댓값
     max_diff_ratio: 0.00000000
-    checked_at: "2026-07-29T02:21:22"
+    checked_at: "2026-08-28T14:34:05"
   gates_passed:
     - "20260729-022148-6c5f23"   # 게이트 1~7 error 0 · warning 0 (scenario 주입, x-read 자막 예산 포함)
   reviews: []

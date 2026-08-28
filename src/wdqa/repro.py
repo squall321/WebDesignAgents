@@ -359,14 +359,18 @@ _REPRO_BLOCK_RE = re.compile(r"^  reproducibility:\n(?:^    .*\n?)*", re.MULTILI
 def record_quality(mod_dir: Path, result: dict, checked_at: str | None = None) -> None:
     """module.yaml 의 quality.reproducibility 에 최근 결과(판정·max_diff_ratio·일시)를 기록한다.
 
-    주석·순서 보존을 위해 YAML 재직렬화 대신 서지컬 텍스트 편집만 한다.
+    블록 **바깥** 주석은 서지컬 텍스트 편집으로 보존한다. 블록 **안** 주석은 매번
+    새로 쓰므로 사람이 손으로 적어도 다음 실행에서 지워진다 — 그래서 설명은 여기서
+    같이 낸다. (사람이 적은 주석이 실행 때마다 깎이던 것을 이렇게 막는다.)
     """
     path = Path(mod_dir) / "module.yaml"
     text = path.read_text(encoding="utf-8")
     checked_at = checked_at or datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
     block = (
         "  reproducibility:\n"
+        "    # wda repro 가 매 실행마다 다시 쓴다 — 여기 손으로 적은 주석은 남지 않는다\n"
         f"    verdict: {'pass' if result['passed'] else 'fail'}\n"
+        "    # 독립 세션 2회 렌더 + 골든 대비 픽셀 diff 의 최댓값\n"
         f"    max_diff_ratio: {result['max_diff_ratio']:.8f}\n"
         f"    checked_at: \"{checked_at}\"\n"
     )

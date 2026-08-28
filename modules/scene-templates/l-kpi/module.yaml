@@ -36,7 +36,10 @@ out_of_scope:
   - "수치 카운트업 애니메이션 (값은 문자열 — 결정성 우선)"
 quality:
   reproducibility:
-    verdict: unverified
-    checked_at: null
+    # wda repro 가 매 실행마다 다시 쓴다 — 여기 손으로 적은 주석은 남지 않는다
+    verdict: pass
+    # 독립 세션 2회 렌더 + 골든 대비 픽셀 diff 의 최댓값
+    max_diff_ratio: 0.00000000
+    checked_at: "2026-08-28T14:34:05"
   gates_passed: []
   reviews: []

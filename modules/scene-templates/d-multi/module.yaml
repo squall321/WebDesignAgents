@@ -35,9 +35,11 @@ out_of_scope:
   - "음수 값·이중 축·로그 축·누적(스택) 막대"
 quality:
   reproducibility:
+    # wda repro 가 매 실행마다 다시 쓴다 — 여기 손으로 적은 주석은 남지 않는다
     verdict: pass
+    # 독립 세션 2회 렌더 + 골든 대비 픽셀 diff 의 최댓값
     max_diff_ratio: 0.00000000
-    checked_at: "2026-07-28T02:14:38"
+    checked_at: "2026-08-28T14:34:05"
   gates_passed:
     - "20260727-221724-df239e"  # 7게이트 클린 (error 0 · warning 0)
   reviews: []
