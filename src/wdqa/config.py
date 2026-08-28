@@ -1,6 +1,8 @@
 # QA 게이트 공용 설정 — 낭독 속도·대비 임계·프레임 diff 임계 등 (PLAN §7)
 from __future__ import annotations
 
+import os
+
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -55,6 +57,15 @@ class QAConfig:
     fps: int | None = None               # None이면 configs/render.toml 의 fps
     frame_diff_channel_tol: int = 8      # 채널 diff가 이 값 초과면 '변한 픽셀'
     frame_match_max_ratio: float = 0.02  # 변한 픽셀 비율 임계 (실측 0.000002 ≪ 0.02)
+    # 골든 대비는 훨씬 좁게 본다. frame_match 는 프레임 간 애니메이션 정합용이라 여유가
+    # 필요하지만, 골든은 "같은 코드가 같은 그림을 내는가" 라서 실측 잡음이 40종 전부
+    # 정확히 0.0 이다. 2% 를 그대로 쓰면 회귀를 놓친다 — 배지 패딩을 14→22px 로 키운
+    # 눈에 띄는 변경이 0.0251 로 겨우 임계를 넘었다(2026-08-28 실측).
+    # 0.002 = 1920×1080 기준 약 4100px 여유. 다른 크로미움 빌드의 AA 요동은 흡수하되
+    # 레이아웃·색 변화는 잡는다. 교차 플랫폼에서 넓혀야 하면 WDA_GOLDEN_MAX_RATIO.
+    golden_max_ratio: float = field(
+        default_factory=lambda: float(os.environ.get("WDA_GOLDEN_MAX_RATIO", "0.002"))
+    )
 
     # 단계 게이팅 — PLAN §7: S→D→R→V, 앞 단계 실패(error) 시 뒤 생략
     # 기본 False — 앞 단계(정적) 실패 1건이 나머지 게이트 전체를 가리는 단락을 막는다.

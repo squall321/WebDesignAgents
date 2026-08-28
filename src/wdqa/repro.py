@@ -218,10 +218,12 @@ def _verify_module_in_env(
                 )
                 fr["golden_diff_ratio"] = gd
                 result["max_diff_ratio"] = max(result["max_diff_ratio"], gd)
-                if gd > cfg.frame_match_max_ratio:
+                # 골든은 frame_match(애니메이션 정합용 여유) 가 아니라 전용 임계로 본다 —
+                # "같은 코드가 같은 그림을 내는가" 라 실측 잡음이 0.0 이다.
+                if gd > cfg.golden_max_ratio:
                     fr["passed"] = False
                     fr["errors"].append(
-                        f"골든 스냅샷 diff {gd:.6f} > {cfg.frame_match_max_ratio}"
+                        f"골든 스냅샷 diff {gd:.6f} > {cfg.golden_max_ratio}"
                     )
             else:
                 fr["passed"] = False

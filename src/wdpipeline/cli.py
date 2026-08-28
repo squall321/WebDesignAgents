@@ -305,7 +305,41 @@ def repro(
         record_quality(mods_by_id[r["module"]]["mod_dir"], r,
                        checked_at=report["checked_at"])
     if not report["passed"]:
+        typer.echo(_repro_verdict(report), err=True)
         raise typer.Exit(code=1)
+
+
+def _repro_verdict(report: dict) -> str:
+    """골든 실패의 원인을 좁혀 준다 — 환경 차이인지 코드 회귀인지.
+
+    둘은 고치는 방법이 완전히 다른데 diff 숫자만 보고는 구분되지 않는다.
+      · 거의 모든 모듈이 조금씩 어긋남 → 렌더 환경(크로미움 빌드·폰트 래스터)이 다르다.
+      · 몇 종만 어긋남 → 그 템플릿이 바뀐 것이다. 진짜 회귀다.
+    세션 간 diff 가 0 이면 "이 환경에서는 결정적" 이라는 뜻이라 판정의 근거가 된다.
+    """
+    rows = report.get("results") or []
+    golden_bad, session_bad = [], []
+    for r in rows:
+        fx = r.get("fixtures", {}).get("typical", {})
+        if (fx.get("golden_diff_ratio") or 0) > 0:
+            golden_bad.append(r["module"])
+        if any((f.get("session_max_diff_ratio") or 0) > 0
+               for f in r.get("fixtures", {}).values()):
+            session_bad.append(r["module"])
+    total = len(rows) or 1
+    if session_bad:
+        return (f"[repro] 판정: 비결정성 — 같은 환경에서 두 번 렌더한 결과가 다르다 "
+                f"({len(session_bad)}종). 골든보다 이것이 먼저다: {', '.join(session_bad[:5])}")
+    if not golden_bad:
+        return "[repro] 판정: 골든은 모두 일치 — 실패 원인은 스케줄·빌드 쪽이다."
+    if len(golden_bad) >= max(3, int(total * 0.8)):
+        return (f"[repro] 판정: **환경 차이로 보인다** — {len(golden_bad)}/{total} 종이 함께 어긋났고 "
+                f"세션 간 diff 는 0 이다. 크로미움 빌드·폰트 래스터가 골든을 만든 환경과 다르다. "
+                f"코드를 고칠 게 아니라 WDA_GOLDEN_MAX_RATIO 로 허용치를 넓히거나 "
+                f"이 환경에서 `wda repro --update-golden` 으로 기준선을 다시 잡아라.")
+    return (f"[repro] 판정: **코드 회귀로 보인다** — {len(golden_bad)}/{total} 종만 어긋났다: "
+            f"{', '.join(golden_bad[:8])}. 해당 템플릿의 최근 변경을 보라. "
+            f"의도한 변경이라면 `wda repro --update-golden` 으로 골든을 갱신하라.")
 
 
 @app.command()

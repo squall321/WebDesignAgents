@@ -1,0 +1,83 @@
+# 재현력·품질 게이트 상시 회귀 — 골든 스냅샷은 사람이 기억해서 지킬 수 없다
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: uv 설치
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: 파이썬 3.13
+        run: uv python install 3.13
+
+      - name: 의존성 (렌더·웹·MCP·문서 전부)
+        run: uv sync --all-extras
+
+      # 크로미움은 playwright 가 못 박는다 — 다른 빌드는 안티에일리어싱이 달라져
+      # 골든 대비 diff 가 흔들린다. pyproject 의 playwright 핀이 곧 크로미움 핀이다.
+      - name: 크로미움 (+ 시스템 의존성)
+        run: uv run playwright install --with-deps chromium
+
+      - name: ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+
+      - name: 환경 지문 (골든 diff 가 흔들리면 여기부터 본다)
+        run: |
+          uv run python -VV
+          uv run playwright --version
+          ffmpeg -version | head -1
+          uv run python -c "import PIL, playwright; print('pillow', PIL.__version__)"
+
+      - name: 전체 테스트
+        run: uv run pytest tests/ -q --durations=15
+
+      # 실패 시 무엇이 어떻게 달라졌는지 봐야 고칠 수 있다 — 리포트를 통째로 올린다
+      - name: 실패 시 QA 리포트 업로드
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-reports
+          path: data/qa_reports/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  golden:
+    # 골든 회귀만 따로 한 번 더 — 전체 테스트가 다른 이유로 깨져도 재현력 상태는 읽힌다.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv python install 3.13
+      - run: uv sync --all-extras
+      - run: uv run playwright install --with-deps chromium
+
+      - name: 재현력 3층 (세션 간 · 골든 대비 · 빌드 간)
+        run: uv run wda repro
+
+      - name: 재현력 리포트 업로드
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: repro-report
+          path: data/qa_reports/
+          if-no-files-found: ignore
+          retention-days: 14
