@@ -155,9 +155,49 @@ def _render_once(browser, srv: StaticServer, mod: dict, fixture: str, cfg: QACon
 
 # ---------------------------------------------------------------- 1층+3층: 모듈 검증
 
+GOLDEN_NOTE = "golden.json"
+
+
+def _write_golden_note(golden_path: Path, module_id: str, reason: str,
+                       fixture_result: dict, meeting: str = "") -> Path:
+    """골든을 왜 갱신했는지를 골든 파일 옆에 남긴다 (HITL §11-5).
+
+    리포트는 data/(gitignore) 라 다른 체크아웃에 없고, git log 는 "PNG 가 바뀌었다" 까지만
+    말한다. 의도된 시각 변경인지 사고인지는 **이 파일이 있어야** 다음 사람이 판별한다.
+    이력을 누적한다 — 마지막 갱신만 남기면 언제부터 어긋났는지 되짚을 수 없다.
+    """
+    import json as _json
+    from datetime import datetime, timezone
+
+    path = golden_path.parent / GOLDEN_NOTE
+    entry = {
+        "module": module_id,
+        "at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "reason": reason,
+        "meeting_id": meeting or None,
+        "prev_diff_ratio": fixture_result.get("golden_prev_diff_ratio"),
+        "prev_size": fixture_result.get("golden_prev_size"),
+        "snapshot": golden_path.name,
+    }
+    history = []
+    if path.is_file():
+        try:
+            history = _json.loads(path.read_text(encoding="utf-8")).get("history") or []
+        except ValueError:
+            history = []
+    history.append(entry)
+    path.write_text(
+        _json.dumps({"module": module_id, "latest": entry, "history": history},
+                    ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    return path
+
+
 def _verify_module_in_env(
     browser, srv: StaticServer, mod: dict, *,
     runs: int, fixtures: tuple[str, ...], cfg: QAConfig, update_golden: bool,
+    golden_reason: str = "", golden_meeting: str = "",
 ) -> dict:
     result: dict = {
         "module": mod["id"], "dir": mod["dir"],
@@ -200,6 +240,12 @@ def _verify_module_in_env(
         # 골든 대비 (typical 만 골든 보유)
         if fx == "typical":
             if update_golden:
+                if not golden_reason:
+                    raise ValueError(
+                        "골든 갱신에는 이유가 필요하다 — 회귀 기준선을 지우는 일이고, "
+                        "이유 없이 지우면 다음 사람은 그 변경이 의도였는지 알 수 없다. "
+                        "`wda repro --update-golden --reason '...'`"
+                    )
                 prev = golden_path.read_bytes() if golden_path.is_file() else None
                 if prev is not None:
                     from PIL import Image
@@ -208,9 +254,20 @@ def _verify_module_in_env(
                         prev, base["png"], cfg.frame_diff_channel_tol
                     )
                     fr["golden_prev_size"] = list(Image.open(io.BytesIO(prev)).size)
-                golden_path.parent.mkdir(parents=True, exist_ok=True)
-                golden_path.write_bytes(base["png"])
-                fr["golden_updated"] = True
+                # 픽셀이 같으면 쓰지 않는다. PNG 인코딩은 같은 화면에서도 바이트가 달라
+                # (실측 207015→207013), 갱신할 때마다 리포지터리가 흔들린다. 그러면
+                # golden.json 이력에 "바뀐 것 없음" 이 쌓여 진짜 변경이 묻힌다.
+                unchanged = prev is not None and fr.get("golden_prev_diff_ratio") == 0.0
+                if unchanged:
+                    fr["golden_updated"] = False
+                    fr["golden_unchanged"] = True
+                else:
+                    golden_path.parent.mkdir(parents=True, exist_ok=True)
+                    golden_path.write_bytes(base["png"])
+                    # 이유를 **골든 옆에** 남긴다. 리포트는 data/(gitignore) 라 다른 사람
+                    # 손에 없고, git log 는 바이너리가 바뀐 사실만 말해 준다.
+                    _write_golden_note(golden_path, mod["id"], golden_reason, fr, golden_meeting)
+                    fr["golden_updated"] = True
                 fr["golden_diff_ratio"] = 0.0
             elif golden_path.is_file():
                 gd = pixel_diff_ratio(
@@ -259,6 +316,8 @@ def verify_all(
     fixtures_by_module: dict[str, tuple[str, ...]] | None = None,
     cfg: QAConfig | None = None,
     update_golden: bool = False,
+    golden_reason: str = "",
+    golden_meeting: str = "",
     progress: Callable[[str], None] | None = None,
 ) -> dict:
     """레지스트리 전 scene-template 모듈 일괄 검증 + 요약 표.
@@ -276,6 +335,7 @@ def verify_all(
             r = _verify_module_in_env(
                 browser, srv, mod, runs=runs, fixtures=fx,
                 cfg=cfg, update_golden=update_golden,
+                golden_reason=golden_reason, golden_meeting=golden_meeting,
             )
             results.append(r)
             if progress:

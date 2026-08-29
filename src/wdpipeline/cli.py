@@ -262,7 +262,14 @@ def repro(
     module: str = typer.Option("", "--module", help="모듈 id 하나만 검증 (기본: 레지스트리 전 씬 템플릿 모듈)"),
     runs: int = typer.Option(2, "--runs", help="독립 세션 렌더 횟수"),
     update_golden: bool = typer.Option(
-        False, "--update-golden", help="typical 골든 스냅샷 재생성 (기존과의 diff 는 리포트에 기록)"
+        False, "--update-golden", help="typical 골든 스냅샷 재생성 (회귀 기준선을 덮어쓴다)"
+    ),
+    reason: str = typer.Option(
+        "", "--reason",
+        help="골든 갱신 이유 (--update-golden 필수) — 골든 옆 golden.json 에 이력으로 남는다",
+    ),
+    meeting: str = typer.Option(
+        "", "--meeting", help="근거 회의 id (의도된 시각 변경이면 회의록을 링크한다)",
     ),
     build_slug: str = typer.Option(
         "", "--build", help="빌드 슬러그 — 같은 시나리오 2회 빌드 바이트 동일성 검사 추가"
@@ -287,7 +294,8 @@ def repro(
 
     report = verify_all(
         _MODULES_ROOT, runs=runs, fixtures_by_module=fixtures_by_module,
-        update_golden=update_golden, progress=lambda s: typer.echo(f"[repro] {s}"),
+        update_golden=update_golden, golden_reason=reason, golden_meeting=meeting,
+        progress=lambda s: typer.echo(f"[repro] {s}"),
     )
 
     if build_slug:
@@ -350,6 +358,52 @@ def _repro_verdict(report: dict) -> str:
     return (f"[repro] 판정: **코드 회귀로 보인다** — {len(golden_bad)}/{total} 종만 어긋났다: "
             f"{', '.join(golden_bad[:8])}. 해당 템플릿의 최근 변경을 보라. "
             f"의도한 변경이라면 `wda repro --update-golden` 으로 골든을 갱신하라.")
+
+
+@app.command()
+def approve(
+    point: str = typer.Argument(..., help="개입 지점 (participants|scenario|shipping|action_items|golden)"),
+    subject: str = typer.Argument(..., help="대상 식별자 (run_id·module id·format id …)"),
+    reason: str = typer.Option(..., "--reason", help="왜 통과시키는가 — 기록의 전부다"),
+    by: str = typer.Option("", "--by", help="승인자"),
+    reject: bool = typer.Option(False, "--reject", help="거절로 기록 (진행이 막힌다)"),
+) -> None:
+    """사람 개입 지점(HITL) 승인·거절을 기록한다 (PLAN §11)."""
+    from wdcore.approvals import HITL_POINTS, Approval, ApprovalStore
+
+    if point not in HITL_POINTS:
+        typer.echo(f"[오류] 알 수 없는 지점: {point}", err=True)
+        for k, why in HITL_POINTS.items():
+            typer.echo(f"  {k:<14} {why}")
+        raise typer.Exit(code=1)
+    store = ApprovalStore(_data_dir() / "approvals")
+    try:
+        a = Approval(point=point, subject=subject, reason=reason,
+                     by=by, decision="reject" if reject else "approve")
+    except ValueError as exc:
+        typer.echo(f"[오류] {exc}", err=True)
+        raise typer.Exit(code=1) from None
+    path = store.record(a)
+    typer.echo(f"[approve] {point}/{subject} → {a.decision} ({a.reason}) → {path}")
+
+
+@app.command()
+def approvals(
+    point: str = typer.Option("", "--point", help="지점 하나만"),
+) -> None:
+    """승인 원장 조회 — 아직 통과하지 못한(거절된) 항목을 먼저 보여준다."""
+    from wdcore.approvals import HITL_POINTS, ApprovalStore, unattended_mode
+
+    store = ApprovalStore(_data_dir() / "approvals")
+    typer.echo(f"[approvals] 무인 모드 {'ON' if unattended_mode() else 'OFF'}")
+    blocked = store.pending(point or None)
+    if blocked:
+        typer.echo(f"  막힌 항목 {len(blocked)}건")
+        for b in blocked:
+            typer.echo(f"    ✗ {b['point']}/{b['subject']} — {b['reason']}")
+    for p in ([point] if point else list(HITL_POINTS)):
+        files = sorted((store.root / p).glob("*.json"))
+        typer.echo(f"  {p:<14} 기록 {len(files):>3}건   {HITL_POINTS[p]}")
 
 
 @app.command()

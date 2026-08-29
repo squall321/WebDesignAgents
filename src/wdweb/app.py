@@ -620,6 +620,38 @@ def get_autorun(meeting_id: str) -> dict:
     return envelope(state)
 
 
+@app.get("/api/approvals")
+def get_approvals(point: str = "") -> dict:
+    """승인 원장 (MCP approval_status 와 같은 원장)."""
+    from wdcore.approvals import HITL_POINTS, ApprovalStore, unattended_mode
+
+    if point and point not in HITL_POINTS:
+        raise HTTPException(status_code=400, detail=f"알 수 없는 지점: {point}")
+    store = ApprovalStore(data_dir() / "approvals")
+    return envelope({
+        "unattended": unattended_mode(),
+        "points": {k: {"why": v, "records": len(list((store.root / k).glob("*.json")))}
+                   for k, v in HITL_POINTS.items()},
+        "blocked": store.pending(point or None),
+    })
+
+
+@app.post("/api/approvals", status_code=status.HTTP_201_CREATED)
+def post_approval(body: dict = Body(...)) -> dict:
+    """승인·거절 기록. body: {point, subject, reason, by?, decision?}"""
+    from wdcore.approvals import Approval, ApprovalStore
+
+    try:
+        a = Approval(point=str(body.get("point") or ""), subject=str(body.get("subject") or ""),
+                     reason=str(body.get("reason") or ""), by=str(body.get("by") or ""),
+                     decision=str(body.get("decision") or "approve"))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
+    ApprovalStore(data_dir() / "approvals").record(a)
+    return envelope({"point": a.point, "subject": a.subject,
+                     "decision": a.decision, "at": a.at}, message="기록했습니다")
+
+
 @app.get("/api/metrics")
 def get_metrics() -> dict:
     """성장 지표 (MCP metrics_report 와 같은 계산)."""

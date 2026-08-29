@@ -1132,6 +1132,61 @@ def _scene_ctx(state, run_id: str):
 
 
 @mcp.tool()
+def approval_record(point: str, subject: str, reason: str,
+                    by: str = "", decision: str = "approve") -> dict:
+    """사람 개입 지점(HITL 5종)의 승인·거절을 원장에 남긴다 (PLAN §11).
+
+    point — participants|scenario|shipping|action_items|golden.
+    reason 은 필수다. 이유 없는 승인은 나중에 아무도 되짚을 수 없다.
+    """
+    state = get_session()
+    mod, err = _lazy_import("wdcore.approvals")
+    if mod is None:
+        return error_envelope(state, "APPROVALS_UNAVAILABLE", str(err))
+    try:
+        a = mod.Approval(point=point, subject=subject, reason=reason,
+                         by=by, decision=decision)
+    except ValueError as exc:
+        return error_envelope(
+            state, "INVALID_INPUT", str(exc),
+            "지점: " + ", ".join(f"{k}({v.split(' — ')[0]})" for k, v in mod.HITL_POINTS.items()),
+        )
+    store = mod.ApprovalStore(get_settings().data_dir / "approvals")
+    path = store.record(a)
+    return ok_envelope(
+        state, {"point": a.point, "subject": a.subject, "decision": a.decision,
+                "reason": a.reason, "at": a.at, "path": str(path)},
+        "기록됐다. approval_status 로 확인하고, 막힌 항목이 있으면 사유를 해소한 뒤 다시 기록하라.",
+    )
+
+
+@mcp.tool()
+def approval_status(point: str = "", subject: str = "") -> dict:
+    """승인 원장 조회 — 지점별 기록 수와 막힌(거절된) 항목."""
+    state = get_session()
+    mod, err = _lazy_import("wdcore.approvals")
+    if mod is None:
+        return error_envelope(state, "APPROVALS_UNAVAILABLE", str(err))
+    if point and point not in mod.HITL_POINTS:
+        return error_envelope(state, "INVALID_INPUT", f"알 수 없는 지점: {point}",
+                              f"쓸 수 있는 지점: {', '.join(mod.HITL_POINTS)}")
+    store = mod.ApprovalStore(get_settings().data_dir / "approvals")
+    if point and subject:
+        a = store.latest(point, subject)
+        data = {"point": point, "subject": subject,
+                "approved": store.is_approved(point, subject),
+                "latest": (a.__dict__ if a else None)}
+    else:
+        data = {
+            "unattended": mod.unattended_mode(),
+            "points": {k: {"why": v, "records": len(list((store.root / k).glob("*.json")))}
+                       for k, v in mod.HITL_POINTS.items()},
+            "blocked": store.pending(point or None),
+        }
+    return ok_envelope(state, data, "막힌 항목은 사유를 해소해야 진행된다.")
+
+
+@mcp.tool()
 def metrics_report() -> dict:
     """성장 지표 — 게이트 1회차 통과율·모듈 재사용률(목표 80%)·심의 토큰 추이.
 
