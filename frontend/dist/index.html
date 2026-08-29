@@ -31,6 +31,7 @@
   <button class="tab" id="tab-history" role="tab" aria-selected="false" aria-controls="panel-history" tabindex="-1" data-tab="history">실행 이력</button>
   <button class="tab" id="tab-modules" role="tab" aria-selected="false" aria-controls="panel-modules" tabindex="-1" data-tab="modules">모듈 갤러리</button>
   <button class="tab" id="tab-meetings" role="tab" aria-selected="false" aria-controls="panel-meetings" tabindex="-1" data-tab="meetings">심의</button>
+  <button class="tab" id="tab-metrics" role="tab" aria-selected="false" aria-controls="panel-metrics" tabindex="-1" data-tab="metrics">지표</button>
 </nav>
 
 <main id="main">
@@ -297,6 +298,19 @@
           <p class="empty">왼쪽에서 심의를 선택하면 진행 현황과 회의록이 여기에 표시됩니다.</p>
         </div>
       </div>
+    </div>
+  </section>
+  <section class="panel" id="panel-metrics" role="tabpanel" aria-labelledby="tab-metrics" hidden>
+    <div class="card">
+      <div class="panel-head">
+        <div>
+          <h2>성장 지표</h2>
+          <p class="hint" id="metrics-meta">불러오는 중…</p>
+        </div>
+        <button class="btn" id="metrics-refresh" type="button">새로고침</button>
+      </div>
+      <div class="kpis" id="metrics-kpis"></div>
+      <div id="metrics-detail"></div>
     </div>
   </section>
 </main>

@@ -878,3 +878,30 @@ main { padding: var(--sp-5) var(--sp-6) var(--sp-7); max-width: 1280px; margin: 
   font-size: var(--fs-4); color: var(--c-blue); font-weight: 700;
 }
 .ms-note { font-size: var(--fs-2); color: var(--c-sub); }
+
+
+/* ── 지표 ─────────────────────────────────────────────────────────────────
+   밀도는 브리핑급(UI 원칙 7) — 숫자는 크고, 목표선은 눈에 보이고, 잡동사니는 없다. */
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--sp-4); margin: var(--sp-4) 0 var(--sp-5); }
+.kpi { border: 1px solid var(--c-line); border-radius: var(--r-md);
+  padding: var(--sp-4); background: var(--c-card); }
+.kpi-k { font-size: var(--fs-1); color: var(--c-sub); font-weight: 600; }
+.kpi-v { font-size: var(--fs-7); font-weight: 800; color: var(--c-ink);
+  line-height: 1.1; margin: var(--sp-2) 0 var(--sp-1); font-variant-numeric: tabular-nums; }
+.kpi-sub { font-size: var(--fs-2); color: var(--c-sub); }
+.kpi-note { font-size: var(--fs-1); color: var(--c-faint); margin-top: var(--sp-2); }
+.kpi.ok .kpi-v { color: var(--c-green); }
+.kpi.warn .kpi-v { color: var(--c-red); }
+/* 목표선 — 막대 위 실제 위치에 선을 긋는다. 숫자만으로는 '얼마나' 가 안 읽힌다 */
+.kpi-bar { position: relative; height: 6px; border-radius: 3px;
+  background: var(--c-skel); margin-top: var(--sp-3); overflow: visible; }
+.kpi-bar i { display: block; height: 100%; border-radius: 3px; background: var(--c-blue); }
+.kpi-bar .goal { position: absolute; top: -3px; width: 2px; height: 12px;
+  background: var(--c-ink); }
+.metrics-table { width: 100%; border-collapse: collapse; font-size: var(--fs-2); }
+.metrics-table th { text-align: left; color: var(--c-sub); font-weight: 600;
+  padding: var(--sp-2) var(--sp-3); border-bottom: 1px solid var(--c-line); }
+.metrics-table td { padding: var(--sp-2) var(--sp-3); border-bottom: 1px solid var(--c-line); }
+.metrics-table td.n { text-align: right; font-variant-numeric: tabular-nums; }
+.metrics-table h3 { font-size: var(--fs-4); margin: var(--sp-5) 0 var(--sp-2); }

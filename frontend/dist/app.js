@@ -132,8 +132,9 @@ setInterval(checkHealth, 30000);
 
 // ── 탭 전환 (APG tabs 패턴) ─────────────────────────────────────────────────
 
-const TAB_NAMES = ['create', 'history', 'modules', 'meetings'];
-const LOADERS = { history: loadHistory, modules: loadModules, meetings: loadMeetings };
+const TAB_NAMES = ['create', 'history', 'modules', 'meetings', 'metrics'];
+const LOADERS = { history: loadHistory, modules: loadModules, meetings: loadMeetings,
+  metrics: loadMetrics };
 
 $('tabs').addEventListener('click', (e) => {
   const btn = e.target.closest('.tab');
@@ -1199,3 +1200,63 @@ $('meetings-list').addEventListener('click', async (e) => {
 });
 
 $('meetings-refresh').addEventListener('click', loadMeetings);
+
+
+// ── 성장 지표 ───────────────────────────────────────────────────────────────
+// 게이트 1회차 통과율을 보는 이유 — 고칠 때까지 다시 돌리면 전체 통과율은 1 에 수렴한다.
+// 품질이 오르고 있는지는 "처음에 맞았나" 가 말한다.
+
+const pct = (v) => (v === null || v === undefined ? '–' : (v * 100).toFixed(1) + '%');
+
+function kpi({ k, v, sub, note, state, bar, goal }) {
+  const cls = state ? ` ${state}` : '';
+  const barHtml = bar === undefined ? '' :
+    `<div class="kpi-bar"><i style="width:${Math.min(100, bar * 100).toFixed(1)}%"></i>`
+    + (goal === undefined ? '' : `<span class="goal" style="left:${(goal * 100).toFixed(1)}%"></span>`)
+    + '</div>';
+  return `<div class="kpi${cls}"><div class="kpi-k">${esc(k)}</div>`
+    + `<div class="kpi-v">${esc(v)}</div><div class="kpi-sub">${esc(sub)}</div>`
+    + barHtml + (note ? `<p class="kpi-note">${esc(note)}</p>` : '') + '</div>';
+}
+
+async function loadMetrics() {
+  const box = $('metrics-kpis');
+  box.innerHTML = '<p class="empty">불러오는 중…</p>';
+  $('metrics-detail').innerHTML = '';
+  try {
+    const m = await api('api/metrics');
+    const g = m.gate_first_pass, r = m.module_reuse, t = m.tokens;
+    $('metrics-meta').textContent = '수집 ' + fmtTime(m.collected_at);
+    box.innerHTML = [
+      kpi({ k: '게이트 1회차 통과율', v: pct(g.rate),
+            sub: `${g.first_pass} / ${g.builds} 빌드 · 리포트 ${g.reports_read}건`,
+            bar: g.rate ?? 0,
+            note: '고칠 때까지 다시 돌리면 전체 통과율은 1 에 수렴한다 — 처음에 맞았는지를 본다' }),
+      kpi({ k: '모듈 재사용률', v: pct(r.rate),
+            sub: `목표 ${pct(r.target)} · 실행 ${r.runs} · 씬 ${r.scenes}`,
+            state: r.meets_target === false ? 'warn' : (r.meets_target ? 'ok' : ''),
+            bar: r.rate ?? 0, goal: r.target,
+            note: r.runs_below_target
+              ? `목표선 아래 실행 ${r.runs_below_target}건 — 그만큼 창작 모드가 발동했다`
+              : '기존 모듈로 채운 씬의 비율 (그 실행보다 먼저 등록돼 있던 모듈)' }),
+      kpi({ k: '심의 토큰', v: t.avg_tokens === null ? '–' : String(t.avg_tokens),
+            sub: `회의당 평균 · 턴당 ${t.per_turn ?? '–'}`,
+            note: `계측 ${t.meetings_measured}/${t.meetings_total} — ${t.coverage_note}` }),
+    ].join('');
+
+    const rows = (r.recent || []).map((x) =>
+      `<tr><td>${esc(x.run_id)}</td><td>${esc((x.at || '').slice(0, 10))}</td>`
+      + `<td class="n">${x.scenes}</td><td class="n">${x.reused}</td>`
+      + `<td class="n">${x.created}</td><td class="n">${pct(x.rate)}</td></tr>`).join('');
+    $('metrics-detail').innerHTML = rows
+      ? '<h3>최근 실행의 모듈 재사용</h3><table class="metrics-table"><thead><tr>'
+        + '<th>실행</th><th>날짜</th><th class="n">씬</th><th class="n">재사용</th>'
+        + '<th class="n">창작</th><th class="n">비율</th></tr></thead><tbody>'
+        + rows + '</tbody></table>'
+      : '';
+  } catch (e) {
+    box.innerHTML = `<p class="empty">지표를 불러오지 못했습니다: ${esc(e.message)}</p>`;
+  }
+}
+
+$('metrics-refresh').addEventListener('click', loadMetrics);
