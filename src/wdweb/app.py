@@ -620,6 +620,17 @@ def get_autorun(meeting_id: str) -> dict:
     return envelope(state)
 
 
+@app.get("/api/metrics")
+def get_metrics() -> dict:
+    """성장 지표 (MCP metrics_report 와 같은 계산)."""
+    from wdqa.metrics import collect_metrics
+
+    try:
+        return envelope(collect_metrics(data_dir()))
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail=f"{type(exc).__name__}: {exc}") from exc
+
+
 # ── 모듈 갤러리 ──────────────────────────────────────────────────────────────
 
 

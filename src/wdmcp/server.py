@@ -1132,6 +1132,30 @@ def _scene_ctx(state, run_id: str):
 
 
 @mcp.tool()
+def metrics_report() -> dict:
+    """성장 지표 — 게이트 1회차 통과율·모듈 재사용률(목표 80%)·심의 토큰 추이.
+
+    "이 플랫폼이 우상향하고 있는가" 를 한 번에 본다(PLAN §11 우상향 장치 ③).
+    1회차 통과율을 보는 이유 — 고칠 때까지 다시 돌리면 전체 통과율은 1 에 수렴한다.
+    재사용률이 목표선 아래면 그만큼 창작 모드가 발동했다는 뜻이다.
+    """
+    state = get_session()
+    mod, err = _lazy_import("wdqa.metrics")
+    if mod is None:
+        return error_envelope(state, "QA_UNAVAILABLE", f"wdqa.metrics 를 불러올 수 없다: {err}")
+    try:
+        data = mod.collect_metrics(get_settings().data_dir)
+    except Exception as exc:  # noqa: BLE001
+        return error_envelope(state, "METRICS_FAILED", f"{type(exc).__name__}: {exc}")
+    r = data["module_reuse"]
+    hint = ("재사용률이 목표선 아래다 — 창작 모드가 그만큼 발동했다. 새 모듈이 필요했던 "
+            "실행을 보고 in_scope 를 넓힐지 판단하라."
+            if r.get("meets_target") is False else
+            "재사용률이 목표선 위다. 게이트 1회차 통과율이 떨어지면 픽스처·규칙을 늘려라.")
+    return ok_envelope(state, data, hint)
+
+
+@mcp.tool()
 def module_list(kind: str | None = None) -> dict:
     """모듈·템플릿 카탈로그를 반환한다 — 씬을 무엇으로 채울 수 있는지의 정본 목록.
 

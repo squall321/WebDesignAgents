@@ -353,6 +353,36 @@ def _repro_verdict(report: dict) -> str:
 
 
 @app.command()
+def metrics(
+    json_out: str = typer.Option("", "--json", help="지표를 JSON 파일로도 저장"),
+) -> None:
+    """성장 지표 — 게이트 1회차 통과율·모듈 재사용률·토큰 추이 (PLAN §11 우상향 장치 ③)."""
+    from wdqa.metrics import collect_metrics
+
+    m = collect_metrics(_data_dir())
+    g, r, t = m["gate_first_pass"], m["module_reuse"], m["tokens"]
+
+    def pct(v):
+        return "–" if v is None else f"{v * 100:.1f}%"
+
+    typer.echo(f"[metrics] {m['collected_at']}")
+    typer.echo(f"  게이트 1회차 통과율  {pct(g['rate']):>7}   "
+               f"({g['first_pass']}/{g['builds']} 빌드 · 리포트 {g['reports_read']}건)")
+    mark = "" if r["meets_target"] is None else (" ✓" if r["meets_target"] else " ✗ 목표 미달")
+    typer.echo(f"  모듈 재사용률        {pct(r['rate']):>7}   "
+               f"(목표 {pct(r['target'])} · 실행 {r['runs']} · 씬 {r['scenes']}){mark}")
+    typer.echo(f"  심의 토큰            {t['avg_tokens'] or '–':>7}   "
+               f"(회의당 평균 · 턴당 {t['per_turn'] or '–'} · 계측 {t['meetings_measured']}/{t['meetings_total']})")
+    typer.echo(f"    ↳ {t['coverage_note']}")
+    if r["runs_below_target"]:
+        typer.echo(f"  ⚠ 재사용률이 목표선 아래인 실행 {r['runs_below_target']}건 — "
+                   "창작 모드가 그만큼 발동했다는 뜻이다")
+    if json_out:
+        _write_json(Path(json_out), m)
+        typer.echo(f"  → {json_out}")
+
+
+@app.command()
 def validate() -> None:
     """페르소나 레지스트리 + 씬 템플릿 모듈 레지스트리 정합성 검사."""
     from jsonschema import Draft202012Validator
