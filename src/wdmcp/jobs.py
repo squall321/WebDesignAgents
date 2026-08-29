@@ -124,6 +124,8 @@ def submit_render_job(
     fps: int | None = None,
     run_dir: str | None = None,
     doc_style: str = "report",
+    pptx_mode: str = "hybrid",
+    pptx_verify: bool = False,
 ) -> RenderJob:
     """잡 파일을 queued로 기록하고 백그라운드 워커 스레드를 기동한다."""
     now = _now_iso()
@@ -137,6 +139,8 @@ def submit_render_job(
         fps=fps,
         run_dir=run_dir,
         doc_style=doc_style,
+        pptx_mode=pptx_mode,
+        pptx_verify=pptx_verify,
         created_at=now,
         updated_at=now,
     )
@@ -219,7 +223,8 @@ def _run_job(job_id: str, renders_root: Path, build_root: Path) -> None:
             out = out_dir / "slides.pptx"
             detail["pptx"] = export_pptx(
                 root, rel, out, config=cfg, resources=resources,
-                format_id=_format_of(root), stills=stills, notes=notes, log=lambda m: None,
+                format_id=_format_of(root), stills=stills, notes=notes,
+                mode=job.pptx_mode, verify=job.pptx_verify, log=lambda m: None,
             )
             outputs["pptx"] = str(out)
 

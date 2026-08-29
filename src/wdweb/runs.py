@@ -246,16 +246,18 @@ def _run_pipeline(run_id: str, raw_path: Path, slug: str, droot: Path) -> None:
 
 
 def submit_render(run_id: str, targets: list[str], fps: int | None = None,
-                  doc_style: str = "report") -> dict:
+                  doc_style: str = "report", pptx_mode: str = "hybrid") -> dict:
     """빌드 완료된 실행에 wdrender exporter 를 백그라운드로 돌린다. 상태는 run.render 에 기록."""
     run = read_run(run_id)
     assert run is not None
     _update_render(
-        run_id, status="queued", targets=targets, doc_style=doc_style, outputs={}, error=None,
+        run_id, status="queued", targets=targets, doc_style=doc_style,
+        pptx_mode=pptx_mode, outputs={}, error=None,
         started_at=_now_iso(),
     )
     t = threading.Thread(
-        target=_run_render, args=(run_id, targets, fps, data_dir(), doc_style), daemon=True,
+        target=_run_render, args=(run_id, targets, fps, data_dir(), doc_style, pptx_mode),
+        daemon=True,
         name=f"wdweb-render-{run_id}",
     )
     t.start()
@@ -263,7 +265,7 @@ def submit_render(run_id: str, targets: list[str], fps: int | None = None,
 
 
 def _run_render(run_id: str, targets: list[str], fps: int | None, droot: Path,
-                doc_style: str = "report") -> None:
+                doc_style: str = "report", pptx_mode: str = "hybrid") -> None:
     """렌더 워커 — wdmcp/jobs.py 의 exporter 실행부 동형. 실패는 render.status=failed 로 기록."""
     try:
         run = read_run(run_id)
@@ -319,7 +321,8 @@ def _run_render(run_id: str, targets: list[str], fps: int | None, droot: Path,
             out = out_dir / "slides.pptx"
             detail["pptx"] = export_pptx(
                 root, rel, out, config=cfg, resources=resources,
-                format_id=_format_of(root), stills=stills, notes=notes, log=lambda m: None,
+                format_id=_format_of(root), stills=stills, notes=notes,
+                mode=pptx_mode, log=lambda m: None,
             )
             outputs["pptx"] = str(out)
 

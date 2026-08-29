@@ -485,6 +485,8 @@ function syncOutputControls() {
   const isDoc = !!kind && kind.value === 'doc';
   const styleWrap = $('doc-style-wrap');
   if (styleWrap) styleWrap.hidden = !isDoc;   // 문체는 문서에만 있는 선택지다
+  const pptxWrap = $('pptx-mode-wrap');
+  if (pptxWrap) pptxWrap.hidden = isDoc;      // PPT 방식은 영상·슬라이드에만 있다
   const btn = $('render-btn');
   if (btn && !btn.disabled) btn.textContent = selectedOutput().label + ' 만들기';
 }
@@ -501,6 +503,9 @@ $('render-btn').addEventListener('click', async () => {
   if (kind.targets.includes('pdf')) {
     const sel = $('doc-style');
     if (sel && sel.value) body.doc_style = sel.value;
+  } else {
+    const pm = $('pptx-mode');
+    if (pm && pm.value) body.pptx_mode = pm.value;
   }
   btn.disabled = true;
   $('render-status').textContent = kind.label + ' 를 요청하는 중…';

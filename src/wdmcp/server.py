@@ -52,6 +52,7 @@ from .envelope import (
 )
 from .schemas import (
     DOC_STYLES,
+    PPTX_MODES,
     DOC_TARGETS,
     RENDER_TARGETS,
     BriefingCard,
@@ -905,6 +906,8 @@ def render_submit(
     fps: int | None = None,
     run_dir: str | None = None,
     doc_style: str = "report",
+    pptx_mode: str = "hybrid",
+    pptx_verify: bool = False,
 ) -> dict:
     """렌더 잡을 등록한다 — 백그라운드 스레드가 (필요 시) 빌드 후 산출물을 export 한다.
 
@@ -919,6 +922,12 @@ def render_submit(
     """
     state = get_session()
     targets = targets or ["video"]
+    if pptx_mode not in PPTX_MODES:
+        return error_envelope(
+            state, "INVALID_INPUT", f"알 수 없는 pptx_mode: {pptx_mode}",
+            f"쓸 수 있는 값: {', '.join(PPTX_MODES)} "
+            "(hybrid=글자 편집 가능, image=화면 그대로 그림 한 장)",
+        )
     if doc_style not in DOC_STYLES:
         return error_envelope(
             state, "INVALID_INPUT", f"알 수 없는 doc_style: {doc_style}",
@@ -977,6 +986,7 @@ def render_submit(
     job = jobs.submit_render_job(
         targets=targets, scenario_path=scenario_path, build_dir=build_dir, entry=entry, fps=fps,
         run_dir=run_dir, doc_style=doc_style,
+        pptx_mode=pptx_mode, pptx_verify=pptx_verify,
     )
     data = RenderSubmitOut(
         job_id=job.job_id,

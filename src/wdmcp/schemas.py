@@ -357,6 +357,8 @@ class ScenarioPatchOut(ToolModel):
 RENDER_TARGETS = ("video", "pptx", "html", "pdf", "docx")
 DOC_TARGETS = ("html", "pdf", "docx")
 DOC_STYLES = ("report", "brief", "memo")
+# PPTX 조립 방식 — hybrid 는 글자를 편집할 수 있고 image 는 화면 그대로 그림 한 장이다.
+PPTX_MODES = ("hybrid", "image")
 
 JobStatus = Literal["queued", "building", "rendering", "done", "failed"]
 
@@ -372,7 +374,9 @@ class RenderJob(ToolModel):
     entry: str | None = None
     fps: int | None = None
     run_dir: str | None = None      # 문서 조립 원천 (data/pipeline/{run_id})
-    doc_style: str = "report"       # report | brief | memo
+    doc_style: str = "report"
+    pptx_mode: str = "hybrid"
+    pptx_verify: bool = False       # report | brief | memo
     outputs: dict[str, str] = Field(default_factory=dict)
     detail: dict = Field(default_factory=dict)
     error: str | None = None

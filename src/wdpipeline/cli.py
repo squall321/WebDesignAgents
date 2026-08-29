@@ -179,6 +179,14 @@ def render(
     fps: int = typer.Option(0, "--fps", help="프레임레이트 오버라이드 (기본: configs/render.toml)"),
     skip_video: bool = typer.Option(False, "--skip-video", help="mp4 생략 (pptx 만)"),
     format: str = typer.Option("", "--format", help="포맷 오버라이드 (기본: scene-data.json 의 format)"),
+    pptx_mode: str = typer.Option(
+        "hybrid", "--pptx-mode",
+        help="hybrid=글자 편집 가능(기본) · image=화면 그대로 그림 한 장",
+    ),
+    pptx_verify: bool = typer.Option(
+        False, "--pptx-verify",
+        help="hybrid 좌표 검증 — 숨긴 글자가 텍스트박스에 덮이는지 실측 (캡처 2배)",
+    ),
 ) -> None:
     """P5 — data/build/{slug}/ 를 mp4 + pptx 로 export 한다 (wdrender 호출)."""
     from wdrender.config import load_config
@@ -224,8 +232,10 @@ def render(
         pinfo = export_pptx(
             build_dir, ENTRY_NAME, out_dir / f"{slug}.pptx",
             config=cfg, format_id=fid, stills=stills, notes=notes,
+            mode=pptx_mode, verify=pptx_verify,
         )
-        typer.echo(f"[render] pptx {pinfo['slides']}장/{pinfo['scenes']}씬 → {pinfo['out']}")
+        tail = f" 텍스트 {pinfo['text_boxes']}개" if pinfo.get("text_boxes") else ""
+        typer.echo(f"[render] pptx {pinfo['slides']}장/{pinfo['scenes']}씬{tail} → {pinfo['out']}")
 
 
 @app.command()
