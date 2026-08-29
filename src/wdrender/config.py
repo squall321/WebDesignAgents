@@ -25,6 +25,11 @@ class RenderConfig:
         default_factory=lambda: ["-c:v", "libx264", "-pix_fmt", "yuv420p"]
     )
     default_still_progress: float = 0.9
+    # hybrid PPTX 좌표 허용 오차 (PLAN §9.1 ③ 승격 조건).
+    # 숨긴 글자 픽셀 중 텍스트박스에 덮이지 않은 비율의 상한. 실측 바닥은 글리프
+    # 가장자리 안티에일리어싱뿐이라 0.03%(delib_v2 7씬) — 0.5% 는 그 위 여유이면서
+    # 글자 하나가 통째로 빠지는 것은 잡는 값이다.
+    pptx_uncovered_max: float = 0.005
     vendor_dir: Path | None = None
     slide_w_emu: int = DEFAULT_SLIDE_W_EMU
     slide_h_emu: int = DEFAULT_SLIDE_H_EMU

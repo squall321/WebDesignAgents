@@ -63,6 +63,10 @@ _TYPE_SCALE: dict[str, float] = {
 }
 
 
+# 채널 diff 가 이 값을 넘으면 "지워진 픽셀" 로 센다 (wdqa frame_diff_channel_tol 과 같은 규약)
+_COVERAGE_CHANNEL_TOL = 8
+
+
 def _hex_rgb(value: str) -> RGBColor:
     """"#RRGGBB" → RGBColor (앞의 # 는 있어도 없어도 된다)."""
     s = value.lstrip("#")
@@ -79,6 +83,38 @@ def _set_font_name(font, name: str) -> None:
         ea = rPr.makeelement(qn("a:ea"), {})
         latin.addnext(ea)
     ea.set("typeface", name)
+
+
+def _coverage(before: bytes, after: bytes, boxes: list[dict],
+              scene: str, at: float) -> dict:
+    """숨기기로 지워진 픽셀이 텍스트박스 영역 안에 있는지 잰다 (PLAN §9.1 좌표 허용 오차).
+
+    덮이지 않은 픽셀 = 배경에서는 지워졌는데 네이티브 텍스트로도 다시 그려지지 않은 글자.
+    실측 바닥은 글리프 가장자리 안티에일리어싱뿐이다(delib_v2 7씬 0.03%).
+    """
+    import io as _io
+
+    import numpy as np
+    from PIL import Image
+
+    a = np.asarray(Image.open(_io.BytesIO(before)).convert("RGB"), dtype=np.int16)
+    b = np.asarray(Image.open(_io.BytesIO(after)).convert("RGB"), dtype=np.int16)
+    if a.shape != b.shape:
+        raise ValueError(f"검증 캡처 크기 불일치: {a.shape} vs {b.shape}")
+    changed = np.abs(a - b).max(axis=2) > _COVERAGE_CHANNEL_TOL
+    cover = np.zeros(changed.shape, dtype=bool)
+    h, w = changed.shape
+    for box in boxes:
+        x0 = max(0, int(box["x"])); y0 = max(0, int(box["y"]))
+        x1 = min(w, int(box["x"] + box["w"]) + 1)
+        y1 = min(h, int(box["y"] + box["h"]) + 1)
+        if x1 > x0 and y1 > y0:
+            cover[y0:y1, x0:x1] = True
+    hidden = int(changed.sum())
+    uncovered = int((changed & ~cover).sum())
+    return {"scene": scene, "t": round(at, 3), "boxes": len(boxes),
+            "hidden_px": hidden, "uncovered_px": uncovered,
+            "uncovered_ratio": round(uncovered / hidden, 6) if hidden else 0.0}
 
 
 def _add_text_box(slide, box: dict[str, Any], epx: float, epy: float, idx: int) -> None:
@@ -342,7 +378,8 @@ def export_pptx(
     resources: dict[str, str] | None = None,
     stills: dict[str, list[float]] | None = None,
     notes: dict[str, str] | None = None,
-    mode: str = "image",
+    mode: str = "hybrid",
+    verify: bool = False,
     structure: list[dict] | None = None,
     slide_numbers: bool = False,
     footer: str = "",
@@ -356,9 +393,13 @@ def export_pptx(
     stills — {씬 name: [씬 로컬 시각(초), ...]} 오버라이드. 미지정 씬은
              progress = default_still_progress(기본 0.9) 시점 1장.
     notes  — {씬 name: 발표자 노트 텍스트}. 씬의 모든 슬라이드에 동일 삽입.
-    mode   — "image"(기본, 종전 동작): 화면 그대로 풀블리드 그림 1장.
-             "hybrid": 텍스트를 숨긴 배경 캡처 위에 원 좌표의 네이티브 텍스트박스를 얹어
-             파워포인트에서 글자를 편집할 수 있게 한다.
+    mode   — "image": 화면 그대로 풀블리드 그림 1장 (편집 불가).
+             "hybrid"(기본): 텍스트를 숨긴 배경 캡처 위에 원 좌표의 네이티브 텍스트박스를
+             얹어 파워포인트에서 글자를 편집할 수 있게 한다.
+    verify — hybrid 좌표 검증(PLAN §9.1 승격 조건). 숨기기 전/후를 둘 다 캡처해
+             **숨긴 픽셀이 텍스트박스 영역에 덮이는지** 잰다. 덮이지 않은 픽셀은
+             배경에서 지워졌는데 다시 그려지지 않은 글자 — 즉 사라진 글자다.
+             캡처가 2배라 기본은 끈다. 임계는 RenderConfig.pptx_uncovered_max.
 
     structure — **문서형 덱 조립**. 미지정(None)이면 종전과 완전히 같은 동작
                 (씬 × stills 1:1). 지정하면 항목 하나가 슬라이드 한 장이 된다.
@@ -396,6 +437,7 @@ def export_pptx(
     n_boxes = 0
     n_native = 0
     skipped: list[dict] = []
+    coverage: list[dict] = []
 
     with ExitStack() as stack:
         sess = None
@@ -419,7 +461,12 @@ def export_pptx(
         def _capture_slide(name: str, at: float, note: str | None) -> tuple[Any, int]:
             """씬 스틸 1장을 슬라이드로 굽는다 (image/hybrid 공통 경로)."""
             boxes: list[dict] = []
+            before: bytes | None = None
             if mode == "hybrid":
+                if verify:
+                    # 숨기기 전 화면 — 무엇이 지워졌는지 알아야 덮였는지 잴 수 있다
+                    sess.seek(at)
+                    before = sess.capture()
                 # seek 은 extract 안에서 — 뽑기와 숨기기를 같은 통과에서 확정한다
                 boxes = extract_text_boxes(sess, at, hide=True)
                 skipped.extend(
@@ -428,6 +475,8 @@ def export_pptx(
             else:
                 sess.seek(at)
             png = sess.capture()
+            if before is not None:
+                coverage.append(_coverage(before, png, boxes, name, at))
             slide = prs.slides.add_slide(blank_layout)
             slide.shapes.add_picture(
                 io.BytesIO(png), 0, 0,
@@ -511,6 +560,21 @@ def export_pptx(
     if mode == "hybrid":
         info["text_boxes"] = n_boxes
         info["skipped"] = skipped
+        if verify:
+            hidden = sum(c["hidden_px"] for c in coverage)
+            uncov = sum(c["uncovered_px"] for c in coverage)
+            ratio = (uncov / hidden) if hidden else 0.0
+            info["coverage"] = {"slides": coverage, "hidden_px": hidden,
+                                "uncovered_px": uncov, "uncovered_ratio": round(ratio, 6),
+                                "max_allowed": cfg.pptx_uncovered_max}
+            log(f"[export_pptx] 좌표 검증 — 미덮힘 {uncov}/{hidden} ({ratio:.4%})")
+            if ratio > cfg.pptx_uncovered_max:
+                worst = max(coverage, key=lambda c: c["uncovered_px"])
+                raise ValueError(
+                    f"hybrid 좌표 검증 실패 — 숨긴 글자 {ratio:.4%} 가 텍스트박스에 덮이지 "
+                    f"않았다 (허용 {cfg.pptx_uncovered_max:.2%}). 가장 심한 씬 "
+                    f"'{worst['scene']}' {worst['uncovered_px']}px — 그 글자는 슬라이드에서 사라진다"
+                )
     if plan is not None:
         info["native_slides"] = n_native
         info["captured_slides"] = n_slides - n_native

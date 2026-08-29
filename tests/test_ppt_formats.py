@@ -496,10 +496,14 @@ def test_structure_still_time_out_of_range_is_rejected(scene_build: Path, tmp_pa
 
 
 def test_no_structure_keeps_the_old_behaviour(scene_build: Path, tmp_path: Path):
-    """회귀 절대 조건 — structure 미지정은 종전 그대로(씬 × stills 1:1, 풀블리드 그림)."""
+    """회귀 절대 조건 — structure 미지정은 종전 그대로(씬 × stills 1:1, 풀블리드 그림).
+
+    주제는 structure 이므로 모드는 image 로 고정해 변수를 하나만 둔다
+    (③ 승격으로 기본값이 hybrid 가 됐다 — 그 회귀는 test_pptx_hybrid 가 본다).
+    """
     out = tmp_path / "legacy.pptx"
     info = export_pptx(scene_build, "deck.dc.html", out, config=RenderConfig(),
-                       notes={"A": "에이 노트"}, log=lambda s: None)
+                       mode="image", notes={"A": "에이 노트"}, log=lambda s: None)
     assert info["slides"] == 2 and info["scenes"] == 2
     assert "native_slides" not in info and "captured_slides" not in info
     prs = Presentation(out)

@@ -313,10 +313,14 @@ def test_export_hybrid_places_editable_text(build_dir, cfg, tmp_path):
 
 
 def test_export_image_mode_unchanged(build_dir, cfg, tmp_path):
-    """기본 모드 회귀 — 텍스트 프레임 없이 풀블리드 그림 1장 그대로."""
+    """image 모드 회귀 — 텍스트 프레임 없이 풀블리드 그림 1장 그대로.
+
+    ③ 승격(2026-08-28)으로 기본값이 hybrid 가 됐으므로 이제 명시해야 한다.
+    편집 불가 그림 한 장이 필요한 쓰임(인쇄·배포 고정본)은 이 경로로 남는다.
+    """
     out = tmp_path / "image.pptx"
     info = export_pptx(
-        build_dir, "hybrid.dc.html", out, config=cfg,
+        build_dir, "hybrid.dc.html", out, config=cfg, mode="image",
         resources=vendor_resources("/vendor"), notes={"T": "노트"}, log=lambda m: None,
     )
     assert info["mode"] == "image"
@@ -335,3 +339,67 @@ def test_export_rejects_unknown_mode(build_dir, cfg, tmp_path):
     with pytest.raises(ValueError):
         export_pptx(build_dir, "hybrid.dc.html", tmp_path / "x.pptx",
                     config=cfg, mode="native", log=lambda m: None)
+
+
+# ── ③ 하이브리드 승격 (PLAN §9.1, 2026-08-28) ────────────────────────────────
+
+
+def test_hybrid_is_the_default_mode():
+    """승격의 실체는 기본값이다 — 옵션으로만 있으면 아무도 쓰지 않는다.
+
+    실제로 image 가 기본이던 동안 mode="hybrid" 를 넘기는 호출부가 하나도 없었다.
+    """
+    import inspect
+
+    from wdrender.exporter_pptx import export_pptx
+
+    assert inspect.signature(export_pptx).parameters["mode"].default == "hybrid"
+
+
+def test_every_interface_can_choose_the_pptx_mode():
+    """세 창구가 같은 능력을 노출해야 한다 (tests/test_interface_parity.py 와 같은 계약)."""
+    import inspect
+
+    from wdmcp import jobs, server
+    from wdmcp.schemas import PPTX_MODES, RenderJob
+    from wdpipeline import cli
+    from wdweb import runs as webruns
+
+    assert PPTX_MODES == ("hybrid", "image")
+    assert RenderJob(job_id="x", status="queued", targets=[],
+                     created_at="", updated_at="").pptx_mode == "hybrid"
+    for fn in (server.render_submit, jobs.submit_render_job, cli.render,
+               webruns.submit_render):
+        assert "pptx_mode" in inspect.signature(fn).parameters, f"{fn.__name__} 에 pptx_mode 가 없다"
+
+
+def test_coverage_flags_dropped_text_boxes():
+    """숨겼는데 다시 그리지 않은 글자를 잡는가 — 좌표 허용 오차의 실체."""
+    import io
+
+    from PIL import Image
+
+    from wdrender.exporter_pptx import _coverage
+
+    def png(fill_box):
+        img = Image.new("RGB", (200, 100), "white")
+        if fill_box:
+            for y in range(40, 60):
+                for x in range(20, 120):
+                    img.putpixel((x, y), (0, 0, 0))
+        buf = io.BytesIO(); img.save(buf, "PNG"); return buf.getvalue()
+
+    before, after = png(True), png(False)   # 글자가 지워진 상태
+    ok = _coverage(before, after, [{"x": 20, "y": 40, "w": 100, "h": 20}], "s", 1.0)
+    assert ok["uncovered_px"] == 0, "덮인 영역을 미덮힘으로 셌다"
+    bad = _coverage(before, after, [], "s", 1.0)
+    assert bad["uncovered_px"] == bad["hidden_px"] > 0, "사라진 글자를 놓쳤다"
+    assert bad["uncovered_ratio"] == 1.0
+
+
+def test_uncovered_threshold_is_above_the_measured_floor():
+    """실측 바닥(안티에일리어싱 0.03%)보다 크고, 글자 하나가 빠지는 것은 잡는 값이어야 한다."""
+    from wdrender.config import load_config
+
+    limit = load_config().pptx_uncovered_max
+    assert 0.0005 < limit < 0.05, f"임계가 실측 바닥과 유의미한 손실 사이에 없다: {limit}"
