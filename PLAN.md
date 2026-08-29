@@ -401,7 +401,10 @@ lessons: ["세로는 좌우 마진 72px 안에서 3줄 이상 금지 — 엄지 
 | 구현 비용 | 최소(P5 seek 재사용) | 최대(이중 유지보수) | 중간 |
 
 - **M1까지 ①로 출하** — 씬별 stills 시각 seek 캡처 → 1920×1080 풀블리드 16:9 PPTX(python-pptx). frame-match 계약 덕에 씬별 1회 seek로 안정 화면 보장. `narration`을 발표자 노트로 삽입해 검색성·접근성을 즉시 보상(크리틱 반영).
-- **M3에서 ③ 승격** — 씬 텍스트 요소에 `data-pptx-role="title|body|kicker"` 부여 → Playwright로 텍스트·bbox·폰트 추출(px→EMU) → 배경 캡처 시 해당 요소 숨김 → 같은 좌표에 네이티브 텍스트박스. 승격 전 폰트 대체 매핑 표(Pretendard→시스템 폰트)와 좌표 허용 오차 수치 기준을 정의한다.
+- **③ 승격 완료 (2026-08-28)** — 기본 모드가 hybrid 다. Playwright 로 텍스트·bbox·폰트를 뽑아(px→EMU) 배경 캡처에서 해당 글자를 숨기고 같은 좌표에 네이티브 텍스트박스를 얹는다.
+  - 폰트 대체 표 — `wdrender/pptx_text.py: FONT_FALLBACK` (Pretendard→맑은 고딕 등).
+  - **좌표 허용 오차** — 숨긴 픽셀 중 텍스트박스에 덮이지 않은 비율 ≤ `RenderConfig.pptx_uncovered_max`(0.5%). 덮이지 않은 픽셀 = 배경에서 지웠는데 다시 그리지 않은 글자다. 실측 0.027%(delib_v2 7씬, 91/341,506) — 전부 안티에일리어싱. `export_pptx(verify=True)`·`wda render --pptx-verify` 로 검사한다(캡처 2배라 기본은 끔).
+  - 편집 불가 고정본은 `mode="image"` 로 남는다. 창구 넷(CLI·MCP·웹 API·콘솔) 모두 선택 가능.
 - ②는 표현이 단순한 템플릿(stat-trio, step-card-grid)에 한해 동일 데이터 JSON을 소비하는 정적 렌더러로 선택 제공.
 - ReportArchive의 `page_slide_ratio` 힌트를 PPTX 페이지 설정에 반영한다.
 
