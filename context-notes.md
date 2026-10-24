@@ -73,7 +73,7 @@ PLAN.md §16의 6건 — TTS 엔진, vLLM GPU 자원, AX 권한 수준, 대비 �
 
 ### 결정 12. vLLM = GLM-5-2, HWAXPortal env-kits 상속
 - 사용자 지시 — GLM 5.2, HWAXPortal에서 쓰는 것을 상속.
-- 운영 base_url=http://10.198.143.137:10000/v1, model=GLM-5-2, 키 정본은 ReportArchive backend/.env. 상속은 env-kits @FROM_RA 마커(webdesignagents.env 킷 + MAP 1줄).
+- 운영 base_url=http://<사내-GLM>:10000/v1, model=GLM-5-2, 키 정본은 ReportArchive backend/.env. 상속은 env-kits @FROM_RA 마커(webdesignagents.env 킷 + MAP 1줄).
 - GLM 호출 5원칙(비스트리밍·reasoning_effort는 extra_body·max_tokens 8192↑·타임아웃 여유·json_object까지만 신뢰+400 폴백)을 wdllm에 반영. guided_json은 실적 0건이라 M2에서 raw curl 검증.
 - 클라이언트는 ReportArchive backend/app/ai/llm.py copy-adapt (공용 패키지 없음).
 - dev 박스는 상암 도달 불가 → 로컬 Qwen2.5-7B vLLM(:8000)이 개발 기본값.

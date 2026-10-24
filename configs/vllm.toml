@@ -1,6 +1,6 @@
 # vLLM(GLM-5-2) 접속·호출 규약 — docs/analysis/glm-client-rules.md 의 5원칙 반영
 [server]
-# 운영(cae00): base_url = "http://10.198.143.137:10000/v1", model = "GLM-5-2" (env-kits 상속이 .env 로 주입)
+# 운영(cae00): base_url = "http://<사내-GLM>:10000/v1", model = "GLM-5-2" (env-kits 상속이 .env 로 주입)
 # dev: 로컬 vLLM (docs/start-dev-vllm.sh, Qwen2.5-7B-AWQ)
 base_url_env = "LLM_BASE_URL"
 model_env = "LLM_MODEL"

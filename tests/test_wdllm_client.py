@@ -36,13 +36,13 @@ def test_config_defaults_without_env():
 
 def test_config_env_overrides():
     env = {
-        "LLM_BASE_URL": "http://10.198.143.137:10000/v1/",
+        "LLM_BASE_URL": "http://glm.example.internal:10000/v1/",
         "LLM_MODEL": "GLM-5-2",
         "LLM_API_KEY": "secret",
         "LLM_DISABLE_STREAMING": "0",
     }
     cfg = load_llm_config(TOML, env=env)
-    assert cfg.base_url == "http://10.198.143.137:10000/v1"  # 후행 슬래시 제거
+    assert cfg.base_url == "http://glm.example.internal:10000/v1"  # 후행 슬래시 제거
     assert cfg.model == "GLM-5-2"
     assert cfg.api_key == "secret"
     assert cfg.disable_streaming is False
