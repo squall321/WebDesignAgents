@@ -215,7 +215,7 @@ def _run_job(job_id: str, renders_root: Path, build_root: Path) -> None:
         allowed = set(render_targets(_format_of(root))) | set(DOC_TARGETS)
         job_targets = [t for t in job.targets if t in allowed]
 
-        # 내레이션 — 실측·재조정·재빌드는 빌드의 일부라 building 상태로 둔다 (결정 49~52)
+        # 내레이션 — 실측·재조정·재빌드는 빌드의 일부라 building 상태로 둔다 (결정 55~58)
         plan = None
         if job.narration and "video" in job_targets:
             import tempfile

@@ -366,7 +366,7 @@ def _run_render(run_id: str, targets: list[str], fps: int | None, droot: Path,
         allowed = set(render_targets(_format_of(root))) | {"html", "pdf", "docx"}
         targets = [t for t in targets if t in allowed]
 
-        # 내레이션 — 실측·재조정·재빌드를 영상 렌더 앞에 끝낸다 (결정 49~52)
+        # 내레이션 — 실측·재조정·재빌드를 영상 렌더 앞에 끝낸다 (결정 55~58)
         plan = None
         if narration and "video" in targets:
             import tempfile

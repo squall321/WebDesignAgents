@@ -43,7 +43,7 @@ class SceneEntry(StrictModel):
     narration: str = Field(default="", description="TTS 내레이션 대본")
     narration_sec: float | None = Field(
         default=None, gt=0,
-        description="VoiceRecorder 실측 낭독 길이(초) — narration_sha 가 지금 원문과 같을 때만 유효 (결정 50)",
+        description="VoiceRecorder 실측 낭독 길이(초) — narration_sha 가 지금 원문과 같을 때만 유효 (결정 56)",
     )
     narration_sha: str | None = Field(
         default=None, description="narration_sec 을 잰 원문의 해시 (narration_sha() 값)"

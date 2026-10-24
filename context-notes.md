@@ -375,6 +375,9 @@ cd ~/claude/HWAXPortal && bash infra/env-kits/apply-envs.sh webdesignagents
 
 ## 2026-10-24 — 내레이션 파이프라인 연결
 
+> 번호 주의 — 이 절의 결정은 브랜치에서 49~52 로 적었다가, 그사이 main 에 49~54 가 먼저 생겨 55~58 로 옮겼다.
+> 브랜치 커밋 메시지(계획·tts·narration 커밋)에 남은 '결정 49~52' 는 지금의 55~58 이다.
+
 계획: 렌더 요청에 `narration` 을 켜면 ① VoiceRecorder 로 내레이션 있는 씬을 합성해 실측 길이를 받고
 ② 그 길이로 씬 dur 를 다시 잡아 시나리오에 반영·재빌드한 뒤 ③ 영상을 렌더하고 ④ 씬 음성을 새 시작 시각에
 놓은 내레이션 트랙과 자막을 만들어 먹싱하고 ⑤ drift_report.json 을 남긴다. CLI·MCP·웹·콘솔이 같은

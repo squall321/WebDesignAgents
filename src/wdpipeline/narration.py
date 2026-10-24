@@ -1,5 +1,5 @@
 # 내레이션 단계 — VoiceRecorder 실측 길이로 씬 dur 를 다시 잡고, 씬 음성을 새 시각에 놓아 트랙·자막을 만들어 먹싱한다
-"""렌더 앞뒤 두 단계로 나뉜다 (결정 49~52).
+"""렌더 앞뒤 두 단계로 나뉜다 (결정 55~58).
 
 prepare: 실측 → dur 재조정 → 검증 → 시나리오 반영·재빌드   (영상 렌더 전에)
 finish : 트랙·자막 조립 → 먹싱(기본 영상 파일 교체) → drift_report  (영상 렌더 뒤에)
@@ -24,7 +24,7 @@ import httpx
 from wdcore.models.scenario import ScenarioDoc, narration_sha
 from wdqa.config import QAConfig
 
-# 컷 뒤 말이 시작되기 전 여유, 말이 끝나고 다음 컷까지의 숨 (결정 49)
+# 컷 뒤 말이 시작되기 전 여유, 말이 끝나고 다음 컷까지의 숨 (결정 55)
 LEAD_SEC = 0.3
 TAIL_SEC = 0.5
 # 포맷에 presets.narration.max_silence 가 없을 때의 무음 경고 기준 (결정 18 의 (a))
@@ -80,13 +80,13 @@ def retime(
     max_silence: float = DEFAULT_MAX_SILENCE_SEC,
     stretch_limit: float = STRETCH_LIMIT,
 ) -> tuple[ScenarioDoc, list[SceneTiming]]:
-    """실측 낭독 길이(씬 이름 → 초)로 씬 dur 를 다시 잡는다 (결정 49).
+    """실측 낭독 길이(씬 이름 → 초)로 씬 dur 를 다시 잡는다 (결정 55).
 
     - 내레이션 씬: dur = 앞 여유 + 실측 + 뒤 여유. 단 nat×(1−한계) 아래로는 줄이지 않는다.
       nat×(1+한계)를 넘어도 늘리고 stretch-limit 로 남긴다 — 말은 자르거나 빨리 하지 않는다.
     - 말 없는 씬: dur 그대로.
     - stills 는 새 dur 에 비례해 옮긴다. 화면 안무가 nat/dur 로 늘고 줄어서 같은 장면을 가리킨다.
-    - 실측 길이·원문 해시를 씬에 남겨 게이트 2 가 추정 대신 쓰게 한다 (결정 50).
+    - 실측 길이·원문 해시를 씬에 남겨 게이트 2 가 추정 대신 쓰게 한다 (결정 56).
     """
     timings: list[SceneTiming] = []
     scenes = []
@@ -155,7 +155,7 @@ def assemble_track(placements: list[tuple[float, Path]], total_sec: float, out_w
     """씬 음성 wav 들을 절대 시각(초)에 놓아 total_sec 길이의 16비트 wav 하나로 만든다.
 
     첫 파일의 채널·레이트가 기준이다. 형식이 다른 파일은 ffmpeg 로 맞춘다.
-    시각 계산을 WDA 가 하는 이유는 결정 51 — VoiceRecorder 의 씬 간격은 10초 상한이 있다.
+    시각 계산을 WDA 가 하는 이유는 결정 57 — VoiceRecorder 의 씬 간격은 10초 상한이 있다.
     """
     if not placements:
         raise ValueError("놓을 씬 음성이 없다")
@@ -397,7 +397,7 @@ def finish(
 ) -> dict:
     """트랙·자막 조립 → 먹싱 → drift_report. 영상 렌더 뒤에 부른다.
 
-    목소리 입힌 영상이 video_mp4 자리를 대신한다(결정 52). 옆에 narration.mp3 ·
+    목소리 입힌 영상이 video_mp4 자리를 대신한다(결정 58). 옆에 narration.mp3 ·
     narration.srt · drift_report.json 을 남긴다.
     """
     from wdrender.mux import mux_audio

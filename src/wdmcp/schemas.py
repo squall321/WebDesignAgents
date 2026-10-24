@@ -383,7 +383,7 @@ class RenderJob(ToolModel):
     doc_style: str = "report"
     pptx_mode: str = "hybrid"
     pptx_verify: bool = False       # report | brief | memo
-    narration: bool = False         # VoiceRecorder 실측 → 씬 재조정 → 먹싱 (결정 49~52)
+    narration: bool = False         # VoiceRecorder 실측 → 씬 재조정 → 먹싱 (결정 55~58)
     outputs: dict[str, str] = Field(default_factory=dict)
     detail: dict = Field(default_factory=dict)
     error: str | None = None

@@ -80,7 +80,7 @@ PLAN.md의 마일스톤을 실행 단위로 분해. 완료 시 체크하고, 검
 - [ ] `wda run <report>` 단일 명령 무개입 완주 (신규 보고서 3편)
 - [ ] P0 ingest 모드 2 — ReportArchive REST/MCP 실연동 (JWT + X-Workspace-Slug, file_id 자산 캐시, .env 접속 정보 확정)
 - [x] 파이프라인 단계 재시도·재개 — wda resume · POST /api/runs/{id}/resume · 실패 주입 테스트 자동화
-- [x] tts_client — VoiceRecorder 프로젝트 생성→합성→fit-timecode→duration_sec 수신→mp3+SRT (사용 후 프로젝트 삭제. ±15% 판단은 이때 없었고 2026-10-24 내레이션 단계에서 구현 — 결정 49)
+- [x] tts_client — VoiceRecorder 프로젝트 생성→합성→fit-timecode→duration_sec 수신→mp3+SRT (사용 후 프로젝트 삭제. ±15% 판단은 이때 없었고 2026-10-24 내레이션 단계에서 구현 — 결정 55)
 - [ ] 내레이터 참조음성 등록 (POST /api/voices → voice_id)
 - [x] HEAXHub 등록 — `integrations/web_design_agents/.portal/manifest.yaml` (mcp: expose 포함) + 런타임 3계약($PORT/$ROOT_PATH/$HEAX_DATA_DIR) 준수 + status beta 승격
 - [ ] VoiceRecorder manifest status draft → beta 승격 (HEAXHub 쪽)
