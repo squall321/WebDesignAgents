@@ -1,0 +1,6 @@
+[mcp_servers.webdesignagents]
+command = ".venv/bin/wdmcp"
+
+[mcp_servers.webdesignagents.env]
+WDA_PERSONAS_ROOT = "/home/koopark/claude/WebDesignAgents/personas"
+WDA_DATA_DIR = "/home/koopark/claude/WebDesignAgents/data"
