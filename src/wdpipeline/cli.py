@@ -258,6 +258,50 @@ def run(
 
 
 @app.command()
+def qa(
+    slug: str = typer.Option(..., "--slug", help="data/build/{slug} 의 렌더 패키지"),
+    run_id: str = typer.Option("", "--run", help="시나리오 출처 (기본: slug 와 같다)"),
+    gates: str = typer.Option("", "--gates", help="돌릴 게이트만 (쉼표, 예: mapping,length)"),
+) -> None:
+    """품질 게이트 7종을 렌더 패키지에 실행한다 (PLAN §7).
+
+    MCP(qa_run)·웹(POST /api/runs/{id}/qa)·콘솔에만 있던 것을 CLI 에도 연다.
+    error 가 하나라도 있으면 종료 코드 1 — CI 가 이걸로 판정한다.
+    """
+    import json as _json
+
+    from wdpipeline.build import ENTRY_NAME
+    from wdqa.gates import run_gates
+
+    build_dir = _data_dir() / "build" / slug
+    if not (build_dir / ENTRY_NAME).is_file():
+        typer.echo(f"[오류] 빌드 엔트리가 없다: {build_dir / ENTRY_NAME}", err=True)
+        raise typer.Exit(code=1)
+
+    scen_path = _data_dir() / "pipeline" / (run_id or slug) / "scenario.json"
+    scenario = None
+    if scen_path.is_file():
+        scenario = _json.loads(scen_path.read_text(encoding="utf-8"))
+    else:
+        # 시나리오가 없으면 매핑·길이 게이트가 기준을 잃는다 — 조용히 넘기지 않는다
+        typer.echo(f"[qa] 주의 — 시나리오를 찾지 못했다({scen_path}). "
+                   "매핑·길이 게이트는 빌드 산출물만으로 판정한다")
+
+    report = run_gates(build_dir, scenario=scenario,
+                       gates=[g.strip() for g in gates.split(",") if g.strip()] or None)
+    sm = report["summary"]
+    typer.echo(f"[qa] {slug} — {'통과' if report['passed'] else '실패'} "
+               f"(error {sm['error']} · warning {sm['warning']} · info {sm['info']})")
+    for row in report["results"]:
+        if row["severity"] in ("error", "warning"):
+            where = f" [{row['scene']}]" if row.get("scene") else ""
+            typer.echo(f"  {row['severity']:<7} 게이트{row['gate']} {row['rule']}{where}: {row['detail']}")
+    typer.echo(f"  리포트 → {report['report_path']}")
+    if not report["passed"]:
+        raise typer.Exit(code=1)
+
+
+@app.command()
 def repro(
     module: str = typer.Option("", "--module", help="모듈 id 하나만 검증 (기본: 레지스트리 전 씬 템플릿 모듈)"),
     runs: int = typer.Option(2, "--runs", help="독립 세션 렌더 횟수"),
@@ -404,7 +448,7 @@ def revise(
                 typer.echo(f"  - {e}", err=True)
             raise typer.Exit(code=1)
         entry = Path(build_render_package(doc, build_dir))
-        typer.echo(f"\n[revise] 반영 완료 → {entry} · `wda qa --slug {slug}` 로 게이트를 다시 돌려라")
+        typer.echo(f"\n[revise] 반영 완료 → {entry} · `wda qa --slug {slug} --run {run_id}` 로 게이트를 다시 돌려라")
 
     if review:
         from wdcore.meetings.engine import MeetingEngine

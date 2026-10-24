@@ -73,6 +73,14 @@ jobs:
       - name: 재현력 3층 (세션 간 · 골든 대비 · 빌드 간)
         run: uv run wda repro
 
+      # 템플릿 픽스처가 아니라 **실제 렌더 패키지**에 7게이트를 돌린다.
+      # pytest 안의 게이트 호출은 템플릿 단위라 조립된 산출물의 매핑·길이·대비를 보지 않는다.
+      # 빌드 산출물은 data/(gitignore) 라 CI 에 없다 — 커밋된 시나리오로 직접 굽는다.
+      - name: 7게이트 (실제 빌드 산출물)
+        run: |
+          uv run wda build --run-id delib_v2 --slug ci-gates
+          uv run wda qa --slug ci-gates --run delib_v2
+
       - name: 재현력 리포트 업로드
         if: always()
         uses: actions/upload-artifact@v4
