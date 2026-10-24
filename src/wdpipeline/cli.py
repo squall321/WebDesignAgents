@@ -361,6 +361,69 @@ def _repro_verdict(report: dict) -> str:
 
 
 @app.command()
+def revise(
+    run_id: str = typer.Option(..., "--run", help="data/pipeline/{run_id} 의 시나리오"),
+    slug: str = typer.Option("", "--slug", help="빌드 슬러그 (기본: run_id 와 같다)"),
+    rebuild: bool = typer.Option(False, "--rebuild", help="변경을 렌더 패키지에 반영한다"),
+    review: bool = typer.Option(False, "--review", help="변경 요약을 발제문으로 재심의를 연다"),
+    participants: str = typer.Option(
+        "", "--participants", help="재심의 참가자 (쉼표 구분). --review 와 함께",
+    ),
+) -> None:
+    """사람이 고친 시나리오와 마지막 빌드를 대조한다 (PLAN §11 사람 편집 왕복).
+
+    기본은 **보여주기만** 한다 — 무엇이 바뀌었는지 모르고 재렌더하면 편집이 의도대로
+    들어갔는지 알 수 없다. 반영은 --rebuild, 재심의는 --review 로 명시해서 고른다.
+    """
+    from wdpipeline.revise import change_summary_md, diff_scenario, load_pair
+
+    slug = slug or run_id
+    scen = _data_dir() / "pipeline" / run_id / "scenario.json"
+    build_dir = _data_dir() / "build" / slug
+    try:
+        current, built = load_pair(scen, build_dir)
+    except FileNotFoundError as exc:
+        typer.echo(f"[오류] {exc}", err=True)
+        raise typer.Exit(code=1) from None
+
+    d = diff_scenario(current, built)
+    typer.echo(change_summary_md(d, run_id=run_id))
+    if not d["changed"]:
+        return
+
+    if rebuild:
+        from wdcore.models.scenario import ScenarioDoc
+        from wdpipeline.build import build_render_package
+        from wdpipeline.scenario import validate_scenario
+
+        doc = ScenarioDoc.model_validate(current)
+        errors = validate_scenario(doc)
+        if errors:
+            typer.echo("\n[revise] 검증 실패 — 반영하지 않았다:", err=True)
+            for e in errors[:8]:
+                typer.echo(f"  - {e}", err=True)
+            raise typer.Exit(code=1)
+        entry = Path(build_render_package(doc, build_dir))
+        typer.echo(f"\n[revise] 반영 완료 → {entry} · `wda qa --slug {slug}` 로 게이트를 다시 돌려라")
+
+    if review:
+        from wdcore.meetings.engine import MeetingEngine
+        from wdcore.meetings.store import MeetingStore
+        from wdcore.registry.registry import load_registry
+
+        ids = [x.strip() for x in participants.split(",") if x.strip()]
+        if not ids:
+            typer.echo("\n[오류] --review 에는 --participants 가 필요하다 "
+                       "(확정 순서가 곧 발언 순서다)", err=True)
+            raise typer.Exit(code=1)
+        engine = MeetingEngine(MeetingStore(get_settings().meetings_dir), load_registry())
+        meta = engine.create("design_review", f"사람 편집 재심의 — {run_id}", ids)
+        typer.echo(f"\n[revise] 재심의 개회 {meta.id}\n"
+                   f"  위 요약을 R0 발제로 제출하고 라운드를 진행하라 "
+                   f"(meeting_get_briefing / meeting_submit_turn)")
+
+
+@app.command()
 def approve(
     point: str = typer.Argument(..., help="개입 지점 (participants|scenario|shipping|action_items|golden)"),
     subject: str = typer.Argument(..., help="대상 식별자 (run_id·module id·format id …)"),
