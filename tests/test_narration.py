@@ -247,3 +247,14 @@ def test_prepare_explains_an_unreachable_voicerecorder(demo_build, tmp_path, mon
     with pytest.raises(nar.NarrationError, match="VoiceRecorder.*연결하지 못했다.*오프라인 렌더 노드"):
         nar.prepare(build, tmp_path / "work", transport=httpx.MockTransport(refuse), log=lambda m: None)
     assert (build / "scene-data.json").read_text(encoding="utf-8") == before   # 빌드는 건드리지 않는다
+
+
+def test_prepare_stops_when_the_narration_breaks_the_format_length(demo_build, tmp_path):
+    # 아주 느린 낭독(0.5자/초) — 다시 잡은 길이가 포맷 상한(wide 600초)을 넘는다
+    _, build, _ = demo_build
+    before = (build / "scene-data.json").read_text(encoding="utf-8")
+    fake = FakeVoiceRecorder(cps=0.5)
+    with pytest.raises(nar.NarrationError, match="검증을 통과하지 못했다.*가장 많이 늘어난 씬"):
+        nar.prepare(build, tmp_path / "work", transport=fake.transport(), log=lambda m: None)
+    assert (build / "scene-data.json").read_text(encoding="utf-8") == before
+    assert fake.projects == {}

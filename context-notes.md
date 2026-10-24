@@ -403,3 +403,16 @@ cd ~/claude/HWAXPortal && bash infra/env-kits/apply-envs.sh webdesignagents
 ### 결정 58. 목소리 입힌 영상이 기본 영상 파일을 대신한다
 - 내레이션을 켜면 `{slug}.mp4`(CLI)·`video.mp4`(MCP·웹)가 목소리 입힌 영상이 된다. 다운로드 경로가 그대로라
   창구마다 새 다운로드 종류를 만들 필요가 없다. 옆에 narration.mp3 · narration.srt · drift_report.json 을 둔다.
+
+### 검증 결과 (2026-10-24)
+- 실제 VoiceRecorder(로컬 :8177, MeloTTS 1.2배)로 delib_v2(7씬, Σdur 78초)를 `wda render --narration`:
+  합성 19초, Σdur 78 → 84.6초, 모든 씬이 nat ±15% 안(−11.7%~+0.8%), 무음 6.9% — 손으로 다시 잡은
+  v1 41.8% · v2 25.2% 보다 적다. 말은 컷 뒤 0.39초에 시작한다(앞 여유 0.3 + MeloTTS 자체 앞 무음).
+  mp4 = h264 + aac + mov_text, PPTX 캡처 시각도 재조정된 dur 를 따른다.
+- 늘어난 까닭: delib_v2 의 dur 는 Chatterbox(약 7자/초)에 맞춰 잡혔고 지금 기본은 MeloTTS 1.2배다.
+  실측이 정본이라(결정 11) 엔진이 바뀌면 길이도 따라 바뀐다 — 엔진을 바꿀 때마다 다시 재야 한다.
+- 구현 중 드러난 것: `wda run` 이 render 를 함수로 부르며 pptx_mode 를 안 넘겨 PPTX 단계에서 죽고
+  있었다(7d93bed 이후, 테스트 없음). 내레이션 옵션도 같은 함정이라 run 이 옵션을 전부 넘기게 고쳤고,
+  `wda run --narration` 전 단계 테스트가 이제 막는다.
+- 씬 툴(_ensure_scene_build)은 index.html 이 scenario.json 보다 낡으면 다시 빌드한다 — prepare 는
+  시나리오를 먼저 쓰고 빌드한다.

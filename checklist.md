@@ -8,7 +8,7 @@ PLAN.md의 마일스톤을 실행 단위로 분해. 완료 시 체크하고, 검
 - [x] Python 3.13 전용 가상환경 생성 (`uv venv --python 3.13` → `.venv`)
 - [x] 전체 계획서 작성 (PLAN.md)
 - [x] 연계 구조 분석 — HEAXHub / HWAXPortal(GLM-5-2) / VoiceRecorder, 계획 반영 (PLAN.md §10, §12.5)
-- [x] VoiceRecorder 원샷 TTS API PR 제출 — [VoiceRecorder#1](https://github.com/squall321/VoiceRecorder/pull/1) (머지 대기)
+- [x] VoiceRecorder 원샷 TTS API PR 제출 — [VoiceRecorder#1](https://github.com/squall321/VoiceRecorder/pull/1) (머지됨 bb15c15 — 결정 18)
 - [x] git 저장소 확정 — <https://github.com/squall321/WebDesignAgents> / ReportArchive는 복붙 모드 우선
 - [ ] 미해결 쟁점 사용자 결정 (PLAN.md §16) — write-back=순수HTML **확정(2026-07-25)**. 잔여 4건: AX 권한(M1)·대비 기준(M1)·PAT 정책(M3)·내레이터 음성(M3)
 
@@ -80,7 +80,7 @@ PLAN.md의 마일스톤을 실행 단위로 분해. 완료 시 체크하고, 검
 - [ ] `wda run <report>` 단일 명령 무개입 완주 (신규 보고서 3편)
 - [ ] P0 ingest 모드 2 — ReportArchive REST/MCP 실연동 (JWT + X-Workspace-Slug, file_id 자산 캐시, .env 접속 정보 확정)
 - [x] 파이프라인 단계 재시도·재개 — wda resume · POST /api/runs/{id}/resume · 실패 주입 테스트 자동화
-- [x] tts_client — VoiceRecorder 프로젝트 생성→합성→fit-timecode→duration_sec 수신→mp3+SRT (±15% nat 스트레치 판단, 사용 후 프로젝트 삭제)
+- [x] tts_client — VoiceRecorder 프로젝트 생성→합성→fit-timecode→duration_sec 수신→mp3+SRT (사용 후 프로젝트 삭제. ±15% 판단은 이때 없었고 2026-10-24 내레이션 단계에서 구현 — 결정 49)
 - [ ] 내레이터 참조음성 등록 (POST /api/voices → voice_id)
 - [x] HEAXHub 등록 — `integrations/web_design_agents/.portal/manifest.yaml` (mcp: expose 포함) + 런타임 3계약($PORT/$ROOT_PATH/$HEAX_DATA_DIR) 준수 + status beta 승격
 - [ ] VoiceRecorder manifest status draft → beta 승격 (HEAXHub 쪽)
@@ -140,20 +140,20 @@ tts_client·mux 는 있었지만 어느 창구도 부르지 않았고, 목소리
 만들었다. 실측 길이로 씬을 다시 잡아 렌더하고 음성을 먹싱하는 일을 네 창구에 붙인다. 결정 55~58.
 
 ### 핵심
-- [ ] VoiceRecorder 클라이언트 정비 — `.env` 의 WDA_TTS_* 읽기, PAT Bearer, trust_env=False,
+- [x] VoiceRecorder 클라이언트 정비 — `.env` 의 WDA_TTS_* 읽기, PAT Bearer, trust_env=False,
       씬 원문 그대로 측정(파서 우회), 씬 음성 내려받기, 실패해도 프로젝트 정리
-- [ ] 실측 길이로 dur 재조정 — 하한 nat×0.85, 상한 nat×1.15 를 넘으면 늘리고 경고(결정 55), stills 비례 이동
-- [ ] 씬 음성을 새 시작 시각에 놓아 내레이션 트랙·자막 조립, 먹싱, drift_report.json
-- [ ] 실측 길이를 시나리오에 남기고(narration_sec·narration_sha) 게이트 2 가 추정 대신 실측을 쓴다(결정 56)
-- [ ] 포맷 길이 범위를 넘으면 렌더하지 않고 줄일 씬과 함께 알린다
+- [x] 실측 길이로 dur 재조정 — 하한 nat×0.85, 상한 nat×1.15 를 넘으면 늘리고 경고(결정 55), stills 비례 이동
+- [x] 씬 음성을 새 시작 시각에 놓아 내레이션 트랙·자막 조립, 먹싱, drift_report.json
+- [x] 실측 길이를 시나리오에 남기고(narration_sec·narration_sha) 게이트 2 가 추정 대신 실측을 쓴다(결정 56)
+- [x] 포맷 길이 범위를 넘으면 렌더하지 않고 줄일 씬과 함께 알린다
 
 ### 네 창구
-- [ ] CLI `wda render --narration` · `wda run --narration` (+ `wda run` 이 pptx_mode 를 안 넘겨 죽던 것)
-- [ ] MCP `render_submit(narration=)` · 잡 원장 · 영상 없는 타깃이면 INVALID_INPUT
-- [ ] 웹 `POST /api/runs/{id}/render` body.narration · 400
-- [ ] 콘솔 '내레이션 입히기' 선택 · 결과 요약
+- [x] CLI `wda render --narration` · `wda run --narration` (+ `wda run` 이 pptx_mode 를 안 넘겨 죽던 것)
+- [x] MCP `render_submit(narration=)` · 잡 원장 · 영상 없는 타깃이면 INVALID_INPUT
+- [x] 웹 `POST /api/runs/{id}/render` body.narration · 400
+- [x] 콘솔 '내레이션 입히기' 선택 · 결과 요약
 
 ### 검증
-- [ ] 가짜 VoiceRecorder(MockTransport)로 단위·통합 테스트 — 재조정 규칙, 트랙 배치, 먹싱, 세 창구
-- [ ] 실제 VoiceRecorder(MeloTTS 1.2배)로 실렌더 1편 — 무음 비율·한계 초과 씬 확인
-- [ ] 전체 테스트 · 문서(PLAN §10.2, voicerecorder-api.md) 갱신
+- [x] 가짜 VoiceRecorder(MockTransport)로 단위·통합 테스트 — 재조정 규칙, 트랙 배치, 먹싱, 세 창구
+- [x] 실제 VoiceRecorder(MeloTTS 1.2배)로 실렌더 1편 — delib_v2 7씬 Σ78→84.6초, 무음 6.9%(v1 41.8% · v2 25.2%), 한계 초과 0씬, 24fps 2030프레임+PPTX 8장 3분 42초
+- [x] 전체 테스트(2347 passed, 실패 1 = 워크트리에 없는 gitignore 리포트 — main 체크아웃에선 통과) · 문서(PLAN §10.2, voicerecorder-api.md) 갱신

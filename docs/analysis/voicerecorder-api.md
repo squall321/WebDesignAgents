@@ -1,3 +1,9 @@
+## 현재 상태 (2026-10-24 갱신 — 아래 본문은 2026-07 분석 그대로)
+- 원샷 `POST/GET/DELETE /api/tts` 는 PR #1(bb15c15)로 들어왔다 — 아래 GAPS 의 첫 항목은 해소됐다.
+- 기본 엔진은 **MeloTTS**, 기본 속도는 **1.2배**다(`/api/engines` 의 `default`·`default_speed`). MeloTTS 는 화자 복제가 없어 voice_id 가 무시된다 — 복제는 chatterbox·cosyvoice 만.
+- WDA 내레이션 단계(`wdpipeline/narration.py`, 결정 49~52)는 타임코드 대본·fit-timecode 를 쓰지 않는다. 자리표시 문단으로 프로젝트를 만들고 첫 씬 `PATCH`, 나머지 `POST /api/projects/{id}/scenes` 로 원문을 그대로 넣은 뒤 합성 → 씬별 `duration_sec` 와 `GET .../scenes/{sid}/audio` wav 를 받아 WDA 가 시각을 정해 트랙을 만든다.
+- 포털 경유는 `http://127.0.0.1:4180/apps/voice_recorder` + `WDA_TTS_PAT` Bearer(있을 때). 접속값은 `WDA_TTS_BASE_URL·PAT·ENGINE·VOICE_ID·SPEED` 를 환경변수·`.env` 에서 읽는다.
+
 ## SUMMARY
 VoiceRecorder는 내레이션 스크립트를 씬 단위로 분할해 한국어 음성을 합성하고 병합 mp3+SRT로 내보내는 FastAPI+React 웹앱이다. TTS는 전부 로컬 모델 3종으로, 주엔진 Chatterbox Multilingual(Resemble AI, MIT, GPU+CPU 폴백, 참조음성 3~10초 보이스클로닝), 사이드카 MeloTTS(CPU)와 CosyVoice3-0.5B(CPU, 별도 venv subprocess 워커)이며 셋 다 한국어를 지원한다. 속도 조절은 모델 재합성 없이 ffmpeg atempo(0.5~2.0)로 후처리하고, 화자는 업로드한 참조 wav(voice_id)로 지정한다. HTTP API는 이미 존재한다 — 개발 시 :8000, 운영은 scripts/serve.sh가 :8177(VOICEREC_PORT)로 상시 구동하며 HEAXHub 연합(HWAXPortal services.yaml)에 등록되어 재부팅 시 자동 기동된다. 인증·CORS는 전혀 없다(내부망 전제). 합성은 비동기 작업 큐(단일 워커 스레드)로 202+job_id를 받고 GET /api/jobs/{id}로 폴링한다. 합성 길이는 엔진이 초 단위로 반환해 씬별 raw_duration_sec/duration_sec으로 DB에 저장되고, GET /api/projects/{id} 응답에 씬별 duration_sec·start_sec·end_sec·drift_sec과 전체 total_sec이 포함되므로 영상 씬 동기화에 바로 쓸 수 있다. 스크립트에 (0:00–0:08) 타임코드를 넣으면 POST fit-timecode가 배속·무음으로 자동 정렬까지 해 준다. 단, 단발성 text→wav 엔드포인트는 없어 프로젝트/씬/잡 플로우를 타야 한다.
 
