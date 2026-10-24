@@ -101,7 +101,7 @@ PLAN.md의 마일스톤을 실행 단위로 분해. 완료 시 체크하고, 검
 - [x] 골든 갱신 강제 — --reason 필수, 이유가 골든 옆 golden.json 에 이력으로 남음
 - [ ] HITL 강제 지점 확대 — 현재 골든만 실제로 막는다. 출하·시나리오는 원장만 있고 차단은 없음
 - [x] `wda revise` — 사람 편집 왕복 루프 (변경 대조 + --rebuild/--review 선택, 차단 없음)
-- [ ] `wda revise` 를 MCP·웹·콘솔에도 (현재 CLI 만 — 창구 대칭 미완)
+- [x] `wda revise` 창구 대칭 — scenario_revise · GET /api/runs/{id}/revise · 콘솔 편집 확인
 
 ## 2026-08-28 — MCP·웹 기능 대칭 (사용자 지시: "둘다 모든 기능이 있어야지")
 
