@@ -60,3 +60,9 @@ def test_autorun_is_polled_not_awaited():
     """전 라운드 완주는 LLM 턴이 수십 번 — 동기 요청이면 프록시 타임아웃에 먼저 걸린다."""
     assert "pollAutorun" in APP_JS
     assert "api/meetings/' + encodeURIComponent(id) + '/autorun'" in APP_JS
+
+
+def test_console_exposes_the_human_edit_check():
+    """사람이 시나리오를 직접 고칠 수 있는 이상, 무엇이 바뀌었는지 볼 자리도 있어야 한다."""
+    assert 'id="revise-btn"' in INDEX and 'id="revise-result"' in INDEX
+    assert "/revise'" in APP_JS or "/revise\"" in APP_JS

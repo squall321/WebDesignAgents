@@ -1371,6 +1371,42 @@ def scene_still(run_id: str, scene: str, t: float | None = None) -> dict:
 
 
 @mcp.tool()
+def scenario_revise(run_id: str, slug: str = "") -> dict:
+    """사람이 고친 시나리오와 마지막 빌드를 대조한다 (PLAN §11 사람 편집 왕복).
+
+    사람이 scenario.json 을 직접 손봤을 때 **무엇이 바뀌었는지**를 돌려준다. 모르고
+    재렌더하면 편집이 의도대로 들어갔는지 알 수 없다. 반영은 하지 않는다 —
+    반영은 `wda revise --rebuild`, 재심의는 scenario_build 쪽 경로다.
+
+    summary_md 는 재심의 발제문으로 그대로 쓸 수 있다.
+    """
+    state = get_session()
+    mod, err = _lazy_import("wdpipeline.revise")
+    if mod is None:
+        return error_envelope(state, "PIPELINE_UNAVAILABLE", f"wdpipeline.revise: {err}")
+    root = get_settings().data_dir
+    try:
+        current, built = mod.load_pair(
+            root / "pipeline" / run_id / "scenario.json",
+            root / "build" / (slug or run_id),
+        )
+    except FileNotFoundError as exc:
+        return error_envelope(
+            state, "NOT_FOUND", str(exc),
+            "run_id 와 빌드 슬러그가 다르면 slug 를 넘겨라. 빌드 전이면 먼저 빌드하라.",
+        )
+    diff = mod.diff_scenario(current, built)
+    data = dict(diff)
+    data["run_id"] = run_id
+    data["summary_md"] = mod.change_summary_md(diff, run_id=run_id)
+    hint = ("변경이 없다 — 마지막 빌드가 현재 시나리오와 같다."
+            if not diff["changed"] else
+            "사람 편집이 있다. summary_md 를 발제로 재심의를 열거나, 그대로 반영하려면 "
+            "`wda revise --run {0} --rebuild` 를 돌려라.".format(run_id))
+    return ok_envelope(state, data, hint)
+
+
+@mcp.tool()
 def scenario_patch(run_id: str, ops: list[dict]) -> dict:
     """핀포인트 패치 — 원자 연산 목록을 정본(patch_scenario)으로 적용·전량 검증·재빌드한다.
 

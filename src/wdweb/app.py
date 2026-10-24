@@ -275,6 +275,25 @@ def _built_run_or_409(run_id: str) -> dict:
     return run
 
 
+@app.get("/api/runs/{run_id}/revise")
+def get_revise(run_id: str) -> dict:
+    """사람 편집 대조 (MCP scenario_revise 와 같은 계산). 반영은 하지 않는다."""
+    from wdpipeline.revise import change_summary_md, diff_scenario, load_pair
+
+    run = _run_or_404(run_id)
+    build_dir = run.get("build_dir")
+    if not build_dir:
+        raise HTTPException(status_code=409, detail="빌드가 완료된 실행만 대조할 수 있습니다")
+    try:
+        current, built = load_pair(
+            data_dir() / "pipeline" / run_id / "scenario.json", Path(build_dir))
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from None
+    diff = diff_scenario(current, built)
+    return envelope({**diff, "run_id": run_id,
+                     "summary_md": change_summary_md(diff, run_id=run_id)})
+
+
 @app.get("/api/runs/{run_id}/scenes")
 def run_scenes(run_id: str) -> dict:
     """씬 목록 — name/tpl/dur/내레이션 요약/데이터 요약 (씬 스트립·chat 탐색용)."""

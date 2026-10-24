@@ -1260,3 +1260,44 @@ async function loadMetrics() {
 }
 
 $('metrics-refresh').addEventListener('click', loadMetrics);
+
+
+// ── 사람 편집 확인 ──────────────────────────────────────────────────────────
+// 사람이 scenario.json 을 직접 고쳤을 때 무엇이 바뀌었는지 보여준다. 반영은 하지 않는다 —
+// 모르고 재렌더하면 편집이 의도대로 들어갔는지 알 수 없다 (PLAN §11).
+
+$('revise-btn').addEventListener('click', async () => {
+  if (!currentRunId) return;
+  const box = $('revise-result');
+  box.hidden = false;
+  box.innerHTML = '<p class="empty">대조하는 중…</p>';
+  try {
+    const d = await api('api/runs/' + encodeURIComponent(currentRunId) + '/revise');
+    if (!d.changed) {
+      box.innerHTML = '<div class="minutes-notice"><b>편집 없음</b>'
+        + '<span>현재 시나리오가 마지막 빌드와 같습니다.</span></div>';
+      return;
+    }
+    const rows = (d.fields || []).map((f) =>
+      `<tr><td>${esc(f.scene)}</td><td>${esc(f.field)}</td>`
+      + `<td>${esc(String(f.before ?? '–')).slice(0, 60)}</td>`
+      + `<td>${esc(String(f.after ?? '–')).slice(0, 60)}</td></tr>`).join('');
+    const sc = d.scenes || {};
+    const notes = [];
+    if ((sc.added || []).length) notes.push('추가 ' + sc.added.join(', '));
+    if ((sc.removed || []).length) notes.push('삭제 ' + sc.removed.join(', '));
+    if (sc.reordered) notes.push('순서 변경 — 논증의 흐름이 바뀌었습니다');
+    box.innerHTML = '<div class="minutes-notice"><b>사람 편집이 있습니다</b>'
+      + `<span>씬 ${sc.before_count} → ${sc.after_count}개 · 총 길이 `
+      + `${d.duration.before}s → ${d.duration.after}s (${d.duration.delta >= 0 ? '+' : ''}`
+      + `${d.duration.delta}s)${notes.length ? ' · ' + esc(notes.join(' · ')) : ''}</span></div>`
+      + (rows
+        ? '<table class="metrics-table"><thead><tr><th>씬</th><th>항목</th>'
+          + '<th>이전</th><th>이후</th></tr></thead><tbody>' + rows + '</tbody></table>'
+        : '')
+      + '<p class="action-note">반영하려면 '
+      + `<code>wda revise --run ${esc(currentRunId)} --rebuild</code> 를 돌리세요.</p>`;
+  } catch (e) {
+    box.innerHTML = `<p class="empty">대조하지 못했습니다: ${esc(e.message)}</p>`;
+  }
+});
