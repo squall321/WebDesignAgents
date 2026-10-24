@@ -112,7 +112,7 @@ def run_data(scenario: dict | None, cfg: QAConfig) -> list[dict]:
         narration = (sc.get("narration") or "").strip()
         measured = sc.get("narration_sec")
         if narration and measured and sc.get("narration_sha") == narration_sha(narration):
-            # 실측이 정본이다(결정 11·56) — 글자수 추정은 실측이 없을 때의 사전 검증용
+            # 실측이 정본이다(결정 11·57) — 글자수 추정은 실측이 없을 때의 사전 검증용
             need = float(measured)
             rule, basis = "narration-measured", f"실측 낭독 {need:.1f}s"
         elif narration:

@@ -1,7 +1,7 @@
 ## 현재 상태 (2026-10-24 갱신 — 아래 본문은 2026-07 분석 그대로)
 - 원샷 `POST/GET/DELETE /api/tts` 는 PR #1(bb15c15)로 들어왔다 — 아래 GAPS 의 첫 항목은 해소됐다.
 - 기본 엔진은 **MeloTTS**, 기본 속도는 **1.2배**다(`/api/engines` 의 `default`·`default_speed`). MeloTTS 는 화자 복제가 없어 voice_id 가 무시된다 — 복제는 chatterbox·cosyvoice 만.
-- WDA 내레이션 단계(`wdpipeline/narration.py`, 결정 55~58)는 타임코드 대본·fit-timecode 를 쓰지 않는다. 자리표시 문단으로 프로젝트를 만들고 첫 씬 `PATCH`, 나머지 `POST /api/projects/{id}/scenes` 로 원문을 그대로 넣은 뒤 합성 → 씬별 `duration_sec` 와 `GET .../scenes/{sid}/audio` wav 를 받아 WDA 가 시각을 정해 트랙을 만든다.
+- WDA 내레이션 단계(`wdpipeline/narration.py`, 결정 56~59)는 타임코드 대본·fit-timecode 를 쓰지 않는다. 자리표시 문단으로 프로젝트를 만들고 첫 씬 `PATCH`, 나머지 `POST /api/projects/{id}/scenes` 로 원문을 그대로 넣은 뒤 합성 → 씬별 `duration_sec` 와 `GET .../scenes/{sid}/audio` wav 를 받아 WDA 가 시각을 정해 트랙을 만든다.
 - 포털 경유는 `http://127.0.0.1:4180/apps/voice_recorder` + `WDA_TTS_PAT` Bearer(있을 때). 접속값은 `WDA_TTS_BASE_URL·PAT·ENGINE·VOICE_ID·SPEED` 를 환경변수·`.env` 에서 읽는다.
 
 ## SUMMARY

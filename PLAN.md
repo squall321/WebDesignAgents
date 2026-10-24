@@ -442,11 +442,11 @@ VoiceRecorder(`/home/koopark/claude/VoiceRecorder`)는 이미 완결된 TTS 서�
 5. `GET /api/projects/{id}/export/audio`(병합 mp3) + `/export/srt`(자막) → ffmpeg 먹싱, SRT는 자막 트랙 재사용.
 6. 사용 후 `DELETE /api/projects/{id}` 정리(호출자 책임).
 
-**실제 렌더 경로 (2026-10-24, 결정 55~58 — 위 6단계는 `synthesize_scenario` 수동 드라이버용으로 남는다).** 렌더에 `narration` 을 켜면(`wda render --narration` · MCP `render_submit(narration=)` · 웹 body `narration` · 콘솔 '내레이션 입히기') `wdpipeline/narration.py` 가 두 단계로 돈다.
+**실제 렌더 경로 (2026-10-24, 결정 56~59 — 위 6단계는 `synthesize_scenario` 수동 드라이버용으로 남는다).** 렌더에 `narration` 을 켜면(`wda render --narration` · MCP `render_submit(narration=)` · 웹 body `narration` · 콘솔 '내레이션 입히기') `wdpipeline/narration.py` 가 두 단계로 돈다.
 
 - **prepare(렌더 앞)** — 내레이션 있는 씬을 원문 그대로 VoiceRecorder 에 넣어(첫 씬 PATCH·나머지 씬 추가, 대본 파서 우회) 서버 기본 엔진·속도(MeloTTS 1.2배)로 합성하고 씬별 `duration_sec`·wav 를 받는다. dur = 0.3 + 실측 + 0.5, 단 nat×0.85 아래로는 줄이지 않고, nat×1.15 를 넘어도 늘린 뒤 `stretch-limit` 로 경고한다(말을 자르거나 빨리 하지 않는다). 무음이 포맷 `max_silence` 를 넘으면 경고. stills 는 비례 이동, 씬에 `narration_sec`·`narration_sha` 를 남기고 검증 → 재빌드 → scenario.json 반영. 포맷 길이 범위를 넘으면 여기서 멈춘다.
 - **finish(렌더 뒤)** — 씬 음성을 새 시작 시각에 놓아 트랙·SRT 를 만들고 기본 영상 파일 자리에 먹싱한다. 옆에 `narration.mp3 · narration.srt · drift_report.json`.
-- **게이트 2** 는 `narration_sha` 가 지금 원문과 같으면 글자수÷5.5 추정 대신 `narration_sec` 를 쓴다(결정 11·56).
+- **게이트 2** 는 `narration_sha` 가 지금 원문과 같으면 글자수÷5.5 추정 대신 `narration_sec` 를 쓴다(결정 11·57).
 - 오프라인 렌더 노드(`--network=none`)에서는 쓸 수 없다 — prepare 가 연결 실패로 멈추고 고칠 거리를 말한다.
 
 **경로 규약** — HEAXHub 연방이 정식화되면 Caddy 경유 `http://127.0.0.1:4180/apps/voice_recorder/api/*` + PAT Bearer가 정석(포트 직타는 인증 우회라 금지). 그 전 개발 단계에서는 동일 호스트 `http://localhost:8177` 직결 허용. `WDA_TTS_BASE_URL`로 전환. 접속값(`WDA_TTS_BASE_URL·PAT·ENGINE·VOICE_ID·SPEED`)은 환경변수와 `.env` 에서 읽는다 — Settings 필드가 아니라 덧대기로(결정 47 과 같은 함정).

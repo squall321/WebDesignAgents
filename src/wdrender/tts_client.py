@@ -10,7 +10,7 @@ import httpx
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_BASE_URL = "http://localhost:8177"
 DEFAULT_OUT_DIR = REPO_ROOT / "data" / "tts_check"
-# 측정 프로젝트의 자리표시 문단 — 첫 씬은 곧바로 원문으로 PATCH 한다 (대본 파서 우회, 결정 57)
+# 측정 프로젝트의 자리표시 문단 — 첫 씬은 곧바로 원문으로 PATCH 한다 (대본 파서 우회, 결정 58)
 _PLACEHOLDER_SCRIPT = "측정 준비"
 
 
@@ -345,7 +345,7 @@ def measure_scenes(
 ) -> dict:
     """(씬 이름, 내레이션) 목록을 원문 그대로 합성해 씬별 실측 길이와 음성 파일을 받는다.
 
-    대본 파서를 거치지 않는다(결정 57) — 자리표시 문단 하나로 프로젝트를 만들고 첫 씬은 PATCH,
+    대본 파서를 거치지 않는다(결정 58) — 자리표시 문단 하나로 프로젝트를 만들고 첫 씬은 PATCH,
     나머지는 씬 추가로 원문을 넣는다. 엔진·화자·속도를 안 주면 WDA_TTS_ENGINE/VOICE_ID/SPEED,
     그것도 없으면 서버 기본(MeloTTS 1.2배)을 쓴다. 성공하든 실패하든 서버 프로젝트는 지운다.
 

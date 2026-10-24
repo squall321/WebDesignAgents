@@ -35,7 +35,7 @@ def _doc(*scenes: dict) -> ScenarioDoc:
     })
 
 
-# ── 재조정 규칙 (결정 55) ──────────────────────────────────────────────────
+# ── 재조정 규칙 (결정 56) ──────────────────────────────────────────────────
 
 
 def test_dur_follows_speech_inside_the_stretch_band():
@@ -82,7 +82,7 @@ def test_scene_without_nat_uses_its_current_dur_as_the_visual_reference():
     assert doc.scenes[0].dur == 8.5 and "stretch-limit" not in t.flags
 
 
-# ── 게이트 2 가 실측을 쓴다 (결정 56) ───────────────────────────────────────
+# ── 게이트 2 가 실측을 쓴다 (결정 57) ───────────────────────────────────────
 
 
 def _gate2(scene: dict) -> list[dict]:
@@ -217,7 +217,7 @@ def test_prepare_render_finish_end_to_end(demo_build, tmp_path):
     silent_sec = probe_duration(video)
     result = nar.finish(plan, video, out_dir, log=lambda m: None)
 
-    # 목소리 입힌 영상이 같은 자리를 대신하고 길이는 그대로다 (결정 58)
+    # 목소리 입힌 영상이 같은 자리를 대신하고 길이는 그대로다 (결정 59)
     assert _streams(video) == ["audio", "subtitle", "video"]
     assert probe_duration(video) == pytest.approx(silent_sec, abs=0.1)
     assert probe_duration(Path(result["audio"])) == pytest.approx(sum(t.new_dur for t in plan.timings), abs=0.1)
