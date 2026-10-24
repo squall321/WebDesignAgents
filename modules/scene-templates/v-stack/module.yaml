@@ -2,7 +2,7 @@
 id: vtpl.stack
 type: scene-template
 name: "세로 적층 — 아래에서 위로 밀려 올라오는 논지 카드"
-status: draft
+status: pilot
 version: 1.0.0
 engine_compat: "animations-v2"
 origin: "창작 모드 세로 포맷 2026-07-26"
@@ -40,5 +40,7 @@ quality:
     # 독립 세션 2회 렌더 + 골든 대비 픽셀 diff 의 최댓값
     max_diff_ratio: 0.00000000
     checked_at: "2026-08-28T14:34:05"
-  gates_passed: []
-  reviews: []
+  gates_passed:
+    - "20261024-195308-f0aa57"  # short_v2 빌드 — 게이트 7종 error 0 · warning 0 · info 0
+  reviews:
+    - { to: pilot, meeting_id: "1db1089f-1e1d-40c7-bdeb-412aa65d2865", verdict: "Go", date: "2026-10-24" }

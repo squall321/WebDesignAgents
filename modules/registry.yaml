@@ -155,7 +155,7 @@ modules:
   - id: vtpl.stack
     type: scene-template
     path: modules/scene-templates/v-stack
-    status: draft
+    status: pilot
     version: 1.0.0
     formats: [short-9x16]
     stage: { w: 1080, h: 1920 }
