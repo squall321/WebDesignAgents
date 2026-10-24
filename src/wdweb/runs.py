@@ -270,17 +270,18 @@ def _run_pipeline(run_id: str, raw_path: Path, slug: str, droot: Path,
 
 
 def submit_render(run_id: str, targets: list[str], fps: int | None = None,
-                  doc_style: str = "report", pptx_mode: str = "hybrid") -> dict:
+                  doc_style: str = "report", pptx_mode: str = "hybrid",
+                  narration: bool = False) -> dict:
     """빌드 완료된 실행에 wdrender exporter 를 백그라운드로 돌린다. 상태는 run.render 에 기록."""
     run = read_run(run_id)
     assert run is not None
     _update_render(
         run_id, status="queued", targets=targets, doc_style=doc_style,
-        pptx_mode=pptx_mode, outputs={}, error=None,
+        pptx_mode=pptx_mode, narration=narration, outputs={}, error=None,
         started_at=_now_iso(),
     )
     t = threading.Thread(
-        target=_run_render, args=(run_id, targets, fps, data_dir(), doc_style, pptx_mode),
+        target=_run_render, args=(run_id, targets, fps, data_dir(), doc_style, pptx_mode, narration),
         daemon=True,
         name=f"wdweb-render-{run_id}",
     )
@@ -327,8 +328,10 @@ def resume_run(run_id: str) -> dict:
 
 
 def _run_render(run_id: str, targets: list[str], fps: int | None, droot: Path,
-                doc_style: str = "report", pptx_mode: str = "hybrid") -> None:
+                doc_style: str = "report", pptx_mode: str = "hybrid",
+                narration: bool = False) -> None:
     """렌더 워커 — wdmcp/jobs.py 의 exporter 실행부 동형. 실패는 render.status=failed 로 기록."""
+    work: Path | None = None   # 내레이션 씬 음성 임시 보관 — 끝나면 지운다
     try:
         run = read_run(run_id)
         assert run is not None
@@ -349,16 +352,6 @@ def _run_render(run_id: str, targets: list[str], fps: int | None, droot: Path,
             )
         resources = vendor_resources("/vendor") if (root / "vendor").is_dir() else None
 
-        # scene-data.json 이 있으면 stills/내레이션을 PPTX 캡처 시각·발표자 노트로 쓴다
-        stills: dict[str, list[float]] | None = None
-        notes: dict[str, str] | None = None
-        scene_data = root / "scene-data.json"
-        if scene_data.is_file():
-            doc = json.loads(scene_data.read_text(encoding="utf-8"))
-            scenes = doc.get("scenes") or []
-            stills = {s["name"]: s["stills"] for s in scenes if s.get("stills")} or None
-            notes = {s["name"]: s["narration"] for s in scenes if s.get("narration")} or None
-
         out_dir = droot / "renders" / root.name
         out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -372,6 +365,29 @@ def _run_render(run_id: str, targets: list[str], fps: int | None, droot: Path,
         # 문서 3형식은 무대 규격과 무관하다(심의 산출물에서 나온다) — 포맷 outputs 필터 면제.
         allowed = set(render_targets(_format_of(root))) | {"html", "pdf", "docx"}
         targets = [t for t in targets if t in allowed]
+
+        # 내레이션 — 실측·재조정·재빌드를 영상 렌더 앞에 끝낸다 (결정 49~52)
+        plan = None
+        if narration and "video" in targets:
+            import tempfile
+
+            from wdpipeline.narration import prepare
+
+            work = Path(tempfile.mkdtemp(prefix="wda_narr_"))
+            plan = prepare(root, work, scenario_path=droot / "pipeline" / run_id / "scenario.json",
+                           log=lambda m: None)
+
+        # scene-data.json 이 있으면 stills/내레이션을 PPTX 캡처 시각·발표자 노트로 쓴다
+        # (내레이션 재조정 뒤에 읽는다 — dur 가 바뀌면 캡처 시각도 옮겨진다)
+        stills: dict[str, list[float]] | None = None
+        notes: dict[str, str] | None = None
+        scene_data = root / "scene-data.json"
+        if scene_data.is_file():
+            doc = json.loads(scene_data.read_text(encoding="utf-8"))
+            scenes = doc.get("scenes") or []
+            stills = {s["name"]: s["stills"] for s in scenes if s.get("stills")} or None
+            notes = {s["name"]: s["narration"] for s in scenes if s.get("narration")} or None
+
         if "video" in targets:
             out = out_dir / "video.mp4"
             detail["video"] = export_video(
@@ -379,6 +395,10 @@ def _run_render(run_id: str, targets: list[str], fps: int | None, droot: Path,
                 format_id=_format_of(root), log=lambda m: None,
             )
             outputs["video"] = str(out)
+            if plan is not None:
+                from wdpipeline.narration import finish
+
+                detail["narration"] = finish(plan, out, out_dir, log=lambda m: None)
         if "pptx" in targets:
             out = out_dir / "slides.pptx"
             detail["pptx"] = export_pptx(
@@ -417,6 +437,11 @@ def _run_render(run_id: str, targets: list[str], fps: int | None, droot: Path,
                            finished_at=_now_iso())
         except Exception:
             pass
+    finally:
+        if work is not None:
+            import shutil
+
+            shutil.rmtree(work, ignore_errors=True)
 
 
 # ── QA (POST /api/runs/{id}/qa) ─────────────────────────────────────────────

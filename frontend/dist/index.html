@@ -146,6 +146,11 @@
               <option value="image">화면 그대로</option>
             </select>
           </label>
+          <label class="inline-field" id="narration-wrap"
+                 title="VoiceRecorder 로 씬 내레이션을 합성해 실측 길이로 씬을 다시 잡고, 영상에 음성·자막을 입힙니다">
+            <input type="checkbox" id="narration">
+            <span class="inline-k">내레이션 입히기</span>
+          </label>
           <label class="inline-field" id="doc-style-wrap" hidden>
             <span class="inline-k">문체</span>
             <select id="doc-style">
@@ -167,6 +172,7 @@
       <p class="form-error" id="run-error" role="alert"></p>
       <div class="qa-result" id="qa-result" hidden></div>
       <div class="qa-result" id="revise-result" hidden></div>
+      <div class="qa-result" id="narration-result" hidden></div>
 
       <div class="workbench" id="preview-wrap" hidden>
         <section class="wb-preview" aria-label="프리뷰">

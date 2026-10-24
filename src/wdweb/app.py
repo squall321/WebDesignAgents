@@ -179,7 +179,7 @@ def get_run(run_id: str) -> dict:
 
 @app.post("/api/runs/{run_id}/render", status_code=status.HTTP_202_ACCEPTED)
 async def render_run(run_id: str, request: Request) -> JSONResponse:
-    """wdrender exporter 를 백그라운드로 실행한다. body: {targets?, fps?, doc_style?, pptx_mode?}."""
+    """wdrender exporter 를 백그라운드로 실행한다. body: {targets?, fps?, doc_style?, pptx_mode?, narration?}."""
     run = _run_or_404(run_id)
     if not run.get("build_dir") or not run.get("entry"):
         raise HTTPException(status_code=409, detail="빌드가 완료된 실행만 렌더할 수 있습니다")
@@ -209,9 +209,15 @@ async def render_run(run_id: str, request: Request) -> JSONResponse:
     if pptx_mode not in PPTX_MODES:
         raise HTTPException(status_code=400,
                             detail=f"pptx_mode 는 {list(PPTX_MODES)} 중 하나여야 합니다")
+    narration = body.get("narration", False)
+    if not isinstance(narration, bool):
+        raise HTTPException(status_code=400, detail="narration 은 true/false 여야 합니다")
+    if narration and "video" not in targets:
+        raise HTTPException(status_code=400, detail="내레이션은 영상(video) 타깃이 있어야 입힐 수 있습니다")
 
     updated = runledger.submit_render(run_id, targets=targets, fps=fps,
-                                      doc_style=doc_style, pptx_mode=pptx_mode)
+                                      doc_style=doc_style, pptx_mode=pptx_mode,
+                                      narration=narration)
     return JSONResponse(
         status_code=status.HTTP_202_ACCEPTED,
         content=envelope({"run_id": run_id, "render": updated["render"]},

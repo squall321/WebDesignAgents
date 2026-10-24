@@ -126,6 +126,7 @@ def submit_render_job(
     doc_style: str = "report",
     pptx_mode: str = "hybrid",
     pptx_verify: bool = False,
+    narration: bool = False,
 ) -> RenderJob:
     """잡 파일을 queued로 기록하고 백그라운드 워커 스레드를 기동한다."""
     now = _now_iso()
@@ -141,6 +142,7 @@ def submit_render_job(
         doc_style=doc_style,
         pptx_mode=pptx_mode,
         pptx_verify=pptx_verify,
+        narration=narration,
         created_at=now,
         updated_at=now,
     )
@@ -158,6 +160,7 @@ def submit_render_job(
 
 def _run_job(job_id: str, renders_root: Path, build_root: Path) -> None:
     """워커 본체 — (선택) wdpipeline.build 빌드 → wdrender exporter 실행. 예외는 failed로 기록."""
+    work: Path | None = None   # 내레이션 씬 음성 임시 보관 — 끝나면 지운다
     try:
         job = read_job(job_id)
         assert job is not None
@@ -202,7 +205,6 @@ def _run_job(job_id: str, renders_root: Path, build_root: Path) -> None:
         out_dir = renders_root / root.name
         out_dir.mkdir(parents=True, exist_ok=True)
 
-        _update_job(job_id, status="rendering")
         outputs: dict[str, str] = {}
         detail: dict = {}
         # 포맷의 outputs 가 실제 산출을 지배한다 — PPT 전용 포맷(outputs: [pptx])에서
@@ -212,6 +214,24 @@ def _run_job(job_id: str, renders_root: Path, build_root: Path) -> None:
         # 문서 3형식은 무대 규격과 무관하다(심의 산출물에서 나온다) — 포맷 outputs 필터 면제.
         allowed = set(render_targets(_format_of(root))) | set(DOC_TARGETS)
         job_targets = [t for t in job.targets if t in allowed]
+
+        # 내레이션 — 실측·재조정·재빌드는 빌드의 일부라 building 상태로 둔다 (결정 49~52)
+        plan = None
+        if job.narration and "video" in job_targets:
+            import tempfile
+
+            from wdpipeline.narration import prepare
+
+            _update_job(job_id, status="building")
+            work = Path(tempfile.mkdtemp(prefix="wda_narr_"))
+            scen = Path(job.scenario_path) if job.scenario_path else (
+                Path(job.run_dir) / "scenario.json" if job.run_dir else None
+            )
+            plan = prepare(root, work, scenario_path=scen, log=lambda m: None)
+            if stills is not None:   # 재조정으로 dur 가 바뀌어 PPTX 캡처 시각도 옮겨졌다
+                stills = {s.name: s.stills for s in plan.doc.scenes if s.stills} or None
+
+        _update_job(job_id, status="rendering")
         if "video" in job_targets:
             out = out_dir / "video.mp4"
             detail["video"] = export_video(
@@ -219,6 +239,10 @@ def _run_job(job_id: str, renders_root: Path, build_root: Path) -> None:
                 format_id=_format_of(root), log=lambda m: None,
             )
             outputs["video"] = str(out)
+            if plan is not None:
+                from wdpipeline.narration import finish
+
+                detail["narration"] = finish(plan, out, out_dir, log=lambda m: None)
         if "pptx" in job_targets:
             out = out_dir / "slides.pptx"
             detail["pptx"] = export_pptx(
@@ -269,3 +293,8 @@ def _run_job(job_id: str, renders_root: Path, build_root: Path) -> None:
             _update_job(job_id, status="failed", error=f"{type(exc).__name__}: {exc}")
         except Exception:
             pass
+    finally:
+        if work is not None:
+            import shutil
+
+            shutil.rmtree(work, ignore_errors=True)

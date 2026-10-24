@@ -187,8 +187,15 @@ def render(
         False, "--pptx-verify",
         help="hybrid 좌표 검증 — 숨긴 글자가 텍스트박스에 덮이는지 실측 (캡처 2배)",
     ),
+    narration: bool = typer.Option(
+        False, "--narration",
+        help="VoiceRecorder 로 내레이션을 입힌다 — 실측 길이로 씬을 다시 잡고 먹싱 (네트워크 필요)",
+    ),
 ) -> None:
     """P5 — data/build/{slug}/ 를 mp4 + pptx 로 export 한다 (wdrender 호출)."""
+    import shutil
+    import tempfile
+
     from wdrender.config import load_config
     from wdrender.exporter_pptx import export_pptx
     from wdrender.exporter_video import export_video
@@ -200,8 +207,6 @@ def render(
         typer.echo(f"[오류] 빌드 없음: {build_dir / ENTRY_NAME} — wda build 먼저", err=True)
         raise typer.Exit(code=1)
     scene_data = _read_json(build_dir / "scene-data.json")
-    stills = {s["name"]: s["stills"] for s in scene_data["scenes"] if s.get("stills")}
-    notes = {s["name"]: s["narration"] for s in scene_data["scenes"] if s.get("narration")}
     # 무대·슬라이드 규격은 빌드된 시나리오의 포맷이 지배한다 (--format 은 명시 오버라이드)
     fid = format or scene_data.get("format") or DEFAULT_FORMAT_ID
 
@@ -211,6 +216,9 @@ def render(
     if not targets:
         typer.echo(f"[오류] 포맷 {fid} 에 실행할 렌더 타깃이 없다 (--skip-video 와 outputs 확인)", err=True)
         raise typer.Exit(code=1)
+    if narration and "video" not in targets:
+        typer.echo(f"[오류] --narration 은 영상이 있어야 한다 — 포맷 {fid} 산출 {'+'.join(targets)}", err=True)
+        raise typer.Exit(code=1)
 
     cfg = load_config()
     if fps > 0:
@@ -218,24 +226,50 @@ def render(
     out_dir = _data_dir() / "renders" / slug
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    if "video" in targets:
-        info = export_video(
-            build_dir, ENTRY_NAME, out_dir / f"{slug}.mp4", config=cfg, format_id=fid
-        )
-        typer.echo(
-            f"[render] mp4 포맷={fid} duration={info['duration']}s fps={info['fps']} "
-            f"frames={info['frames']} → {info['out']}"
-        )
-    else:
-        typer.echo(f"[render] mp4 생략 — 포맷 {fid} 산출 {'+'.join(targets) or '(없음)'}")
-    if "pptx" in targets:
-        pinfo = export_pptx(
-            build_dir, ENTRY_NAME, out_dir / f"{slug}.pptx",
-            config=cfg, format_id=fid, stills=stills, notes=notes,
-            mode=pptx_mode, verify=pptx_verify,
-        )
-        tail = f" 텍스트 {pinfo['text_boxes']}개" if pinfo.get("text_boxes") else ""
-        typer.echo(f"[render] pptx {pinfo['slides']}장/{pinfo['scenes']}씬{tail} → {pinfo['out']}")
+    plan = None
+    work = Path(tempfile.mkdtemp(prefix="wda_narr_")) if narration else None
+    try:
+        if narration:
+            from wdpipeline.narration import NarrationError, prepare
+
+            try:
+                plan = prepare(build_dir, work, scenario_path=_run_dir(slug) / SCENARIO_FILE,
+                               modules_root=_MODULES_ROOT, log=typer.echo)
+            except NarrationError as e:
+                for line in str(e).splitlines():
+                    typer.echo(f"[내레이션 오류] {line}", err=True)
+                raise typer.Exit(code=1) from None
+            scene_data = _read_json(build_dir / "scene-data.json")   # 재조정으로 dur·stills 가 바뀌었다
+        stills = {s["name"]: s["stills"] for s in scene_data["scenes"] if s.get("stills")}
+        notes = {s["name"]: s["narration"] for s in scene_data["scenes"] if s.get("narration")}
+
+        if "video" in targets:
+            info = export_video(
+                build_dir, ENTRY_NAME, out_dir / f"{slug}.mp4", config=cfg, format_id=fid
+            )
+            typer.echo(
+                f"[render] mp4 포맷={fid} duration={info['duration']}s fps={info['fps']} "
+                f"frames={info['frames']} → {info['out']}"
+            )
+            if plan is not None:
+                from wdpipeline.narration import finish
+
+                result = finish(plan, out_dir / f"{slug}.mp4", out_dir, log=typer.echo)
+                for warning in result["warnings"]:
+                    typer.echo(f"[narration] ⚠ {warning}")
+        else:
+            typer.echo(f"[render] mp4 생략 — 포맷 {fid} 산출 {'+'.join(targets) or '(없음)'}")
+        if "pptx" in targets:
+            pinfo = export_pptx(
+                build_dir, ENTRY_NAME, out_dir / f"{slug}.pptx",
+                config=cfg, format_id=fid, stills=stills, notes=notes,
+                mode=pptx_mode, verify=pptx_verify,
+            )
+            tail = f" 텍스트 {pinfo['text_boxes']}개" if pinfo.get("text_boxes") else ""
+            typer.echo(f"[render] pptx {pinfo['slides']}장/{pinfo['scenes']}씬{tail} → {pinfo['out']}")
+    finally:
+        if work is not None:
+            shutil.rmtree(work, ignore_errors=True)
 
 
 @app.command()
@@ -247,13 +281,19 @@ def run(
     format: str = typer.Option(
         DEFAULT_FORMAT_ID, "--format", help="포맷 id (wda formats 로 목록 확인)"
     ),
+    narration: bool = typer.Option(
+        False, "--narration", help="VoiceRecorder 로 내레이션을 입힌다 (네트워크 필요)"
+    ),
 ) -> None:
     """P0→P1→P3→P4→P5 전 단계 일괄 실행 (규칙 기반 데모 파이프라인)."""
     ingest(file=file, run_id=slug, assets_dir=assets_dir)
     fragmentize(run_id=slug)
     scenario(run_id=slug, format=format)
     build(run_id=slug, slug=slug)
-    render(slug=slug, fps=fps, skip_video=False, format="")
+    # 함수로 부를 때는 옵션을 전부 넘긴다 — 빠뜨린 인자에는 typer OptionInfo 가 그대로 들어가
+    # pptx 단계가 죽었다(7d93bed 이후 wda run 이 PPTX 에서 실패하던 원인)
+    render(slug=slug, fps=fps, skip_video=False, format="",
+           pptx_mode="hybrid", pptx_verify=False, narration=narration)
     typer.echo(f"[run] 완료 — data/renders/{slug}/")
 
 

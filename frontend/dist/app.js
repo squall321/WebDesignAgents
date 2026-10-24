@@ -429,6 +429,7 @@ function renderRunDetail(run) {
   }
   $('render-btn').disabled = ['queued', 'rendering'].includes(render.status || '');
   syncOutputControls();   // 다시 눌릴 수 있게 된 버튼의 라벨을 현재 갈래에 맞춘다
+  showNarration(render.status === 'done' ? (render.detail || {}).narration : null);
 
   if (built) {
     const wrap = $('preview-wrap');
@@ -447,6 +448,24 @@ function renderRunDetail(run) {
   } else {
     $('run-downloads').innerHTML = '';
   }
+}
+
+// 내레이션 결과 — 길이가 어떻게 바뀌었는지와 원고에서 고칠 거리(늘이기 한계·긴 무음)를 보인다
+function showNarration(nar) {
+  const box = $('narration-result');
+  if (!nar || !nar.summary) {
+    box.hidden = true;
+    return;
+  }
+  const s = nar.summary;
+  const warnings = nar.warnings || [];
+  box.hidden = false;
+  box.className = 'qa-result ' + (warnings.length ? 'fail' : 'pass');
+  box.innerHTML = `<b>내레이션 ${s.narrated}씬 · 길이 ${s.old_total_sec}→${s.new_total_sec}초 · `
+    + `무음 ${Math.round(s.silence_ratio * 100)}%</b>`
+    + (warnings.length
+      ? '<br>' + warnings.map((w) => esc(w)).join('<br>')
+      : '<br>모든 씬이 화면 늘이기 한계 안에 들어갔습니다');
 }
 
 async function refreshDownloads(runId) {
@@ -488,6 +507,8 @@ function syncOutputControls() {
   if (styleWrap) styleWrap.hidden = !isDoc;   // 문체는 문서에만 있는 선택지다
   const pptxWrap = $('pptx-mode-wrap');
   if (pptxWrap) pptxWrap.hidden = isDoc;      // PPT 방식은 영상·슬라이드에만 있다
+  const narWrap = $('narration-wrap');
+  if (narWrap) narWrap.hidden = isDoc;        // 내레이션은 영상에만 입힌다
   const btn = $('render-btn');
   if (btn && !btn.disabled) btn.textContent = selectedOutput().label + ' 만들기';
 }
@@ -507,6 +528,8 @@ $('render-btn').addEventListener('click', async () => {
   } else {
     const pm = $('pptx-mode');
     if (pm && pm.value) body.pptx_mode = pm.value;
+    const nar = $('narration');
+    if (nar && nar.checked) body.narration = true;
   }
   btn.disabled = true;
   $('render-status').textContent = kind.label + ' 를 요청하는 중…';

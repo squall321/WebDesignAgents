@@ -944,6 +944,7 @@ def render_submit(
     doc_style: str = "report",
     pptx_mode: str = "hybrid",
     pptx_verify: bool = False,
+    narration: bool = False,
 ) -> dict:
     """렌더 잡을 등록한다 — 백그라운드 스레드가 (필요 시) 빌드 후 산출물을 export 한다.
 
@@ -954,10 +955,18 @@ def render_submit(
         표=structured, 부록=회의록 결정·미해결 쟁점). doc_style 은 report|brief|memo.
         문서는 run_dir(data/pipeline/{run_id})가 필요하다 — scenario_path 로 제출하면
         그 상위 디렉터리를 자동으로 쓴다.
+    narration=True 면 VoiceRecorder 로 씬 내레이션을 합성해 실측 길이로 씬 dur 를 다시 잡고
+    (scenario 파일에도 반영) 영상에 음성·자막을 먹싱한다. video 타깃이 있어야 한다.
+    결과의 detail.narration 에 drift 요약·경고(늘이기 한계 초과·긴 무음)가 담긴다.
     상태는 data/render_jobs/{job_id}.json에 기록되며 render_status로 폴링한다.
     """
     state = get_session()
     targets = targets or ["video"]
+    if narration and "video" not in targets:
+        return error_envelope(
+            state, "INVALID_INPUT", "narration 은 video 타깃이 있어야 한다",
+            "targets 에 video 를 넣거나 narration 을 끄라.",
+        )
     if pptx_mode not in PPTX_MODES:
         return error_envelope(
             state, "INVALID_INPUT", f"알 수 없는 pptx_mode: {pptx_mode}",
@@ -1022,7 +1031,7 @@ def render_submit(
     job = jobs.submit_render_job(
         targets=targets, scenario_path=scenario_path, build_dir=build_dir, entry=entry, fps=fps,
         run_dir=run_dir, doc_style=doc_style,
-        pptx_mode=pptx_mode, pptx_verify=pptx_verify,
+        pptx_mode=pptx_mode, pptx_verify=pptx_verify, narration=narration,
     )
     data = RenderSubmitOut(
         job_id=job.job_id,
