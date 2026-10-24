@@ -95,7 +95,8 @@ PLAN.md의 마일스톤을 실행 단위로 분해. 완료 시 체크하고, 검
       심의를 열려면 포맷이 인용 가능해야 했다(meeting_start format_id). 승격 검사에 등식 3개 편입.
 - [x] short-9x16 active 승격 — short_v2 완주(게이트 클린) + format_review 14턴 Conditional-Go
 - [x] 브리핑이 템플릿 스키마 구조 제약 적재 (개수·x-read) — 직관이 실측을 이기던 것을 막는다
-- [ ] 모듈 승격 루프 실가동 — 신규 창작 모듈 1건 등록→pilot 승격 실증
+- [x] 모듈 승격 루프 실가동 — promote_module 신설(없었다) + vtpl.stack draft→pilot (module_review 14턴 Go)
+- [ ] 모듈 active 승격 조건 2종 — schema.json 유효성 · 배열 상한 근거 (module_review 이월)
 - [x] 지표 대시보드 — 게이트 1회차 94.7% · 모듈 재사용률 87.4%(목표 80% ✓) · 심의 토큰 4800/회의.
       네 창구 노출(wda metrics · metrics_report · GET /api/metrics · 콘솔 지표 탭)
 - [x] HITL 5지점 승인 원장 + 무인 모드 자동 확정 규칙 (골든은 무인 예외 — 사람만)
