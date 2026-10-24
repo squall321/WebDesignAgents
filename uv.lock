@@ -1346,7 +1346,7 @@ requires-dist = [
     { name = "fastapi", marker = "extra == 'web'", specifier = ">=0.110" },
     { name = "httpx" },
     { name = "jsonschema" },
-    { name = "mcp", marker = "extra == 'mcp'", specifier = ">=1.0" },
+    { name = "mcp", marker = "extra == 'mcp'", specifier = ">=1.0,<2" },
     { name = "numpy", marker = "extra == 'render'" },
     { name = "openai", marker = "extra == 'llm'", specifier = ">=1.0" },
     { name = "pillow", marker = "extra == 'render'" },
