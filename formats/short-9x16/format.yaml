@@ -17,8 +17,8 @@ constraints: { min_font: 32, safe_margin: 72 }
 theme: hwax-blue
 
 # ── 승격 루프 (PLAN §8.0) — 아래는 전부 short_v1 제작 1회차의 실측 산물이다 ──
-status: pilot
-usage_count: 1
+status: active
+usage_count: 2
 origin:
   meeting_id: 67bd5d0d-e44f-47f1-bc80-d9fa1c10e5ea   # 세로 숏폼 시나리오 심의 19턴 (Conditional-Go)
   created: "2026-07-27"
@@ -60,9 +60,24 @@ presets:
     cta.entries.text: 16
     cta.footnote: 26
   # 확정 구간 예산 (Σ 46.0초 — 목표 60을 의도적으로 채우지 않았다)
+  # A3(format_review 2026-10-24) — 이건 **1회차 값**이다. 2회차는 Σ47.6초로 끝났다.
+  # 이 장르의 실제 대역은 46~48초다. 46 을 "이 장르의 길이" 로 읽지 마라 —
+  # 물려받을 것은 숫자가 아니라 재는 방법(lesson-5 의 공식)이다.
   dur_plan: { hook: 6.2, problem: 11.2, solution: 11.6, proof: 9.6, cta: 7.4 }
   # rate 는 게이트 예산 상수, max_silence 는 short_v1 씬별 무음 실측 최대(문제 3.56초)
   narration: { rate: 5.5, max_silence: 3.6 }
+
+# 승격 이력 — 회의록은 data/(gitignore) 라 다른 사람 손에 없다. 근거를 여기 남긴다.
+promotions:
+  - to: active
+    meeting_id: da467569-bc92-4cea-8eb3-ca09cde6942c
+    verdict: Conditional-Go
+    date: "2026-10-24"
+    note: >-
+      4인(CD·ST·AU·QA) 14턴, 미해결 쟁점 0. 2회 제작 모두 게이트 7종 error 0 이고
+      전혀 다른 원천 보고서(플랫폼 설명서)에도 5역할 골격이 그대로 맞았다.
+      조건 A1 브리핑이 템플릿 스키마 구조 제약 적재 · A2 그 적재의 회귀 테스트 ·
+      A3 2회차 실적 기록 — 모두 이행됨.
 
 golden:
   run_id: short_v1
@@ -83,3 +98,8 @@ lessons:
   - "dur 하한은 max(낭독 예산, 정착+판독)이다 — 스케줄 실측 settle_last(problem 7.1s) 위에 판독 여유를 얹어 11.2s"
   - "게이트 낭독 예산 5.5자/초 vs Chatterbox 실측 6.0~8.4자/초 — 예산을 지키는 한 무음 25% 이상이 구조적이다 (short_v1 25.7%)"
   - "1700px 아래에는 콘텐츠를 두지 마라 — 숏폼 플레이어 UI 가 덮는다 (safe margin 72 와 별개의 하단 금지대)"
+  # ── format_review(2026-10-24, 4인 14턴, Conditional-Go) 확정 교훈 ──
+  - "포맷은 자수를 담고 스키마는 개수를 담는다 — 심의 브리핑이 둘 다 들지 않으면 직관이 실측을 이긴다. 2회차 AU 가 '카드 2장 상한' 을 주장했으나 1·2회차 모두 3장이었고 v-stack 은 minItems 3 이다"
+  - "낭독 예산의 대상은 화면 카피가 아니라 내레이션이다 — 게이트2 가 재는 것은 x-read 필드다. 카피 자수에 rate 를 곱하면 훅처럼 짧은 씬에서 어긋난다(6.0→7.0s)"
+  - "장르 자산은 베껴 적지 말고 가리켜라 — 스키마를 포맷에 복사하면 템플릿이 올라갈 때 어긋난다. 브리핑이 원본을 싣는 쪽이 맞다"
+  - "2회차는 장르를 쓰기만 한 첫 회차다 — 무대·골격·템플릿·자수·청중·서법을 한 번도 다시 논하지 않았다. 새로 정한 것은 '이 보고서를 어떻게 담을까' 와 '그 길이' 둘뿐이다"

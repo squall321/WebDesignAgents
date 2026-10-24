@@ -42,8 +42,9 @@ needs_render_data = pytest.mark.skipif(
 def test_short_9x16_carries_the_short_v1_experience():
     """세로 숏폼 심의 19턴의 실측이 format.yaml 에 남아 있어야 한다."""
     spec = load_format("short-9x16")
-    assert spec.status == "pilot"
-    assert spec.usage_count == 1
+    # format_review(2026-10-24, 4인 14턴, Conditional-Go)로 active 승격 · short_v2 완주
+    assert spec.status == "active"
+    assert spec.usage_count == 2
     assert spec.origin.meeting_id == "67bd5d0d-e44f-47f1-bc80-d9fa1c10e5ea"
 
     # 심의가 확정한 구간 예산 — 합계 46.0초 (목표 60을 의도적으로 안 채웠다)
@@ -295,7 +296,7 @@ def test_line_edit_preserves_comments_and_fields(tmp_path: Path):
 
 def test_presets_briefing_carries_the_reusable_knowhow():
     text = format_presets_briefing("short-9x16")
-    assert "포맷 short-9x16 — 세로 숏폼 브리핑 (pilot · 산출물 1건)" in text
+    assert "포맷 short-9x16 — 세로 숏폼 브리핑 (active · 산출물 2건)" in text
     assert "무대 1080×1920" in text
     assert "hook(vtpl.hook) → problem(vtpl.stack)" in text
     assert "narr-story-architect" in text                     # 심의 프리셋 참가자
@@ -385,13 +386,14 @@ def test_no_format_declares_a_min_font_below_the_gate():
     assert not bad, f"게이트({gate:.0f}px)보다 낮은 min_font 를 적은 포맷: {bad}"
 
 
-def test_active_promotion_runs_spec_consistency_checks():
+def test_active_promotion_runs_spec_consistency_checks(tmp_path: Path):
     """조건은 검사되지 않으면 조건이 아니다 — 세 등식이 승격 판정에 실제로 실린다."""
     from wdpipeline.format import load_format, promote_format
 
-    spec = load_format("short-9x16")
-    assert spec.status == "pilot", "이 검사는 pilot→active 경로를 본다"
-    r = promote_format("short-9x16", evidence={}, apply=False)
+    # 두 실물 포맷이 모두 active 가 됐으므로(2026-10-24) 샌드박스로 pilot 을 만든다 —
+    # 검사의 주제는 "pilot→active 경로에 등식이 실리는가" 이지 특정 포맷이 아니다.
+    root = _sandbox(tmp_path, status="pilot")
+    r = promote_format("short-9x16", evidence={}, formats_root=root, apply=False)
     names = {c["name"] for c in r["checks"]}
     assert {"최소폰트", "구간예산", "골든 QA"} <= names, f"승격 검사에 등식이 없다: {names}"
 
@@ -426,3 +428,50 @@ def test_dur_plan_stays_inside_the_duration_window():
         assert spec.duration.min <= total <= spec.duration.max, (
             f"{fid}: Σdur_plan {total} ∉ [{spec.duration.min}, {spec.duration.max}]"
         )
+
+
+# ── format_review(short-9x16, 2026-10-24) 조건 A1·A2 ─────────────────────────
+
+
+@pytest.mark.parametrize("module_id,want_count,want_read", [
+    ("vtpl.stack", "cards 3~4", "cards.title"),
+    ("vtpl.hook", "hint.beats", "focus.word"),
+])
+def test_briefing_carries_template_structure_constraints(module_id, want_count, want_read):
+    """자수는 포맷이 담고 **개수·낭독 대상은 스키마에만** 있다.
+
+    둘 다 브리핑에 실리지 않으면 심의는 직관으로 말하고 직관이 실측을 이긴다 —
+    2회차 AU 가 "카드 2장 상한" 을 주장했으나 1·2회차 모두 3장이었고 v-stack 은
+    minItems 3 이다. 빌드 단계에서야 막혔다(실측).
+    """
+    from wdmcp.server import _load_module_index
+
+    entry = next((m for m in _load_module_index() if m.id == module_id), None)
+    assert entry is not None, f"레지스트리에 {module_id} 가 없다"
+    assert want_count in entry.structure, (
+        f"{module_id}: 개수 제약이 브리핑에 없다 — 심의가 직관으로 말하게 된다 "
+        f"(structure={entry.structure!r})"
+    )
+    assert want_read in entry.read_fields, (
+        f"{module_id}: 게이트2 가 재는 x-read 필드가 브리핑에 없다 — 낭독 예산을 "
+        f"화면 카피로 잘못 계산하게 된다 (read_fields={entry.read_fields!r})"
+    )
+
+
+def test_structure_is_read_from_schema_not_copied_into_format():
+    """포맷에 베껴 적으면 템플릿이 올라갈 때 어긋난다 — 스키마를 가리켜야 한다."""
+    spec = load_format("short-9x16")
+    # 교훈 **문장** 안의 단어 언급은 복사가 아니다 — 프리셋에 구조 키가 생겼는지를 본다
+    preset_keys = set(spec.presets.model_dump())
+    assert not (preset_keys & {"structure_guide", "min_items", "counts"}), (
+        f"스키마 제약이 포맷에 복사됐다 — 두 개의 진실이 생긴다: {preset_keys}"
+    )
+    assert spec.presets.copy_guide, "자수 상한은 여전히 포맷이 담는다"
+
+
+def test_short_9x16_is_active_with_the_deliberation_on_record():
+    spec = load_format("short-9x16")
+    assert spec.status == "active"
+    assert spec.usage_count == 2, "2회 제작 실적이 승격 근거다"
+    pr = [x for x in spec.promotions if x.to == "active"]
+    assert pr and pr[0].meeting_id and pr[0].verdict, "승격 근거가 비었다"
