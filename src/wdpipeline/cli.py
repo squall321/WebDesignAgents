@@ -468,6 +468,53 @@ def revise(
 
 
 @app.command()
+def promote(
+    kind: str = typer.Argument(..., help="format | module"),
+    target_id: str = typer.Argument(..., help="포맷 id 또는 모듈 id"),
+    meeting: str = typer.Option("", "--meeting", help="근거 심의 id"),
+    verdict: str = typer.Option("", "--verdict", help="판정 (Go | Conditional-Go)"),
+    apply: bool = typer.Option(False, "--apply", help="조건 충족 시 status 를 실제로 올린다"),
+) -> None:
+    """포맷·모듈 승격을 판정한다 (PLAN §6·§8.0).
+
+    기본은 **판정만** 한다 — 무엇이 모자란지 보고 채운 뒤 --apply 로 올린다.
+    심의 판정 없이는 어느 쪽도 올라가지 않는다.
+    """
+    if kind not in ("format", "module"):
+        typer.echo("[오류] kind 는 format 또는 module 이다", err=True)
+        raise typer.Exit(code=1)
+
+    vtype = "format_review" if kind == "format" else "module_review"
+    verdicts = []
+    if meeting and verdict:
+        v = {"meeting_id": meeting, "type": vtype, "verdict": verdict}
+        if kind == "module":
+            v["module_id"] = target_id
+        verdicts.append(v)
+
+    try:
+        if kind == "format":
+            from wdpipeline.format import promote_format
+
+            r = promote_format(target_id, evidence={"verdicts": verdicts}, apply=apply)
+        else:
+            from wdpipeline.module import promote_module
+
+            r = promote_module(target_id, evidence={"verdicts": verdicts}, apply=apply)
+    except (KeyError, FileNotFoundError, ValueError) as exc:
+        typer.echo(f"[오류] {exc}", err=True)
+        raise typer.Exit(code=1) from None
+
+    head = r.get("format") or r.get("module")
+    typer.echo(f"[promote] {head} — {r['status']} → {r['target'] or '(끝)'} "
+               f"· 승격가능 {r['promoted']}" + (" · 적용됨" if r["applied"] else ""))
+    for c in r["checks"]:
+        typer.echo(("  ✓ " if c["ok"] else "  ✗ ") + f"{c['name']}: {c['detail']}")
+    if not r["promoted"]:
+        raise typer.Exit(code=1)
+
+
+@app.command()
 def approve(
     point: str = typer.Argument(..., help="개입 지점 (participants|scenario|shipping|action_items|golden)"),
     subject: str = typer.Argument(..., help="대상 식별자 (run_id·module id·format id …)"),

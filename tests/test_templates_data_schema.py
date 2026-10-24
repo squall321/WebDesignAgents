@@ -101,7 +101,9 @@ def test_module_yaml_contract(name):
     doc = load_module(name)
     assert doc["id"] == DATA[name]
     assert doc["type"] == "scene-template"
-    assert doc["status"] == "draft"
+    # 승격 사다리를 막지 않는다 — 모듈은 심의를 거쳐 pilot·active 로 오른다(PLAN §6).
+    # 검사의 뜻은 "status 가 사다리 위의 값인가" 이지 "영원히 draft 인가" 가 아니다.
+    assert doc["status"] in ("draft", "pilot", "active")
     assert SEMVER.match(str(doc["version"]))
     assert doc["engine_compat"] == "animations-v2"
     assert doc["origin"] == ORIGIN
