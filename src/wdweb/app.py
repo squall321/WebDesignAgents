@@ -275,6 +275,20 @@ def _built_run_or_409(run_id: str) -> dict:
     return run
 
 
+@app.post("/api/runs/{run_id}/resume", status_code=status.HTTP_202_ACCEPTED)
+def post_resume(run_id: str) -> JSONResponse:
+    """실패한 실행을 끊긴 단계부터 다시 돌린다 (PLAN M3 ④)."""
+    _run_or_404(run_id)
+    try:
+        result = runledger.resume_run(run_id)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from None
+    except RuntimeError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from None
+    return JSONResponse(status_code=status.HTTP_202_ACCEPTED,
+                        content=envelope(result, message="재개했습니다"))
+
+
 @app.get("/api/runs/{run_id}/revise")
 def get_revise(run_id: str) -> dict:
     """사람 편집 대조 (MCP scenario_revise 와 같은 계산). 반영은 하지 않는다."""

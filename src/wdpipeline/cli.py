@@ -468,6 +468,37 @@ def revise(
 
 
 @app.command()
+def resume(
+    run_id: str = typer.Option(..., "--run", help="data/pipeline/{run_id}"),
+    slug: str = typer.Option("", "--slug", help="빌드 슬러그 (기본: run_id)"),
+    show: bool = typer.Option(False, "--show", help="재개 지점만 보고 돌리지 않는다"),
+) -> None:
+    """끊긴 파이프라인을 산출물이 없는 첫 단계부터 다시 돌린다 (PLAN M3 ④)."""
+    from wdpipeline.resume import resume_point, stage_state, stages_from
+
+    pipe_dir = _data_dir() / "pipeline" / run_id
+    build_dir = _data_dir() / "build" / (slug or run_id)
+    state = stage_state(pipe_dir, build_dir)
+    for name, ok in state.items():
+        typer.echo(("  ✓ " if ok else "  ✗ ") + name)
+    start = resume_point(pipe_dir, build_dir)
+    if start is None:
+        typer.echo("[resume] 모든 단계의 산출물이 있다 — 다시 돌릴 것이 없다")
+        return
+    typer.echo(f"[resume] 재개 지점: {start} → {' → '.join(stages_from(start))}")
+    if show:
+        return
+    raw = pipe_dir / "report.raw.json"
+    if not raw.is_file():
+        typer.echo(f"[오류] 원본 보고서가 없다: {raw}", err=True)
+        raise typer.Exit(code=1)
+    from wdweb import runs as runledger
+
+    runledger._run_pipeline(run_id, raw, slug or run_id, _data_dir(), start)
+    typer.echo("[resume] 완료")
+
+
+@app.command()
 def promote(
     kind: str = typer.Argument(..., help="format | module"),
     target_id: str = typer.Argument(..., help="포맷 id 또는 모듈 id"),

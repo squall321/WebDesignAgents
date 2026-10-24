@@ -177,62 +177,86 @@ def submit_run(report: dict, slug: str | None = None) -> dict:
     return run
 
 
-def _run_pipeline(run_id: str, raw_path: Path, slug: str, droot: Path) -> None:
-    """워커 본체 — 단계별 상태를 원장에 기록하며 순차 실행. 예외는 해당 단계 failed 로 남긴다."""
+def _run_pipeline(run_id: str, raw_path: Path, slug: str, droot: Path,
+                  start_from: str | None = None) -> None:
+    """워커 본체 — 단계별 상태를 원장에 기록하며 순차 실행. 예외는 해당 단계 failed 로 남긴다.
+
+    start_from 을 주면 그 단계부터 돈다(재개). 앞 단계 산출물은 디스크에서 읽어 잇는다 —
+    원장은 쓰다 만 채로 죽을 수 있지만 산출물은 쓰였거나 안 쓰였거나 둘 중 하나다.
+    """
+    from wdpipeline.resume import stages_from
+
     pipe_dir = droot / "pipeline" / run_id
-    stage = STAGES[0]
+    todo = set(stages_from(start_from)) if start_from else set(STAGES)
+    stage = start_from or STAGES[0]
+    norm = fragments = doc = None
     try:
-        update_run(run_id, status="running")
+        update_run(run_id, status="running", error=None)
 
         # P0 ingest
         stage = "ingest"
-        _update_stage(run_id, stage, status="running")
-        from wdpipeline.ingest import ingest_report_file
-
-        norm = ingest_report_file(raw_path)
         norm_path = pipe_dir / "report.norm.json"
-        norm_path.write_text(json.dumps(norm, ensure_ascii=False, indent=2), encoding="utf-8")
-        _update_stage(run_id, stage, status="done", output=str(norm_path))
+        if stage in todo:
+            _update_stage(run_id, stage, status="running")
+            from wdpipeline.ingest import ingest_report_file
+
+            norm = ingest_report_file(raw_path)
+            norm_path.write_text(json.dumps(norm, ensure_ascii=False, indent=2), encoding="utf-8")
+            _update_stage(run_id, stage, status="done", output=str(norm_path))
+        else:
+            norm = json.loads(norm_path.read_text(encoding="utf-8"))
 
         # P1 fragmentize
         stage = "fragmentize"
-        _update_stage(run_id, stage, status="running")
-        from wdpipeline.fragmentize import fragmentize
-
-        fragments = fragmentize(norm)
         frag_path = pipe_dir / "fragments.json"
-        frag_path.write_text(json.dumps(fragments, ensure_ascii=False, indent=2), encoding="utf-8")
-        _update_stage(run_id, stage, status="done", output=str(frag_path))
+        if stage in todo:
+            _update_stage(run_id, stage, status="running")
+            from wdpipeline.fragmentize import fragmentize
+
+            fragments = fragmentize(norm)
+            frag_path.write_text(json.dumps(fragments, ensure_ascii=False, indent=2), encoding="utf-8")
+            _update_stage(run_id, stage, status="done", output=str(frag_path))
+        else:
+            fragments = json.loads(frag_path.read_text(encoding="utf-8"))
 
         # P3 scenario (규칙 기반 데모 조립 — LLM 무호출)
         stage = "scenario"
-        _update_stage(run_id, stage, status="running")
+        scen_path = pipe_dir / "scenario.json"
+        from wdcore.models.scenario import ScenarioDoc
         from wdpipeline.scenario import assemble_demo_scenario, validate_scenario
 
-        doc = assemble_demo_scenario(norm, fragments)
-        errors = validate_scenario(doc)
-        if errors:
-            raise ValueError("시나리오 검증 실패: " + "; ".join(errors))
-        scen_path = pipe_dir / "scenario.json"
-        scen_path.write_text(
-            json.dumps(doc.model_dump(), ensure_ascii=False, indent=2), encoding="utf-8"
-        )
+        if stage in todo:
+            _update_stage(run_id, stage, status="running")
+            doc = assemble_demo_scenario(norm, fragments)
+            errors = validate_scenario(doc)
+            if errors:
+                raise ValueError("시나리오 검증 실패: " + "; ".join(errors))
+            scen_path.write_text(
+                json.dumps(doc.model_dump(), ensure_ascii=False, indent=2), encoding="utf-8"
+            )
+        else:
+            # 재개 — 사람이 고쳐 둔 시나리오가 있을 수 있으므로 디스크를 읽는다
+            doc = ScenarioDoc.model_validate(
+                json.loads(scen_path.read_text(encoding="utf-8")))
         summary = {
             "scene_count": len(doc.scenes),
             "total_dur": round(sum(s.dur for s in doc.scenes), 3),
             "core_message": doc.meta.core_message,
         }
-        _update_stage(run_id, stage, status="done", output=str(scen_path))
+        if stage in todo:
+            _update_stage(run_id, stage, status="done", output=str(scen_path))
         update_run(run_id, scenario_summary=summary)
 
-        # P4 build
+        # P4 build — 재개여도 항상 다시 굽는다. 앞 단계가 바뀌었을 수 있고,
+        # 빌드는 비용이 낮으면서 어긋나면 가장 눈에 안 띄는 자리다.
         stage = "build"
         _update_stage(run_id, stage, status="running")
         from wdpipeline.build import build_render_package
 
         entry = Path(build_render_package(doc, droot / "build" / slug))
         _update_stage(run_id, stage, status="done", output=str(entry))
-        update_run(run_id, status="done", build_dir=str(entry.parent), entry=entry.name)
+        update_run(run_id, status="done", build_dir=str(entry.parent), entry=entry.name,
+                   error=None)
     except Exception as exc:  # 워커 스레드 — 어떤 실패든 원장에 남긴다
         msg = f"{type(exc).__name__}: {exc}"
         try:
@@ -262,6 +286,44 @@ def submit_render(run_id: str, targets: list[str], fps: int | None = None,
     )
     t.start()
     return read_run(run_id)  # type: ignore[return-value]
+
+
+def resume_run(run_id: str) -> dict:
+    """실패한 실행을 끊긴 단계부터 다시 돌린다 (PLAN M3 ④).
+
+    재개 지점은 **원장이 아니라 디스크**가 정한다 — 프로세스가 원장을 쓰다 죽으면
+    원장은 'running' 인 채로 남지만, 산출물은 쓰였거나 안 쓰였거나 둘 중 하나다.
+    """
+    from wdpipeline.resume import resume_point
+
+    run = read_run(run_id)
+    if run is None:
+        raise FileNotFoundError(f"실행 없음: {run_id}")
+    if run.get("status") == "running":
+        raise RuntimeError("이미 진행 중이다 — 끝나거나 실패한 뒤에 재개하라")
+
+    droot = data_dir()
+    pipe_dir = droot / "pipeline" / run_id
+    build_dir = droot / "build" / run["slug"]
+    start = resume_point(pipe_dir, build_dir)
+    if start is None:
+        return {"run_id": run_id, "resumed": False,
+                "note": "모든 단계의 산출물이 이미 있다 — 다시 돌릴 것이 없다"}
+
+    raw_path = pipe_dir / "report.raw.json"
+    if not raw_path.is_file():
+        raise FileNotFoundError(f"원본 보고서가 없다: {raw_path}")
+
+    for row in run["stages"]:
+        if row["stage"] == start or row["status"] == "failed":
+            row["status"], row["error"] = "pending", None
+    write_run(run)
+
+    threading.Thread(
+        target=_run_pipeline, args=(run_id, raw_path, run["slug"], droot, start),
+        daemon=True, name=f"wdweb-resume-{run_id}",
+    ).start()
+    return {"run_id": run_id, "resumed": True, "start_from": start}
 
 
 def _run_render(run_id: str, targets: list[str], fps: int | None, droot: Path,
