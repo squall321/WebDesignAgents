@@ -10,7 +10,7 @@ import sys
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import get_args
+from typing import Any, get_args
 
 import structlog
 import yaml
@@ -134,6 +134,40 @@ def modules_root() -> Path:
     return Path(os.environ.get("WDA_MODULES_ROOT", str(REPO_ROOT / "modules")))
 
 
+def _schema_constraints(module_path: str) -> tuple[str, str]:
+    """템플릿 schema.json 에서 (배열 개수 제약, x-read 필드) 를 읽는다.
+
+    포맷에 베껴 적지 않고 **스키마를 가리킨다** — 베끼면 템플릿이 올라갈 때 어긋난다.
+    게이트2 가 재는 대상은 x-read 가 붙은 필드이므로, 그것이 무엇인지 알아야 낭독 예산을
+    화면 카피로 잘못 계산하지 않는다(format_review 2026-10-24 조건 A1).
+    """
+    path = modules_root().parent / module_path / "schema.json"
+    if not path.is_file():
+        return "", ""
+    try:
+        schema = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return "", ""
+    counts, reads = [], []
+
+    def walk(node: Any, name: str = "") -> None:
+        if not isinstance(node, dict):
+            return
+        if node.get("x-read") and name:
+            reads.append(name)
+        if node.get("type") == "array" and name:
+            lo, hi = node.get("minItems"), node.get("maxItems")
+            if lo is not None or hi is not None:
+                counts.append(f"{name} {lo if lo is not None else '?'}~{hi if hi is not None else '?'}")
+            walk(node.get("items"), name)
+            return
+        for key, child in (node.get("properties") or {}).items():
+            walk(child, f"{name}.{key}" if name else key)
+
+    walk(schema)
+    return ", ".join(counts), ", ".join(reads)
+
+
 def _load_module_index() -> list[ModuleIndexEntry]:
     """modules/registry.yaml에서 모듈 축약 인덱스를 만든다 (id·용도 한 줄·props·in_scope)."""
     path = modules_root() / "registry.yaml"
@@ -151,6 +185,8 @@ def _load_module_index() -> list[ModuleIndexEntry]:
                     version=str(m.get("version", "")),
                     nat_default=m.get("nat_default"),
                     summary=str(m.get("summary", "")),
+                    **dict(zip(("structure", "read_fields"),
+                               _schema_constraints(str(m.get("path", ""))))),
                     props=str(m.get("props", "")),
                     in_scope_hint=str(m.get("in_scope_hint", "")),
                 )

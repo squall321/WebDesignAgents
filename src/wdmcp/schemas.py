@@ -144,6 +144,12 @@ class ModuleIndexEntry(ToolModel):
     summary: str = ""
     props: str = ""
     in_scope_hint: str = ""
+    # 템플릿 계약 — 자수는 포맷(copy_guide)이 담지만 **개수·낭독 대상은 스키마에만** 있다.
+    # 둘 다 실리지 않으면 심의는 직관으로 말하고, 직관이 실측을 이긴다
+    # (format_review 2026-10-24: AU 가 "카드 2장 상한" 을 주장했으나 실제는 3장이었다).
+    # 포맷에 베껴 적지 않는다 — 베끼면 템플릿이 올라갈 때 어긋난다. 스키마를 가리킨다.
+    structure: str = Field(default="", description="배열 필드의 개수 제약 (cards 3~4 꼴)")
+    read_fields: str = Field(default="", description="게이트2 낭독 예산이 재는 x-read 필드")
 
 
 class ModulesDelivery(ToolModel):
