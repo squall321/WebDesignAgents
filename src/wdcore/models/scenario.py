@@ -1,6 +1,7 @@
 # ScenarioDoc — 심의 산출 시나리오 JSON의 단일 정본 스키마 + OM_SCENES 주입 축약형 검사 (PLAN §4 P3, 신규)
 from __future__ import annotations
 
+import hashlib
 import json
 from typing import Literal
 
@@ -12,6 +13,11 @@ from .common import StrictModel
 OM_SCENES_MAX_BYTES = 16 * 1024
 # OM_SCENES 주입 시 남기는 축약형 키 (설계안 2 규칙 — 16KB 상한 대응)
 OM_SCENES_INJECT_KEYS = ("name", "dur", "nat", "stills", "tpl")
+
+
+def narration_sha(text: str) -> str:
+    """실측 낭독 길이가 어느 원문의 것인지 — 원문이 바뀌면 게이트 2 는 실측을 버리고 추정으로 돌아간다."""
+    return hashlib.sha1(text.strip().encode("utf-8")).hexdigest()[:12]
 
 
 class ScenarioMeta(StrictModel):
@@ -35,6 +41,13 @@ class SceneEntry(StrictModel):
     stills: list[float] = Field(default_factory=list, description="PPT 정지 캡처 시각(씬 로컬 초)")
     data_ref: str = Field(default="", description="content 하위 데이터 경로. 예: 'content.opening'")
     narration: str = Field(default="", description="TTS 내레이션 대본")
+    narration_sec: float | None = Field(
+        default=None, gt=0,
+        description="VoiceRecorder 실측 낭독 길이(초) — narration_sha 가 지금 원문과 같을 때만 유효 (결정 50)",
+    )
+    narration_sha: str | None = Field(
+        default=None, description="narration_sec 을 잰 원문의 해시 (narration_sha() 값)"
+    )
     transition: str = "cut"
 
     @model_validator(mode="after")

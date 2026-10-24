@@ -6,6 +6,8 @@ import math
 import re
 from pathlib import Path
 
+from wdcore.models.scenario import narration_sha
+
 from .config import QAConfig
 from .report import row
 
@@ -84,7 +86,8 @@ def _resolve_data(scenario: dict, scene: dict) -> dict | None:
 
 
 def run_data(scenario: dict | None, cfg: QAConfig) -> list[dict]:
-    """씬별 필요 낭독 시간(내레이션 5.5자/초, 자막 9자/초)과 dur 를 비교한다."""
+    """씬별 필요 낭독 시간(실측 낭독이 있으면 실측, 없으면 내레이션 5.5자/초 · 자막 9자/초 추정)과
+    dur 를 비교한다."""
     results: list[dict] = []
     if not scenario:
         results.append(
@@ -107,10 +110,16 @@ def run_data(scenario: dict | None, cfg: QAConfig) -> list[dict]:
             continue
 
         narration = (sc.get("narration") or "").strip()
-        if narration:
+        measured = sc.get("narration_sec")
+        if narration and measured and sc.get("narration_sha") == narration_sha(narration):
+            # 실측이 정본이다(결정 11·50) — 글자수 추정은 실측이 없을 때의 사전 검증용
+            need = float(measured)
+            rule, basis = "narration-measured", f"실측 낭독 {need:.1f}s"
+        elif narration:
             chars = _nonspace_len(narration)
             need = chars / cfg.narration_cps
-            rule, rate = "narration-rate", cfg.narration_cps
+            rule = "narration-rate"
+            basis = f"글자수 {chars}자 ÷ {cfg.narration_cps}자/초 = {need:.1f}s"
         else:
             tpl = sc.get("tpl") or ""
             schema = load_schema(cfg.modules_root, tpl) if tpl else None
@@ -129,14 +138,14 @@ def run_data(scenario: dict | None, cfg: QAConfig) -> list[dict]:
                 continue
             chars = collect_read_chars(schema, data)
             need = chars / cfg.caption_cps
-            rule, rate = "caption-rate", cfg.caption_cps
+            rule = "caption-rate"
+            basis = f"글자수 {chars}자 ÷ {cfg.caption_cps}자/초 = {need:.1f}s"
 
         if need > dur + 1e-3:
             suggest = math.ceil(need * 10) / 10
             results.append(
                 row(GATE, rule, "error",
-                    f"글자수 {chars}자 ÷ {rate}자/초 = {need:.1f}s > dur {dur:.1f}s "
-                    f"— 최소 dur 제안: {suggest:.1f}s", scene=name)
+                    f"{basis} > dur {dur:.1f}s — 최소 dur 제안: {suggest:.1f}s", scene=name)
             )
 
         nat = sc.get("nat")
