@@ -45,6 +45,29 @@ def _as_bool(raw: str) -> bool:
     return raw.strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _env_with_dotenv() -> Mapping[str, str]:
+    """os.environ 에 .env 를 덧댄다 (실제 환경변수가 우선).
+
+    env-kits 상속은 `.env` 에 LLM_* 를 적는데, 이 값들은 WDA_ 접두가 없어
+    pydantic-settings(wdcore.config)가 가져가지 않는다. 그러면 .env 가 있어도
+    os.environ 에는 없고, 접속은 **조용히 dev 폴백**(127.0.0.1:8000)으로 떨어진다.
+    cae00 에서는 그 폴백이 곧 Errno 111 이다 — 설정이 틀린 게 아니라 안 읽힌 것이라
+    원인을 찾기도 어렵다(2026-10-24 실측).
+    """
+    merged = dict(os.environ)
+    env_file = Path(os.environ.get("WDA_ENV_FILE", ".env"))
+    if not env_file.is_file():
+        return merged
+    try:
+        from dotenv import dotenv_values
+    except ImportError:
+        return merged
+    for key, value in dotenv_values(env_file).items():
+        if value is not None:
+            merged.setdefault(key, value)   # 실제 환경변수가 .env 를 이긴다
+    return merged
+
+
 def load_llm_config(
     toml_path: Path | None = None, env: Mapping[str, str] | None = None
 ) -> LLMConfig:
@@ -53,7 +76,7 @@ def load_llm_config(
     toml [server] 절은 접속값 자체가 아니라 *환경변수 이름*을 선언한다
     (base_url_env 등). env 인자는 테스트용 — 기본은 os.environ.
     """
-    env = os.environ if env is None else env
+    env = _env_with_dotenv() if env is None else env
     path = toml_path or _DEFAULT_TOML
     data: dict = {}
     if path.is_file():
