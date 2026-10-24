@@ -133,3 +133,27 @@ PLAN.md의 마일스톤을 실행 단위로 분해. 완료 시 체크하고, 검
 - [x] 웹 REST 만으로 심의 왕복 — 개회→브리핑→턴→상태→재브리핑(원장 full→recall 확인)
 - [x] 콘솔 브라우저 완주 — 개회→상태판→폐회→회의록, 콘솔 오류 0
 - [x] 전체 2300 passed, 8 skipped
+
+## 2026-10-24 — 내레이션 파이프라인 연결 (사용자 지시: "내레이션 파이프라인 연결")
+
+tts_client·mux 는 있었지만 어느 창구도 부르지 않았고, 목소리 입힌 영상은 data/ 의 일회용 드라이버로만
+만들었다. 실측 길이로 씬을 다시 잡아 렌더하고 음성을 먹싱하는 일을 네 창구에 붙인다. 결정 55~58.
+
+### 핵심
+- [ ] VoiceRecorder 클라이언트 정비 — `.env` 의 WDA_TTS_* 읽기, PAT Bearer, trust_env=False,
+      씬 원문 그대로 측정(파서 우회), 씬 음성 내려받기, 실패해도 프로젝트 정리
+- [ ] 실측 길이로 dur 재조정 — 하한 nat×0.85, 상한 nat×1.15 를 넘으면 늘리고 경고(결정 55), stills 비례 이동
+- [ ] 씬 음성을 새 시작 시각에 놓아 내레이션 트랙·자막 조립, 먹싱, drift_report.json
+- [ ] 실측 길이를 시나리오에 남기고(narration_sec·narration_sha) 게이트 2 가 추정 대신 실측을 쓴다(결정 56)
+- [ ] 포맷 길이 범위를 넘으면 렌더하지 않고 줄일 씬과 함께 알린다
+
+### 네 창구
+- [ ] CLI `wda render --narration` · `wda run --narration` (+ `wda run` 이 pptx_mode 를 안 넘겨 죽던 것)
+- [ ] MCP `render_submit(narration=)` · 잡 원장 · 영상 없는 타깃이면 INVALID_INPUT
+- [ ] 웹 `POST /api/runs/{id}/render` body.narration · 400
+- [ ] 콘솔 '내레이션 입히기' 선택 · 결과 요약
+
+### 검증
+- [ ] 가짜 VoiceRecorder(MockTransport)로 단위·통합 테스트 — 재조정 규칙, 트랙 배치, 먹싱, 세 창구
+- [ ] 실제 VoiceRecorder(MeloTTS 1.2배)로 실렌더 1편 — 무음 비율·한계 초과 씬 확인
+- [ ] 전체 테스트 · 문서(PLAN §10.2, voicerecorder-api.md) 갱신
