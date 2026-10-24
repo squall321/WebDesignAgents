@@ -308,3 +308,23 @@ Pretendard 폰트를 CDN → 로컬 @font-face(`web/fonts/PretendardVariable.wof
 - `--update-golden` 이 이유·승인·기록 없이 기준선을 덮어쓰고 있었다. `--reason` 필수로 바꾸고 `fixtures/snapshots/golden.json` 에 이력을 쌓는다.
 - 리포트(data/, gitignore)에 남기면 다른 체크아웃에 없고, `git log` 는 "PNG 가 바뀌었다" 까지만 말한다. 의도된 시각 변경인지 사고인지는 골든 옆 파일이 판별한다.
 - 픽셀이 같으면 쓰지 않는다 — PNG 인코딩은 같은 화면에서도 바이트가 다르다(실측 207015→207013). 매번 덮으면 리포지터리가 흔들리고 이력에 "바뀐 것 없음" 이 쌓여 진짜 변경이 묻힌다.
+
+## 2026-10-24 — cae00 실연결 준비 (env-kits 상속)
+
+### 결정 47. `.env` 의 LLM_* 는 pydantic-settings 가 가져가지 않는다
+- env-kits 는 `.env` 에 `LLM_BASE_URL/LLM_MODEL/LLM_API_KEY` 를 적는데, 이 키들은 `WDA_` 접두가 없어 `wdcore.config`(pydantic-settings)가 읽지 않는다. 그 결과 `.env` 가 있어도 `os.environ` 에는 없고 `load_llm_config` 는 **dev 기본값으로 조용히 떨어진다**(실측).
+- cae00 에서 그 폴백은 곧 Errno 111 이다. apply-envs.sh 주석이 경고하는 바로 그 증상인데, **설정이 틀린 게 아니라 안 읽힌 것**이라 원인을 찾기 어렵다. 킷만 썼으면 연결이 안 됐을 것이다.
+- `load_llm_config` 가 `os.environ` 에 `.env` 를 덧대 읽는다. 실제 환경변수가 파일을 이긴다 — 컨테이너는 `APPTAINERENV_` 로 진짜 환경변수를 넣기 때문이다. 경로는 `WDA_ENV_FILE` 로 바꿀 수 있다(컨테이너 작업 디렉터리가 리포 루트가 아닐 수 있다).
+
+### 결정 48. 공개 리포에 사내 주소를 적지 않는다 (HWAXPortal 10-17 결정 1 준용)
+- 이 리포는 공개(github.com/squall321/WebDesignAgents)인데 사내 GLM 주소가 추적 파일 6개에 있었고, 그중 `.env.example` 은 사람이 복사해 쓰는 견본이었다.
+- 주소 리터럴만 중립 표기로 바꾼다. **정본이 ReportArchive `backend/.env` 라는 사실은 보존한다** — 주소를 지우는 게 목적이지 경로를 잊는 게 목적이 아니다.
+- 킷의 NO_PROXY 는 `@NO_PROXY@` 마커를 쓴다. PLAN §10.1 의 하드코딩 지시는 낡았으므로 갱신했다.
+- ⚠ **이미 푸시된 커밋(6d6abb6)에는 주소가 남아 있다.** HEAD 정리는 앞으로를 막을 뿐 과거를 지우지 않는다 — 이력 재작성은 사용자 판단 사항.
+
+### env-kits 상속 절차 (cae00에서 실행)
+```bash
+cd ~/claude/HWAXPortal && bash infra/env-kits/apply-envs.sh webdesignagents
+```
+- dev 박스에서는 RA 에 LLM_* 가 없어 3키가 설계대로 건너뛰어진다(확인 완료). cae00 에서는 RA 값이 있으므로 6키 전부 들어간다.
+- `.env` 는 WDA 쪽에서 gitignore 다 — 비밀값이 커밋되지 않는다(확인 완료).

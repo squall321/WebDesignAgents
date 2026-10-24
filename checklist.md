@@ -46,7 +46,9 @@ PLAN.md의 마일스톤을 실행 단위로 분해. 완료 시 체크하고, 검
 
 ## M2 — vLLM 무인 심의 경로 (GLM-5-2)
 
-- [ ] env-kits 상속 — `HWAXPortal/infra/env-kits/webdesignagents.env` 킷 작성 + apply-envs.sh MAP 추가
+- [x] env-kits 상속 — 킷 작성 + MAP 추가 + dev 박스 적용 확인 (HWAXPortal 8deefb0)
+- [x] `.env` 의 LLM_* 가 wdllm 에 닿게 — 안 그러면 cae00 에서 조용히 dev 폴백→Errno 111
+- [ ] cae00 실연결 검증 — apply-envs.sh 실행 후 실제 GLM-5-2 호출 1건 (사용자 작업)
 - [x] wdllm/client.py — ReportArchive `backend/app/ai/llm.py` copy-adapt (json_object 폴백·reasoning_content 파싱·비스트리밍)
 - [ ] GLM-5-2 guided_json/json_schema 서버 지원 raw curl 실검증 (미지원 시 프롬프트 JSON 계약 + 파서 재시도)
 - [x] wdllm 오케스트레이터 — 턴 루프 + 구조화 출력 + repair 1회 + 페르소나 격리
