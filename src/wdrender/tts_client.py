@@ -1,7 +1,6 @@
 # VoiceRecorder(:8177) 프로젝트/씬 플로우로 시나리오 내레이션을 합성하는 HTTP 클라이언트
 from __future__ import annotations
 
-import os
 import time
 from pathlib import Path
 from typing import Callable
@@ -11,11 +10,46 @@ import httpx
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_BASE_URL = "http://localhost:8177"
 DEFAULT_OUT_DIR = REPO_ROOT / "data" / "tts_check"
+# 측정 프로젝트의 자리표시 문단 — 첫 씬은 곧바로 원문으로 PATCH 한다 (대본 파서 우회, 결정 51)
+_PLACEHOLDER_SCRIPT = "측정 준비"
+
+
+def _env(key: str) -> str | None:
+    """환경변수 → .env 순으로 읽는다.
+
+    WDA_TTS_* 는 Settings 필드가 아니라 pydantic-settings 가 .env 에서 가져가지 않는다 —
+    결정 47 의 LLM_* 와 같은 함정이라 같은 덧대기를 쓴다.
+    """
+    from wdllm.config import _env_with_dotenv
+
+    value = (_env_with_dotenv().get(key) or "").strip()
+    return value or None
 
 
 def resolve_base_url(base_url: str | None = None) -> str:
-    """WDA_TTS_BASE_URL 환경변수 → 인자 → 기본 localhost:8177 순으로 결정한다."""
-    return (base_url or os.environ.get("WDA_TTS_BASE_URL") or DEFAULT_BASE_URL).rstrip("/")
+    """인자 → WDA_TTS_BASE_URL(환경변수·.env) → 기본 localhost:8177 순으로 결정한다."""
+    return (base_url or _env("WDA_TTS_BASE_URL") or DEFAULT_BASE_URL).rstrip("/")
+
+
+def _client(
+    base_url: str | None = None,
+    *,
+    transport: httpx.BaseTransport | None = None,
+    timeout: float = 60.0,
+) -> httpx.Client:
+    """VoiceRecorder 호출용 클라이언트.
+
+    포털(Caddy forward_auth) 경유면 WDA_TTS_PAT 를 Bearer 로 붙인다 (PLAN §10.2 경로 규약).
+    trust_env=False — 사내 프록시 환경변수가 localhost·포털 호출을 프록시로 돌리지 않게 (wdllm 과 같다).
+    """
+    pat = _env("WDA_TTS_PAT")
+    return httpx.Client(
+        base_url=resolve_base_url(base_url),
+        headers={"Authorization": f"Bearer {pat}"} if pat else None,
+        timeout=timeout,
+        trust_env=False,
+        transport=transport,
+    )
 
 
 def format_timecode(seconds: float) -> str:
@@ -152,7 +186,7 @@ def oneshot_tts(
     잡 완료 후 out_path 를 주면 wav 를 내려받고, 서버의 임시 산출물은 항상 정리한다.
     반환: {duration_sec, raw_duration_sec, char_count, audio_path(요청 시), tts_id}
     """
-    with httpx.Client(base_url=resolve_base_url(base_url), timeout=60.0) as client:
+    with _client(base_url) as client:
         body: dict = {"text": text, "speed": speed}
         if engine:
             body["engine"] = engine
@@ -209,7 +243,7 @@ def synthesize_scenario(
     out_dir = Path(out_dir) if out_dir else DEFAULT_OUT_DIR
     title = "WDA " + (scenario.get("meta", {}).get("core_message") or "scenario")[:80]
 
-    with httpx.Client(base_url=resolve_base_url(base_url), timeout=60.0) as client:
+    with _client(base_url) as client:
         # ③ 가용 엔진 확인 (스크립트 조립 ① 은 위에서 완료)
         chosen_engine = _pick_engine(client, engine, log)
         log(f"[tts] 엔진={chosen_engine} 씬={len(names)}개 스크립트 {len(raw_script)}자")
@@ -293,3 +327,111 @@ def synthesize_scenario(
         "engine": chosen_engine,
         "project_title": title,
     }
+
+
+def measure_scenes(
+    scenes: list[tuple[str, str]],
+    *,
+    out_dir: str | Path,
+    engine: str | None = None,
+    voice_id: str | None = None,
+    speed: float | None = None,
+    base_url: str | None = None,
+    title: str = "WDA 내레이션",
+    scene_timeout_sec: float = 120.0,
+    poll_interval_sec: float = 1.0,
+    transport: httpx.BaseTransport | None = None,
+    log: Callable[[str], None] = print,
+) -> dict:
+    """(씬 이름, 내레이션) 목록을 원문 그대로 합성해 씬별 실측 길이와 음성 파일을 받는다.
+
+    대본 파서를 거치지 않는다(결정 51) — 자리표시 문단 하나로 프로젝트를 만들고 첫 씬은 PATCH,
+    나머지는 씬 추가로 원문을 넣는다. 엔진·화자·속도를 안 주면 WDA_TTS_ENGINE/VOICE_ID/SPEED,
+    그것도 없으면 서버 기본(MeloTTS 1.2배)을 쓴다. 성공하든 실패하든 서버 프로젝트는 지운다.
+
+    반환: {engine, speed, voice_id, scenes: [{name, text, duration_sec, raw_duration_sec,
+           audio_path, unread_latin, misread_hints}]}
+    """
+    if not scenes:
+        raise ValueError("측정할 내레이션이 없다")
+    engine = engine or _env("WDA_TTS_ENGINE")
+    voice_id = voice_id or _env("WDA_TTS_VOICE_ID")
+    if speed is None and _env("WDA_TTS_SPEED"):
+        speed = float(_env("WDA_TTS_SPEED"))
+    out_dir = Path(out_dir)
+
+    with _client(base_url, transport=transport) as client:
+        chosen = _pick_engine(client, engine, log)
+        body: dict = {
+            "title": title[:200], "raw_script": _PLACEHOLDER_SCRIPT,
+            "engine": chosen, "language": "ko",
+        }
+        if voice_id:
+            body["voice_id"] = voice_id
+        if speed is not None:
+            body["speed"] = speed
+        r = client.post("/api/projects", json=body)
+        r.raise_for_status()
+        payload = r.json()
+        project_id = payload["project"]["id"]
+        try:
+            name, text = scenes[0]
+            first_id = payload["scenes"][0]["id"]
+            client.patch(
+                f"/api/projects/{project_id}/scenes/{first_id}", json={"text": text, "title": name}
+            ).raise_for_status()
+            for name, text in scenes[1:]:
+                client.post(
+                    f"/api/projects/{project_id}/scenes", json={"text": text, "title": name}
+                ).raise_for_status()
+
+            r = client.post(f"/api/projects/{project_id}/synthesize", json={})
+            r.raise_for_status()
+            log(f"[tts] 엔진={chosen} 씬={len(scenes)}개 합성 시작 (project={project_id})")
+            _poll_job(
+                client, r.json()["job_id"], label="내레이션 합성",
+                timeout_sec=scene_timeout_sec * len(scenes),
+                poll_interval_sec=poll_interval_sec, log=log,
+            )
+
+            r = client.get(f"/api/projects/{project_id}")
+            r.raise_for_status()
+            payload = r.json()
+            got = payload["scenes"]
+            # 씬별 결과를 순서로 짝짓는다 — 넣은 원문과 다르면 짝이 어긋난 것이다
+            if [s.get("text") for s in got] != [t for _, t in scenes]:
+                raise RuntimeError("VoiceRecorder 에 넣은 씬과 돌려받은 씬의 개수·순서·원문이 다르다")
+            # 합성 잡은 일부 씬이 실패해도 done 이 된다 — 씬마다 확인한다
+            failed = [
+                f"{n}: {s.get('error') or s.get('status')}"
+                for (n, _), s in zip(scenes, got) if s.get("status") != "ready"
+            ]
+            if failed:
+                raise RuntimeError("내레이션 합성 실패 — " + "; ".join(failed))
+
+            measured = []
+            for i, ((name, text), s) in enumerate(zip(scenes, got), start=1):
+                audio = _download(
+                    client, f"/api/projects/{project_id}/scenes/{s['id']}/audio", out_dir / f"{i:02d}.wav"
+                )
+                measured.append({
+                    "name": name,
+                    "text": text,
+                    "duration_sec": float(s["duration_sec"]),
+                    "raw_duration_sec": s.get("raw_duration_sec"),
+                    "audio_path": str(audio),
+                    "unread_latin": list(s.get("unread_latin") or []),
+                    "misread_hints": [h.get("word") for h in s.get("misread_hints") or []],
+                })
+            project = payload.get("project") or {}
+            return {
+                "engine": chosen,
+                "speed": project.get("speed"),
+                "voice_id": project.get("voice_id"),
+                "scenes": measured,
+            }
+        finally:
+            try:
+                client.delete(f"/api/projects/{project_id}")
+            except httpx.HTTPError as exc:
+                log(f"[tts] 프로젝트 정리 실패 project={project_id}: {exc}")
