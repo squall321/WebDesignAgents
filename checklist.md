@@ -90,7 +90,7 @@ PLAN.md의 마일스톤을 실행 단위로 분해. 완료 시 체크하고, 검
 - [ ] Apptainer SIF 렌더 노드 (chromium·ffmpeg·Pretendard·vendor 내장) — egress 0 렌더 검증
 - [x] 골든 스냅샷 회귀 CI — .github/workflows/ci.yml (전체 테스트 + 재현력 3층 별도 잡).
       임계를 frame_match 에서 분리(0.02→0.002)해 1px 변경도 잡는다. 실패는 환경/회귀/비결정성으로 구분해 보고.
-- [ ] 게이트 7(frame-match) 자체의 CI 편입 — 현재는 pytest 안에서만 돈다
+- [x] 7게이트 CI 편입 — `wda qa` 신설(CLI 에 없었다) + CI 가 커밋된 시나리오로 빌드해 게이트 실행
 - [x] 포맷 승격 루프 실가동 — wide-16x9 pilot→active (format_review 4인 14턴, Conditional-Go).
       심의를 열려면 포맷이 인용 가능해야 했다(meeting_start format_id). 승격 검사에 등식 3개 편입.
 - [ ] short-9x16 active 승격 — 제작 1건 더 + format_review
