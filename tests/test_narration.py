@@ -202,6 +202,8 @@ def test_prepare_render_finish_end_to_end(demo_build, tmp_path):
     built = ScenarioDoc.model_validate_json((build / "scene-data.json").read_text(encoding="utf-8"))
     assert [s.dur for s in built.scenes] == [t.new_dur for t in plan.timings]
     assert plan.scenario_written == str(scen)
+    # 빌드가 시나리오보다 늦게 써져야 씬 툴이 낡은 빌드로 보고 다시 빌드하지 않는다
+    assert (build / "index.html").stat().st_mtime >= scen.stat().st_mtime
     saved = ScenarioDoc.model_validate_json(scen.read_text(encoding="utf-8"))
     assert [s.name for s in saved.scenes if s.narration_sec] == narrated
     assert fake.projects == {}

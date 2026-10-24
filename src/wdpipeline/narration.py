@@ -322,13 +322,15 @@ def prepare(
             + (f" · 가장 많이 늘어난 씬: {tops}" if tops else "")
         )
 
-    build_render_package(new_doc, build_dir, modules_root=modules_root)
+    # 시나리오를 먼저 쓰고 빌드한다 — 빌드가 시나리오보다 낡아 보이면 씬 툴이 다시 빌드한다
+    # (wdmcp.server._ensure_scene_build 는 index.html 과 scenario.json 의 mtime 을 비교한다)
     written = None
     if scenario_path is not None and Path(scenario_path).is_file() and _same_scenes(Path(scenario_path), new_doc):
         Path(scenario_path).write_text(
             json.dumps(new_doc.model_dump(), ensure_ascii=False, indent=2), encoding="utf-8"
         )
         written = str(scenario_path)
+    build_render_package(new_doc, build_dir, modules_root=modules_root)
     new_total = round(sum(t.new_dur for t in timings), 2)
     log(
         f"[narration] 씬 {len(narrated)}개 실측(엔진 {measured['engine']}, 속도 {measured['speed']}) "
