@@ -143,7 +143,8 @@ def _render_scenes_jsx(
     """
     entries = ",\n".join(
         f"  {json.dumps(s.name, ensure_ascii=False)}: "
-        f"wdaBind({json.dumps(_tpl_id(s.tpl, spec, modules_root))}, {json.dumps(s.data_ref)})"
+        f"wdaBind({json.dumps(_tpl_id(s.tpl, spec, modules_root))}, "
+        f"{json.dumps(s.data_ref)}, {json.dumps(s.camera)}, {float(s.dur)})"
         for s in doc.scenes
     )
     return f"""// P4 자동 생성 씬 바인딩 — 템플릿 재사용 모드 (손편집 금지, 데이터는 scene-data.json)
@@ -161,12 +162,22 @@ function wdaRef(path) {{
   return node;
 }}
 
-function wdaBind(tplId, dataRef) {{
+function wdaBind(tplId, dataRef, camera, dur) {{
   var Tpl = window.OMX.templateIndex[tplId];
   if (!Tpl) throw new Error('scenes.jsx: 레지스트리에 없는 템플릿 — ' + tplId);
   var data = wdaRef(dataRef);
+  // 카메라는 **바인딩 층**에서 건다 — 템플릿 40종을 고치지 않고 전부가 같은 연출을 얻는다.
+  // camera 가 'hold'(기본)면 OMX.motion.camera 가 빈 스타일을 돌려주므로 DOM 도 그대로다.
   return function WdaBound(props) {{
-    return <Tpl {{...props}} data={{data}} theme={{wdaTheme}} />;
+    var inner = <Tpl {{...props}} data={{data}} theme={{wdaTheme}} />;
+    if (!camera || camera === 'hold') return inner;
+    var style = window.OMX.motion.camera(wdaTheme, props.localTime || 0, dur, camera);
+    // 카메라는 무대 밖으로 확대·이동한다 — 그게 프레이밍이다. 게이트 5(오버플로)가
+    // 가리키는 data-qa-clip-ok 로 "의도된 넘침" 임을 선언한다(DotGrid 와 같은 규약).
+    return (
+      <div data-qa-clip-ok="true"
+           style={{Object.assign({{ position: 'absolute', inset: 0 }}, style)}}>{{inner}}</div>
+    );
   }};
 }}
 

@@ -22,6 +22,79 @@
       transform: 'translateY(' + A(t, at, d, y, 0, e) + 'px)',
     };
   }
+  // ── 카메라 워크 — 씬 **전체**에 거는 변환 (요소 등장과 다른 층) ──────
+  //
+  // 왜 easeInOut 고정인가 — 게이트 7(frame-match)은 **경계 프레임이 정적**일 것을
+  // 요구한다(t=0 vs 1/fps, end-2/fps vs end-1/fps). 카메라가 컷 순간에도 움직이고
+  // 있으면 그 diff 가 임계를 넘는다. easeInOut 은 양 끝에서 속도가 0 이라 설계상
+  // 통과한다 — 그리고 "움직이면서 컷" 은 영상 문법으로도 거슬린다.
+  //
+  // 씬은 localTime 의 순수 함수여야 하므로 카메라도 t 만 받는다. 상태를 두지 않는다.
+  function camera(theme, t, dur, kind, opts) {
+    // hold 는 "카메라를 안 쓴다" 다 — 빈 스타일을 돌려줘야 기존 산출물이 바이트 동일로 남는다.
+    // scale(1) translate(0,0) 이라도 넣으면 합성 레이어가 생겨 픽셀이 미세하게 달라진다.
+    if (!kind || kind === 'hold') return {};
+    var cam = (theme.motion && theme.motion.camera) || {};
+    var preset = cam[kind];
+    if (!preset) return {};
+    var o = opts || {};
+    var span = o.dur == null ? dur : o.dur;        // 기본은 씬 전체
+    var at = o.at == null ? 0 : o.at;
+    var e = Easing.easeInOutCubic;
+    var sc = A(t, at, span, preset.scaleFrom, preset.scaleTo, e);
+    var dx = A(t, at, span, preset.panXFrom, preset.panXTo, e);
+    var dy = A(t, at, span, preset.panYFrom, preset.panYTo, e);
+    return {
+      transform: 'translate(' + dx.toFixed(3) + 'px,' + dy.toFixed(3) + 'px) scale(' + sc.toFixed(5) + ')',
+      transformOrigin: preset.origin || 'center center',
+      willChange: 'transform',
+    };
+  }
+
+  // ── 화면 전환 — 씬 N 의 **퇴장** + 씬 N+1 의 **등장** 짝 ────────────────
+  //
+  // 진짜 크로스페이드는 두 씬이 동시에 살아야 해서 엔진 계약(씬 = localTime 의 순수 함수)을
+  // 깬다. 대신 각자 자기 시간 안에서 움직이는 짝으로 같은 인상을 만든다 — push·slide·wipe 는
+  // 원래 그렇게 동작하고, 이 방식은 **영상·PPT·HTML 전부**에 똑같이 들어간다.
+  //
+  // dur 를 건드리지 않는다. 겹침으로 시간을 먹으면 내레이션·자막·스틸 시각이 전부 밀린다.
+  var TRANSITIONS = {
+    cut:       null,
+    pushLeft:  { axis: 'x', sign: -1, fade: false },
+    pushRight: { axis: 'x', sign:  1, fade: false },
+    pushUp:    { axis: 'y', sign: -1, fade: false },
+    pushDown:  { axis: 'y', sign:  1, fade: false },
+    slideLeft: { axis: 'x', sign: -1, fade: true  },
+    slideUp:   { axis: 'y', sign: -1, fade: true  },
+    dissolve:  { axis: null, sign: 0, fade: true  },
+  };
+
+  // phase: 'in'(씬 시작) | 'out'(씬 끝). span 은 전환에 쓸 시간(초).
+  function transition(theme, t, dur, kind, phase, span) {
+    var spec = TRANSITIONS[kind || 'cut'];
+    if (!spec) return {};
+    var d = span == null ? 0.45 : span;
+    if (d <= 0 || dur <= 0) return {};
+    var e = Easing.easeInOutCubic;
+    // 들어올 때는 반대편에서 오고, 나갈 때는 진행 방향으로 빠진다.
+    var dist = 120;
+    var p, off, op;
+    if (phase === 'in') {
+      p = A(t, 0, d, 1, 0, e);               // 1 → 0
+      off = -spec.sign * dist * p;
+      op = spec.fade ? A(t, 0, d, 0, 1, e) : 1;
+    } else {
+      var at = Math.max(0, dur - d);
+      p = A(t, at, d, 0, 1, e);              // 0 → 1
+      off = spec.sign * dist * p;
+      op = spec.fade ? A(t, at, d, 1, 0, e) : 1;
+    }
+    var style = { opacity: op };
+    if (spec.axis === 'x') style.transform = 'translateX(' + off.toFixed(2) + 'px)';
+    else if (spec.axis === 'y') style.transform = 'translateY(' + off.toFixed(2) + 'px)';
+    return style;
+  }
+
   function toneOf(map, tone, fallback) {
     var key = tone || fallback;
     return { bg: map[key + 'Bg'], fg: map[key + 'Fg'] };
@@ -480,5 +553,5 @@
     'cta-pill': CtaPill,
   });
   // 은유 내부 공용 헬퍼 — 템플릿 계층이 재사용
-  OMX.motion = Object.assign(OMX.motion || {}, { A: A, rise: rise, easeOf: easeOf, toneOf: toneOf });
+  OMX.motion = Object.assign(OMX.motion || {}, { A: A, rise: rise, easeOf: easeOf, toneOf: toneOf, camera: camera, transition: transition });
 })();
