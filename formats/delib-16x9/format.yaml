@@ -27,7 +27,7 @@ theme: neutral-slate                 # 심의는 판단의 자리다 — 카메�
 # draft — 아직 심의를 거치지 않았다. 실측 표본 1건(아래 origin)으로 세운 초안이고,
 # pilot 승격에는 완주 산출물과 format_review 판정이 필요하다.
 status: draft
-usage_count: 0
+usage_count: 1
 origin:
   created: "2026-11-01"
 
