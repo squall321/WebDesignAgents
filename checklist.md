@@ -212,3 +212,42 @@ tts_client·mux 는 있었지만 어느 창구도 부르지 않았고, 목소리
 - [x] 회귀 — `wide-16x9` 골격 불변 테스트 포함, 전체 테스트 통과
 - [ ] pilot 승격 — format_review 심의 + 완주 산출물 (지금은 draft)
 - [ ] 쟁점 씬 — 현 골격에 `problem` 역할이 없다. 라운드가 대립을 담지만 쟁점 자체는 안 선다
+
+## 2026-11-01 — 승격 심의 + 포털 계약 W-1~W-15
+정본: `/home/koopark/claude/HWAXPortal-wt-1101-wda-deck/docs/wda-deck/wda-request.md` (§11 체크리스트).
+사용자 지시 "다 하자"(11-01).
+
+### A. delib-16x9 승격 (draft → pilot → active)
+- [x] 산출물 1건 — run wr-20261101-095212-e8ed (영상+PPTX, 게이트 error 0)
+- [x] 제작 심의 design_review — 회의 9f6226ac, 6인 20턴 → **Conditional-Go** (조건 7건)
+- [x] pilot 승격
+- [x] 조건 이행 C-1~C-7 — 테마 적용·회귀 테스트·순서·게이트 재실행·core_message·프리셋·원장 영속화
+- [x] 쟁점 역할 신설(O-1) — 골격 5→6씬, 득실 문장이 잘리지 않고 선다
+- [x] 산출물 2건째 + 골든 등록 — wr-20261101-122319-7de1 (게이트 error 0 warning 0 **info 0**)
+- [x] format_review 심의 — 회의 3efabdb0, 6인 20턴 → **Go** (전원 찬성)
+- [x] **active 승격** → health 의 `formats["delib-16x9"] = "active"` — 포털 단추 전제 충족
+
+### B. 포털 계약 (M0 필수 W-1~W-12)
+- [x] W-1 `X-Heax-User-Email` → run.owner (본문 owner 칸은 안 믿는다, 대소문자 접음). 202 에 owner
+- [x] W-2 **미들웨어 한 곳**으로 run 단위 경로 전부 — 남·익명은 404 NOT_FOUND
+      (핸들러 14곳에 흩으면 다음 라우트에서 잊힌다. '전부' 는 구조가 보장해야 한다)
+- [x] W-3 `GET /api/runs` = 내 것 + 주인 없는 것
+- [x] W-4 MCP 도구 9종 + 렌더잡 내려받기 — run_id·서버 경로 양쪽 판정, NOT_FOUND
+- [x] W-5 주인 있는 run id 128비트 + `RUN_ID_RE` 꼴 검사(경로 탈출 차단)
+- [x] W-6 health features 7종 + 포맷 표지 + version
+- [x] W-7 본문 16MB → 413 TOO_LARGE
+- [x] W-8 만들기의 `render` 칸 — 빌드 뒤 이어서 렌더, 재개에도 이어진다
+- [x] W-9 `render.requested` · `render.skipped[{target, reason}]`
+- [x] W-10 오류 봉투 `code` 6종 + 상태별 기본 매핑
+- [x] W-11 내려받기 머리 — attachment·Content-Length·nosniff·HTML 은 CSP sandbox
+- [x] W-12 기동 시 끊긴 실행·렌더를 failed(interrupted)
+
+### C. 권장 (W-13~W-15·W-22)
+- [x] W-13 보존 기한 + 지운 뒤 410 — **기본 끔(0)**. 켜면 첫 기동에 몇 달치가 사라진다
+- [x] W-14 렌더 동시 상한 2(세마포어, 넘치면 queued 로 대기). `WDA_RENDER_CONCURRENCY`
+- [x] W-15 `Idempotency-Key` — 같은 키 + 같은 주인이면 같은 run
+- [x] W-22 `Authorization`·쿠키를 읽는 코드 없음 — 회귀 테스트가 못박는다
+
+### 하지 않는 것
+- P-1 push — **사용자가 손으로 한다.** 커밋까지가 내 몫이다.
+- W-16~W-20 — M2. W-19(슬라이드 PDF)는 청하지 않기로 결정됨.
