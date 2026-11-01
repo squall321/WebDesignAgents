@@ -142,7 +142,10 @@ def test_render_pptx_only(client: TestClient, smoke_run: str, web_env: Path) -> 
     assert res.status_code == 202
     body = res.json()
     assert body["success"] is True
-    assert body["data"]["render"]["status"] in ("queued", "rendering")
+    # 포털과 합의한 렌더 상태 어휘 — queued(차례 기다림) → building(준비) →
+    # rendering(굽는 중) → done|failed. 워커가 슬롯을 바로 잡으면 응답을 읽기 전에
+    # building 까지 가 있을 수 있다.
+    assert body["data"]["render"]["status"] in ("queued", "building", "rendering")
 
     run = _poll_render(client, smoke_run)
     render = run["render"]

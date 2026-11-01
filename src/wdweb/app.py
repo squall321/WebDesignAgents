@@ -121,7 +121,9 @@ def _code_of(exc: HTTPException) -> str | None:
 @app.exception_handler(StarletteHTTPException)
 async def _route_miss_handler(request: Request, exc: StarletteHTTPException):
     # 라우트 매칭 실패(404 등)도 /api/* 는 봉투로 — 프런트가 사유를 표시할 수 있게
-    if request.url.path.startswith("/api/"):
+    # 같은 까닭으로 여기도 접두를 뗀 경로를 본다 — 안 그러면 배치본에서 라우트 미스가
+    # 봉투가 아니라 평문으로 나가고, 호출자는 code 로 가를 수 없다.
+    if app_path(request).startswith("/api/"):
         return JSONResponse(
             status_code=exc.status_code,
             content=envelope(None, message=str(exc.detail), success=False,
@@ -157,6 +159,23 @@ async def _validation_exc_handler(_: Request, exc: RequestValidationError) -> JS
 _RUN_PATH_RE = re.compile(r"^/api/runs/(?P<run_id>[^/]+)(?:/.*)?$")
 
 
+def app_path(request: Request) -> str:
+    """이 앱 기준의 경로 — 프록시 접두(root_path)를 뗀다.
+
+    ⚠ `request.url.path` 를 그대로 쓰면 안 된다. 허브는 `--root-path /apps/web_design_agents`
+    로 띄우고, uvicorn 은 ASGI 규격대로 **root_path 를 포함한 전체 경로**를 `scope["path"]`
+    에 싣는다. 라우팅은 Starlette 가 접두를 벗겨 맞추므로 핸들러는 멀쩡히 동작하지만,
+    날것의 경로를 보는 미들웨어는 `^/api/...` 에 걸리지 않아 **조용히 아무것도 하지 않는다**.
+    실사고 2026-11-01 — 소유권 검사가 배치본에서 통째로 무력했다(dev TestClient 는
+    root_path 를 그렇게 싣지 않아 재현되지 않는다. 실기동으로만 잡힌다).
+    """
+    path = request.scope.get("path") or request.url.path
+    root = request.scope.get("root_path") or ""
+    if root and path.startswith(root):
+        path = path[len(root):] or "/"
+    return path
+
+
 def identity(request: Request) -> str | None:
     """이 요청의 신원 — 허브 게이트가 실어 준 X-Heax-User-Email 하나다(W-1).
 
@@ -177,7 +196,7 @@ def visible_to(run: dict, who: str | None) -> bool:
 @app.middleware("http")
 async def _ownership_guard(request: Request, call_next):
     """run 단위 경로 전부에 주인 검사를 건다(W-2). 남의 run 은 **없는 것과 같다**."""
-    m = _RUN_PATH_RE.match(request.url.path)
+    m = _RUN_PATH_RE.match(app_path(request))
     if m:
         run_id = m.group("run_id")
         miss = JSONResponse(

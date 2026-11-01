@@ -321,3 +321,78 @@ def test_render_concurrency_is_bounded():
     """chromium 이 뜨는 작업이라 요청마다 스레드를 띄우면 박스가 먼저 죽는다(W-14)."""
     assert runledger.RENDER_CONCURRENCY >= 1
     assert runledger._render_slots is not None
+
+
+# ── root_path 회귀 (2026-11-01 실사고) ──────────────────────────────────
+#
+# 허브는 `--root-path /apps/web_design_agents` 로 띄우고, uvicorn 은 ASGI 규격대로
+# root_path 를 **포함한** 전체 경로를 scope["path"] 에 싣는다. 라우팅은 Starlette 가
+# 접두를 벗겨 맞추므로 핸들러는 멀쩡하지만, 날것의 경로를 보는 미들웨어는 걸리지 않아
+# 소유권 검사가 통째로 무력해진다. **TestClient 는 이걸 재현하지 못한다** — 실기동으로만
+# 잡힌다. 그래서 이 테스트만 진짜 uvicorn 을 띄운다.
+
+
+def test_app_path_strips_the_proxy_prefix():
+    """단위 — 접두를 뗀 경로를 돌려줘야 한다."""
+    from types import SimpleNamespace
+
+    from wdweb.app import app_path
+
+    def req(path, root):
+        return SimpleNamespace(scope={"path": path, "root_path": root},
+                               url=SimpleNamespace(path=path))
+
+    assert app_path(req("/apps/web_design_agents/api/runs/x", "/apps/web_design_agents")) \
+        == "/api/runs/x"
+    assert app_path(req("/api/runs/x", "")) == "/api/runs/x"
+    assert app_path(req("/apps/web_design_agents", "/apps/web_design_agents")) == "/"
+    # 접두가 선언됐지만 경로가 이미 벗겨진 경우(프록시가 떼고 보낸 경우)도 그대로 둔다
+    assert app_path(req("/api/runs/x", "/apps/web_design_agents")) == "/api/runs/x"
+
+
+@pytest.mark.parametrize("root_path", ["/apps/web_design_agents", ""])
+def test_ownership_holds_behind_a_proxy_prefix(client, report, root_path):
+    """실기동 — 허브와 같은 조건에서 남의 run 이 404 여야 한다."""
+    import socket
+    import subprocess
+    import sys
+    import time
+    import urllib.error
+    import urllib.request
+
+    rid = client.post("/api/runs", json={"report_json": report, "slug": "rp"},
+                      headers=ALICE).json()["data"]["run_id"]
+
+    with socket.socket() as s:                      # 빈 포트를 OS 에게 받는다
+        s.bind(("127.0.0.1", 0))
+        port = s.getsockname()[1]
+    argv = [sys.executable, "-m", "uvicorn", "wdweb.app:app",
+            "--host", "127.0.0.1", "--port", str(port)]
+    if root_path:
+        argv += ["--root-path", root_path]
+    proc = subprocess.Popen(argv, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+    def status(who: str) -> int:
+        req = urllib.request.Request(f"http://127.0.0.1:{port}/api/runs/{rid}",
+                                     headers={"X-Heax-User-Email": who})
+        try:
+            return urllib.request.urlopen(req, timeout=10).status
+        except urllib.error.HTTPError as exc:
+            return exc.code
+
+    try:
+        for _ in range(60):                          # 기동 대기
+            try:
+                urllib.request.urlopen(f"http://127.0.0.1:{port}/api/health", timeout=2)
+                break
+            except Exception:  # noqa: BLE001
+                time.sleep(0.5)
+        else:
+            pytest.skip("uvicorn 이 뜨지 않았다")
+        assert status("alice@corp.example") == 200
+        assert status("bob@corp.example") == 404, (
+            f"root_path={root_path!r} 에서 남의 run 이 열렸다 — 미들웨어가 날것의 경로를 본다"
+        )
+    finally:
+        proc.terminate()
+        proc.wait(timeout=20)
