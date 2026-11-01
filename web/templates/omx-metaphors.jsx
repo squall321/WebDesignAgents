@@ -95,6 +95,111 @@
     return style;
   }
 
+  // ── 요소 행동 어휘 ────────────────────────────────────────────────────
+  //
+  // 기본값은 모션 그래픽 업계 관행을 참조했다(orshot studio motion 문서 2026-11 실측):
+  // count 1.4s/power1.out · drawIn 0.9s(획당 0.04s 캐스케이드) · reveal 단어 stagger 0.07s
+  // · wake distance 34px(0.3s 미만은 하드 컷으로 읽힌다) · pulse 0.97~1.03 rate 1.6
+  // · float amp 6 rate 2.4. 우리 이징 카탈로그가 GSAP power1~3·back.out(1.7) 을 이미 덮는다.
+  //
+  // 전부 t 의 **순수 함수**다 — 엔진 계약(씬 = localTime 의 함수)을 지킨다.
+
+  // 수치가 올라간다. 데이터 보고에서 "얼마였나" 를 눈으로 따라가게 한다.
+  // 반환은 **문자열** — 호출자가 그대로 렌더한다.
+  function countUp(t, at, value, opts) {
+    var o = opts || {};
+    var d = o.dur == null ? 1.4 : o.dur;
+    var from = o.from == null ? 0 : o.from;
+    var dec = o.decimals == null ? 0 : o.decimals;
+    var e = o.ease ? easeOf(o.ease) : Easing.easeOutQuad;   // power1.out 상당
+    var v = A(t, at, d, from, value, e);
+    var txt = v.toFixed(dec);
+    if (o.separator !== false) {
+      var parts = txt.split('.');
+      parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+      txt = parts.join('.');
+    }
+    return (o.prefix || '') + txt + (o.suffix || '');
+  }
+
+  // SVG 선이 그려진다. stroke-dasharray 로 길이를 재어 dashoffset 을 줄인다.
+  // 호출자가 len(경로 길이)을 알고 있어야 한다 — 엔진은 DOM 을 재지 않는다(순수성).
+  function drawIn(t, at, len, opts) {
+    var o = opts || {};
+    var d = o.dur == null ? 0.9 : o.dur;
+    var i = o.index == null ? 0 : o.index;       // 획 순서 — 0.04s 씩 밀린다
+    var start = at + i * (o.cascade == null ? 0.04 : o.cascade);
+    var p = A(t, start, d, 1, 0, Easing.easeOutCubic);
+    return { strokeDasharray: len, strokeDashoffset: (len * p).toFixed(2) };
+  }
+
+  // 단어 단위 등장. 한 덩어리로 떠오르는 것보다 읽는 속도에 맞는다.
+  // style: rise(기본) · fade · blur · scale · mask
+  function revealWord(theme, t, at, i, style, opts) {
+    var o = opts || {};
+    var st = style || 'rise';
+    var stag = o.stagger == null ? 0.07 : o.stagger;
+    var d = o.dur == null ? 0.7 : o.dur;
+    var start = at + i * stag;
+    var e = st === 'scale' ? Easing.easeOutBack
+          : st === 'mask' ? Easing.easeOutExpo : Easing.easeOutQuart;
+    var op = A(t, start, d, 0, 1, e);
+    if (st === 'fade') return { opacity: op };
+    if (st === 'blur') {
+      // 자막용 — 떠오름은 rise 의 1/4 로 줄이고 흐림이 풀린다
+      return { opacity: op, filter: 'blur(' + A(t, start, d, 6, 0, e).toFixed(2) + 'px)',
+               transform: 'translateY(' + A(t, start, d, 30, 0, e).toFixed(2) + 'px)' };
+    }
+    if (st === 'scale') {
+      return { opacity: op, transform: 'scale(' + A(t, start, d, 0.4, 1, e).toFixed(4) + ')' };
+    }
+    if (st === 'mask') {
+      // 헤드라인용 — 아래에서 밀려 올라오며 드러난다 (clip 으로 가린다)
+      var pc = (A(t, start, d, 0, 100, e)).toFixed(1);
+      return { clipPath: 'inset(' + (100 - pc) + '% 0 0 0)', opacity: 1 };
+    }
+    var dy = o.dy == null ? 120 : o.dy;
+    return { opacity: op, transform: 'translateY(' + A(t, start, d, dy, 0, e).toFixed(2) + 'px)' };
+  }
+
+  // 방향을 가진 등장. rise 는 위에서만 오지만 wake 는 네 방향이다.
+  function wake(t, at, from, opts) {
+    var o = opts || {};
+    var d = Math.max(0.3, o.dur == null ? 0.6 : o.dur);   // 0.3 미만은 하드 컷으로 읽힌다
+    var dist = o.distance == null ? 34 : o.distance;
+    var e = Easing.easeOutCubic;
+    var v = A(t, at, d, dist, 0, e);
+    var tf = from === 'left' ? 'translateX(' + (-v).toFixed(2) + 'px)'
+           : from === 'right' ? 'translateX(' + v.toFixed(2) + 'px)'
+           : from === 'down' ? 'translateY(' + v.toFixed(2) + 'px)'
+           : from === 'none' ? null
+           : 'translateY(' + (-v).toFixed(2) + 'px)';      // up 기본
+    var st = { opacity: A(t, at, d, 0, 1, e) };
+    if (tf) st.transform = tf;
+    return st;
+  }
+
+  // 주변 호흡 — 살아 있다는 신호(라이브 배지 등). 끝나지 않는 주기 운동이다.
+  function pulse(t, opts) {
+    var o = opts || {};
+    var lo = o.from == null ? 0.97 : o.from;
+    var hi = o.to == null ? 1.03 : o.to;
+    var rate = o.rate == null ? 1.6 : o.rate;
+    var k = (Math.sin(t * rate) + 1) / 2;
+    var sc = lo + (hi - lo) * k;
+    return { transform: (o.axis === 'both')
+      ? 'scale(' + sc.toFixed(4) + ')'
+      : 'scaleY(' + sc.toFixed(4) + ')' };
+  }
+
+  // 주변 표류 — 세로로 천천히 떠다닌다.
+  function float_(t, opts) {
+    var o = opts || {};
+    var amp = o.amp == null ? 6 : o.amp;
+    var rate = o.rate == null ? 2.4 : o.rate;
+    return { transform: 'translateY(' + (Math.sin(t * rate) * amp).toFixed(2) + 'px)' };
+  }
+
   function toneOf(map, tone, fallback) {
     var key = tone || fallback;
     return { bg: map[key + 'Bg'], fg: map[key + 'Fg'] };
@@ -553,5 +658,7 @@
     'cta-pill': CtaPill,
   });
   // 은유 내부 공용 헬퍼 — 템플릿 계층이 재사용
-  OMX.motion = Object.assign(OMX.motion || {}, { A: A, rise: rise, easeOf: easeOf, toneOf: toneOf, camera: camera, transition: transition });
+  OMX.motion = Object.assign(OMX.motion || {}, { A: A, rise: rise, easeOf: easeOf, toneOf: toneOf, camera: camera, transition: transition,
+    countUp: countUp, drawIn: drawIn, revealWord: revealWord,
+    wake: wake, pulse: pulse, float: float_ });
 })();

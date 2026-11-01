@@ -116,3 +116,42 @@ def test_transition_does_not_consume_scene_time():
     build_src = (REPO_ROOT / "src" / "wdpipeline" / "build.py").read_text(encoding="utf-8")
     assert "Math.min(0.45, dur / 3)" in build_src, (
         "전환 구간이 씬 길이에 비례해 묶이지 않으면 짧은 씬에서 전환이 씬을 잡아먹는다")
+
+
+# ── 요소 행동 어휘 (2026-11-01, 업계 관행 참조) ──────────────────────────────
+
+BEHAVIORS = ("countUp", "drawIn", "revealWord", "wake", "pulse", "float")
+
+
+def test_engine_exports_every_behavior():
+    """헬퍼가 OMX.motion 에 실려야 템플릿이 부를 수 있다."""
+    engine = (REPO_ROOT / "web" / "templates" / "omx-metaphors.jsx").read_text(encoding="utf-8")
+    for name in BEHAVIORS:
+        assert f"{name}:" in engine, f"OMX.motion 에 {name} 이 없다"
+
+
+def test_behaviors_are_pure_functions_of_t():
+    """엔진 계약 — 씬은 localTime 의 순수 함수다. 상태를 두면 seek 가 깨진다."""
+    engine = (REPO_ROOT / "web" / "templates" / "omx-metaphors.jsx").read_text(encoding="utf-8")
+    start = engine.index("function countUp(")
+    end = engine.index("function toneOf(")
+    block = engine[start:end]
+    for banned in ("Date.now", "performance.now", "setTimeout", "requestAnimationFrame", "Math.random"):
+        assert banned not in block, f"행동 구현에 {banned} 가 있다 — 시각의 함수가 아니게 된다"
+
+
+def test_motion_card_documents_the_vocabulary():
+    """어휘를 만들고 알리지 않으면 창작 모드가 쓰지 못한다.
+
+    이 세션에서 반복해 잡은 실패 유형 — 능력은 만들고 도달 경로를 안 만든다.
+    MO 페르소나의 카드가 그 도달 경로다(창작 모드가 인용한다).
+    """
+    from wdcore.registry.registry import load_registry
+
+    cards = {c.id: c for c in load_registry().cards_for("mot-motion-director")}
+    assert "MO-C-003" in cards, "연출 어휘 카드가 레지스트리에 없다"
+    body = (REPO_ROOT / "personas" / "mot-motion-director" / "cards" / "MO-C-003.md").read_text(
+        encoding="utf-8")
+    for name in BEHAVIORS + ("pushIn", "pullOut", "kenBurns", "dissolve"):
+        assert name in body, f"카드에 {name} 설명이 없다"
+    assert "반려 사유" in body, "무엇이 반려되는지 없으면 규칙이 아니라 참고다"
