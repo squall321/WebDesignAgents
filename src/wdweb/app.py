@@ -131,11 +131,21 @@ def health() -> dict:
     from wdpipeline.format import format_catalog
 
     rows = [f for f in format_catalog() if "error" not in f]
-    return {
+    out: dict = {
         "status": "ok",
         "features": sorted(f"format:{f['id']}" for f in rows),
         "formats": {f["id"]: f["status"] for f in rows},
     }
+    # version — HEAXHub 가 매니페스트 version 과 대조해 '앱만 새로 배포되고 매니페스트는
+    # 구버전' 을 잡는다(integrations_scanner._check_version_drift, 키는 version/app_version).
+    # 손으로 적지 않고 **패키지 메타데이터**에서 뽑는다 — 그래야 pyproject 와 어긋날 수 없다.
+    try:
+        from importlib.metadata import version as _pkg_version
+
+        out["version"] = _pkg_version("webdesignagents")
+    except Exception:  # noqa: BLE001 — 버전 노출은 선택 기능이다. 못 읽어도 health 는 살아야 한다
+        pass
+    return out
 
 
 @app.get("/api/formats")

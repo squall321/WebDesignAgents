@@ -66,6 +66,16 @@ def test_health(client: TestClient) -> None:
     live = {f["id"] for f in format_catalog() if "error" not in f}
     assert set(body["features"]) == {f"format:{i}" for i in live}
     assert set(body["formats"]) == live
+    # version 은 HEAXHub 가 매니페스트와 대조하는 값이다 — pyproject 와 어긋나면
+    # 카탈로그가 조용히 구버전을 표시하므로 손으로 적지 않고 메타데이터에서 뽑는다.
+    import tomllib
+    from importlib.metadata import version as pkg_version
+    from pathlib import Path as _P
+
+    pyproject = tomllib.loads(
+        (_P(__file__).resolve().parents[1] / "pyproject.toml").read_text(encoding="utf-8")
+    )
+    assert body["version"] == pkg_version("webdesignagents") == pyproject["project"]["version"]
 
 
 def test_envelope_shape(client: TestClient) -> None:
