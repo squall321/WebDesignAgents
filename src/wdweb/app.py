@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+import structlog
 import yaml
 from fastapi import Body, FastAPI, HTTPException, Request, status
 from fastapi.responses import PlainTextResponse
@@ -24,6 +26,8 @@ from wdmcp.schemas import DOC_STYLES, PPTX_MODES
 
 from .runs import REPO_ROOT, RENDER_TARGETS, data_dir
 
+log = structlog.get_logger("wdweb.app")
+
 # wdmcp(경로 A stdio 어댑터)와 동일한 FastMCP 서버를 /mcp 로도 서빙 — heax 매니페스트
 # mcp:{path:/mcp, transport:streamable_http} 선언과 실체를 일치시켜 게이트웨이 자동연동
 # (ThermalShockMCP app/main.py 규약)을 성립시킨다. 도구 정의는 한 곳(wdmcp)뿐이다.
@@ -32,6 +36,20 @@ _mcp_app = _wdmcp.streamable_http_app()  # 내부 라우트 = settings.streamabl
 
 @asynccontextmanager
 async def _lifespan(_app: FastAPI):
+    # W-12 — 파이프라인·렌더는 데몬 스레드라 프로세스가 죽으면 원장이 running 인 채 남고,
+    # 재개도 running 을 거절한다. 기동 때 그 유령들을 failed(interrupted) 로 적는다.
+    try:
+        stale = runledger.mark_interrupted()
+        if stale:
+            log.info("interrupted_runs_marked", count=len(stale))
+    except Exception:  # noqa: BLE001 — 원장 정리 실패가 기동을 막지 않는다
+        log.warning("interrupted_runs_scan_failed", exc_info=True)
+    try:
+        swept = runledger.sweep_retention()   # W-13 (기본 끔 — 운영자가 켠다)
+        if swept:
+            log.info("retention_swept", count=len(swept), days=runledger.RETENTION_DAYS)
+    except Exception:  # noqa: BLE001
+        log.warning("retention_sweep_failed", exc_info=True)
     # 서브앱의 lifespan 은 자동 실행되지 않으므로 세션 매니저를 직접 구동한다.
     async with _wdmcp.session_manager.run():
         yield
@@ -58,11 +76,46 @@ _WEB_ROOT = REPO_ROOT / "web"
 _FRONTEND_DIST = REPO_ROOT / "frontend" / "dist"
 
 
+# W-7 — 본문 상한. 심의 보고서는 블록 상한(회의록 400 · 결과·권고 각 200항목 × 1,900자)이라
+# 수 MB 다. 16MB 는 그 위에 여유를 둔 값이고, 넘으면 받아 두고 나중에 죽지 않고 즉시 413 이다.
+MAX_BODY_BYTES = 16 * 1024 * 1024
+
+
 # ── 응답 봉투 (VoiceRecorder responses 패턴) ────────────────────────────────
 
 
-def envelope(data=None, message: str = "", success: bool = True) -> dict:
-    return {"success": success, "data": data, "message": message}
+def envelope(data=None, message: str = "", success: bool = True,
+             code: str | None = None) -> dict:
+    out: dict = {"success": success, "data": data, "message": message}
+    if code:
+        out["code"] = code
+    return out
+
+
+# W-10 — 기계가 읽는 오류 어휘. 호출자는 code 와 HTTP 상태로만 가르고 message 는 사람에게
+# 보여 줄 뿐 파싱하지 않는다. 남의 run 도 NOT_FOUND 다(있는지도 알리지 않는다 — NOT_OWNER
+# 를 따로 두면 그 run 이 존재한다는 사실이 새어 나간다).
+ERROR_CODES = ("NOT_FOUND", "TOO_LARGE", "NOT_BUILT", "BUSY", "INVALID", "INTERNAL")
+
+# W-22 — Authorization 을 읽지도 남기지도 않는다. 허브 게이트는 신원 머리만 덮어 싣고 원
+# 요청의 Authorization(그 사람의 heax-hub 토큰, 10분)은 그대로 넘긴다. 그 토큰은 그 사람이
+# 볼 수 있는 모든 허브 앱에 통하므로, 로그·원장·오류 글에 남기면 10분 동안 다른 허브 앱을
+# 그 사람으로 부를 수 있다. 쓰는 곳이 없음을 회귀 테스트가 못박는다.
+SECRET_HEADERS = ("authorization", "cookie", "x-api-key")
+_STATUS_CODE = {400: "INVALID", 404: "NOT_FOUND", 409: "NOT_BUILT", 413: "TOO_LARGE",
+                422: "INVALID", 500: "INTERNAL", 503: "BUSY"}
+
+
+class ApiError(HTTPException):
+    """code 를 실어 보내는 HTTPException — 상태만으로는 사유가 갈리지 않는 자리에 쓴다."""
+
+    def __init__(self, status_code: int, code: str, detail: str):
+        super().__init__(status_code=status_code, detail=detail)
+        self.code = code
+
+
+def _code_of(exc: HTTPException) -> str | None:
+    return getattr(exc, "code", None) or _STATUS_CODE.get(exc.status_code)
 
 
 @app.exception_handler(StarletteHTTPException)
@@ -71,7 +124,8 @@ async def _route_miss_handler(request: Request, exc: StarletteHTTPException):
     if request.url.path.startswith("/api/"):
         return JSONResponse(
             status_code=exc.status_code,
-            content=envelope(None, message=str(exc.detail), success=False),
+            content=envelope(None, message=str(exc.detail), success=False,
+                             code=_code_of(exc)),
         )
     return PlainTextResponse(str(exc.detail), status_code=exc.status_code)
 
@@ -80,7 +134,8 @@ async def _route_miss_handler(request: Request, exc: StarletteHTTPException):
 async def _http_exc_handler(_: Request, exc: HTTPException) -> JSONResponse:
     return JSONResponse(
         status_code=exc.status_code,
-        content=envelope(None, message=str(exc.detail), success=False),
+        content=envelope(None, message=str(exc.detail), success=False,
+                         code=_code_of(exc)),
     )
 
 
@@ -88,8 +143,63 @@ async def _http_exc_handler(_: Request, exc: HTTPException) -> JSONResponse:
 async def _validation_exc_handler(_: Request, exc: RequestValidationError) -> JSONResponse:
     return JSONResponse(
         status_code=422,
-        content=envelope(None, message=f"요청 형식 오류: {exc.errors()}", success=False),
+        content=envelope(None, message=f"요청 형식 오류: {exc.errors()}", success=False,
+                         code="INVALID"),
     )
+
+
+# ── 신원과 주인 (W-1 ~ W-3) ─────────────────────────────────────────────────
+#
+# 주인 검사를 핸들러마다 넣지 않는다. 열네 곳에 흩어 두면 **다음에 추가되는 라우트에서
+# 잊힌다** — W-2 가 요구하는 것은 "run 단위 REST 전부" 이고, 그 '전부' 는 사람이 아니라
+# 구조가 보장해야 한다. 그래서 경로 한 곳에서 막는다.
+
+_RUN_PATH_RE = re.compile(r"^/api/runs/(?P<run_id>[^/]+)(?:/.*)?$")
+
+
+def identity(request: Request) -> str | None:
+    """이 요청의 신원 — 허브 게이트가 실어 준 X-Heax-User-Email 하나다(W-1).
+
+    게이트(forward_auth)가 토큰을 검증한 뒤 Caddy 가 클라이언트가 보낸 같은 이름 머리를
+    **덮어** 싣는다. 전제는 '허브 Caddy 를 거친 요청만' 이고, 그래서 앱은 127.0.0.1 에만
+    listen 해야 한다. Authorization 은 읽지도 남기지도 않는다(W-22) — 그 머리는 그 사람의
+    허브 토큰이라 로그·원장에 남으면 10분 동안 다른 허브 앱을 그 사람으로 부를 수 있다.
+    """
+    return runledger.normalize_owner(request.headers.get("X-Heax-User-Email"))
+
+
+def visible_to(run: dict, who: str | None) -> bool:
+    """주인 있는 run 은 주인만 본다. 주인 없는 run 은 모두에게 열린다 — 비공개가 아니다."""
+    owner = run.get("owner")
+    return owner is None or owner == who
+
+
+@app.middleware("http")
+async def _ownership_guard(request: Request, call_next):
+    """run 단위 경로 전부에 주인 검사를 건다(W-2). 남의 run 은 **없는 것과 같다**."""
+    m = _RUN_PATH_RE.match(request.url.path)
+    if m:
+        run_id = m.group("run_id")
+        miss = JSONResponse(
+            status_code=404,
+            content=envelope(None, message=f"실행을 찾을 수 없습니다: {run_id}",
+                             success=False, code="NOT_FOUND"),
+        )
+        # 꼴 검사가 곧 경로 탈출 차단이다 — run_id 는 경로 조각으로 그대로 이어 붙는다(W-5)
+        if not runledger.valid_run_id(run_id):
+            return miss
+        run = runledger.read_run(run_id)
+        if run is not None and not visible_to(run, identity(request)):
+            return miss
+        # W-13 — 보존 기한이 지나 산출물을 지운 실행. '모르는 실행'(404)과 구분해 410 으로
+        # 답한다. 주인 검사를 통과한 뒤이므로 존재를 흘리지 않는다.
+        if run is not None and run.get("deleted_at"):
+            return JSONResponse(
+                status_code=410,
+                content=envelope(None, success=False, code="NOT_FOUND",
+                                 message=f"보존 기한이 지나 지워진 실행입니다: {run_id}"),
+            )
+    return await call_next(request)
 
 
 # ── 공통 헬퍼 ────────────────────────────────────────────────────────────────
@@ -131,9 +241,15 @@ def health() -> dict:
     from wdpipeline.format import format_catalog
 
     rows = [f for f in format_catalog() if "error" not in f]
+    # 능력 표지 — 손으로 적지 않고 **실제로 있는 것**에서 뽑는다. 적어 두고 안 지키는
+    # 목록은 거짓말이 된다. 포털은 owner 가 없으면 단추를 숨긴다(W-6).
     out: dict = {
         "status": "ok",
-        "features": sorted(f"format:{f['id']}" for f in rows),
+        "features": sorted(
+            ["owner", "render_chain", "doc_formats", "skipped_report", "interrupted",
+             "idempotency", "error_codes"]
+            + [f"format:{f['id']}" for f in rows]
+        ),
         "formats": {f["id"]: f["status"] for f in rows},
     }
     # version — HEAXHub 가 매니페스트 version 과 대조해 '앱만 새로 배포되고 매니페스트는
@@ -166,6 +282,12 @@ async def create_run(request: Request) -> JSONResponse:
     content_type = request.headers.get("content-type", "")
     slug: str | None = None
     format_id: str | None = None
+    render_opts: dict | None = None
+    # W-7 — 본문 상한. 포털은 미리 재서 넘으면 부르지 않지만, 재지 않는 호출자도 있다.
+    declared = request.headers.get("content-length")
+    if declared and declared.isdigit() and int(declared) > MAX_BODY_BYTES:
+        raise ApiError(413, "TOO_LARGE",
+                       f"본문이 상한을 넘습니다: {int(declared):,}B / {MAX_BODY_BYTES:,}B")
     if content_type.startswith("multipart/form-data"):
         form = await request.form()
         upload = form.get("file")
@@ -190,23 +312,34 @@ async def create_run(request: Request) -> JSONResponse:
         report = body.get("report_json")
         slug = body.get("slug")
         format_id = body.get("format")
+        render_opts = body.get("render") if isinstance(body.get("render"), dict) else None
     if not isinstance(report, dict):
-        raise HTTPException(status_code=400, detail="report_json 은 report_archive_draft_v1 객체여야 합니다")
+        raise ApiError(400, "INVALID",
+                       "report_json 은 report_archive_draft_v1 객체여야 합니다")
 
     try:
-        run = runledger.submit_run(report, slug=slug, format_id=format_id)
+        run = runledger.submit_run(
+            report, slug=slug, format_id=format_id,
+            owner=identity(request),                       # W-1 본문의 owner 칸은 안 믿는다
+            render=render_opts,                            # W-8 빌드 뒤 이어서 렌더
+            idempotency_key=request.headers.get("Idempotency-Key"),   # W-15
+        )
     except ValueError as exc:   # 알 수 없는 포맷 — 조립까지 끌고 가지 않고 여기서 거절한다
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise ApiError(400, "INVALID", str(exc)) from exc
     return JSONResponse(
         status_code=status.HTTP_202_ACCEPTED,
-        content=envelope({"run_id": run["run_id"], "slug": run["slug"]},
+        content=envelope({"run_id": run["run_id"], "slug": run["slug"],
+                          "owner": run.get("owner")},
                          message="파이프라인 실행을 시작했습니다"),
     )
 
 
 @app.get("/api/runs")
-def get_runs() -> dict:
-    return envelope({"runs": runledger.list_runs()})
+def get_runs(request: Request) -> dict:
+    """W-3 — 내 run 과 주인 없는 run 만. 신원이 없으면 주인 없는 것만."""
+    who = identity(request)
+    runs = [r for r in runledger.list_runs() if visible_to(r, who)]
+    return envelope({"runs": runs})
 
 
 @app.get("/api/runs/{run_id}")
@@ -459,6 +592,24 @@ _DOWNLOAD_META = {
 }
 
 
+def download_headers(path: Path, kind: str) -> dict[str, str]:
+    """W-11 — 내려받기 머리.
+
+    허브 앱은 포털과 **같은 오리진**(/apps/...)이라, 우리가 낸 HTML 의 스크립트가 포털
+    쿠키·CSRF 값에 닿을 수 있다. 보고서 글은 RA 에서 여러 사람이 쓴 것이므로 그 HTML 을
+    신뢰할 수 없다 — `sandbox` 를 allow-same-origin 없이 걸어 오리진을 떼어 낸다.
+    """
+    headers = {
+        "X-Content-Type-Options": "nosniff",
+        "Content-Length": str(path.stat().st_size),
+    }
+    # 잡 경로는 inline 으로 내므로 HTML 은 브라우저가 **그 오리진에서 실행**한다.
+    # 허브 앱은 포털과 같은 오리진(/apps/...)이라 그 스크립트가 포털 쿠키에 닿는다.
+    if kind == "html" or str(path).lower().endswith((".html", ".htm")):
+        headers["Content-Security-Policy"] = "sandbox"
+    return headers
+
+
 @app.get("/api/runs/{run_id}/download/{kind}")
 def download_artifact(run_id: str, kind: str) -> FileResponse:
     run = _run_or_404(run_id)
@@ -468,7 +619,8 @@ def download_artifact(run_id: str, kind: str) -> FileResponse:
     if path is None or not path.is_file():
         raise HTTPException(status_code=404, detail=f"산출물이 아직 없습니다: {kind}")
     media_type, base_name = _DOWNLOAD_META[kind]
-    return FileResponse(path, media_type=media_type, filename=f"{run['slug']}-{base_name}")
+    return FileResponse(path, media_type=media_type, filename=f"{run['slug']}-{base_name}",
+                        headers=download_headers(path, kind))
 
 
 @app.get("/api/runs/{run_id}/preview/{path:path}")
@@ -513,6 +665,13 @@ def download_render_job(job_id: str, kind: str) -> FileResponse:
     raw = (job.outputs or {}).get(kind)
     if not raw:
         raise HTTPException(status_code=404, detail=f"산출물이 아직 없습니다: {kind}")
+    # W-4 — 이 잡의 입력·출력이 주인 있는 run 아래면 없는 것으로 답한다. 잡 원장에는
+    # 신원이 없으므로 job_id 만 알면 남의 산출물을 받을 수 있었다.
+    from wdmcp.ownership import is_owned_path
+
+    if is_owned_path(raw) or is_owned_path(getattr(job, "build_dir", None)) \
+            or is_owned_path(getattr(job, "scenario_path", None)):
+        raise ApiError(404, "NOT_FOUND", f"렌더 잡 없음: {job_id}")
     # 원장 값이라도 경계 검사는 한다 — 데이터 루트 밖 파일이 URL 하나로 노출되지 않게.
     target = Path(raw).resolve()
     if not target.is_relative_to(data_dir().resolve()):
@@ -523,6 +682,7 @@ def download_render_job(job_id: str, kind: str) -> FileResponse:
     return FileResponse(
         target, media_type=media_type, filename=f"{job_id}-{base_name}",
         content_disposition_type=disposition,
+        headers=download_headers(target, kind),
     )
 
 

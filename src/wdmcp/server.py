@@ -402,6 +402,82 @@ def _roster_line() -> str:
     return ", ".join(f"{x.id}({x.abbr})" for x in get_registry().summaries())
 
 
+# ── W-4 주인 있는 run 차단 ──────────────────────────────────────────────
+#
+# MCP 의 신원은 확인할 수 없으므로(게이트웨이가 상주 세션 하나로 서비스 토큰을 싣는다)
+# 주인 있는 run 은 **없는 것으로** 답한다. 핸들러마다 넣지 않고 한 겹으로 싼다 — 도구가
+# 늘어날 때 잊히지 않게.
+
+_RUN_ARGS = ("run_id",)
+_PATH_ARGS = ("scenario_path", "build_dir", "run_dir", "build_path")
+
+
+def _block_owned(fn):
+    """run_id·서버 경로가 주인 있는 run 을 가리키면 NOT_FOUND 로 답한다(W-4)."""
+    import functools
+    import inspect
+
+    sig = inspect.signature(fn)
+
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        from .ownership import is_owned_path, is_owned_run
+
+        bound = sig.bind_partial(*args, **kwargs)
+        hit = any(is_owned_run(bound.arguments.get(k)) for k in _RUN_ARGS) or any(
+            is_owned_path(bound.arguments.get(k)) for k in _PATH_ARGS
+        )
+        if hit:
+            return error_envelope(
+                get_session(), "NOT_FOUND",
+                "해당 run 을 찾을 수 없다.",
+                "웹에서 신원과 함께 만든 실행은 MCP 로 다룰 수 없다 — 웹 콘솔에서 이어가라.",
+            )
+        return fn(*args, **kwargs)
+
+    return wrapper
+
+
+# ── 회의 원장 영속화 (C-7) ──────────────────────────────────────────────
+#
+# 원장(known_refs)은 프로세스 메모리에만 살았다. MCP 서버가 재기동하면 회의 본문은
+# 디스크에 남는데 인용 화이트리스트만 사라져 **정당한 인용이 환각으로 거부된다** —
+# 그 회의는 인용 필수 라운드를 더 진행할 수 없다(실측 2026-11-01). 웹 경로는 이미
+# 회의 디렉터리에 저장하고 있었으므로 같은 파일을 쓴다.
+
+
+def _with_ledger(fn):
+    """호출 전 디스크 원장을 세션에 되살리고, 호출 뒤 저장한다.
+
+    meeting_id 는 인자에서 찾고, meeting_start 처럼 없으면 **응답에서** 찾는다.
+    use_session 으로 외부(웹)가 세션을 쥐고 있으면 그쪽이 저장을 책임지므로 건드리지 않는다.
+    """
+    import functools
+    import inspect
+
+    sig = inspect.signature(fn)
+
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        from .ledger_store import hydrate, persist
+        from .session import _override
+
+        bound = sig.bind_partial(*args, **kwargs)
+        mid = bound.arguments.get("meeting_id")
+        state = get_session()
+        outer_owns = _override.get() is not None   # 웹 경로가 이미 쥐고 있다
+        if mid and not outer_owns:
+            hydrate(state, str(mid))
+        out = fn(*args, **kwargs)
+        if not outer_owns:
+            mid = mid or ((out.get("data") or {}).get("meeting_id") if out.get("ok") else None)
+            if mid:
+                persist(state, str(mid))
+        return out
+
+    return wrapper
+
+
 @mcp.tool()
 def meeting_personas() -> dict:
     """회의에 넣을 수 있는 페르소나 로스터. meeting_start 의 participants 에 쓸 id 목록이다.
@@ -432,6 +508,7 @@ def meeting_personas() -> dict:
 
 
 @mcp.tool()
+@_with_ledger
 def meeting_start(
     topic: str, type: str, participants: list[str], run_id: str | None = None,
     format_id: str | None = None,
@@ -525,6 +602,7 @@ def meeting_start(
 
 
 @mcp.tool()
+@_with_ledger
 def meeting_get_briefing(meeting_id: str) -> dict:
     """다음 발언자를 결정하고 그 발언자용 브리핑을 반환한다.
 
@@ -643,6 +721,7 @@ def meeting_get_briefing(meeting_id: str) -> dict:
 
 
 @mcp.tool()
+@_with_ledger
 def meeting_submit_turn(
     meeting_id: str,
     round_no: int,
@@ -703,6 +782,7 @@ def meeting_submit_turn(
 
 
 @mcp.tool()
+@_with_ledger
 def meeting_status(meeting_id: str) -> dict:
     """회의 진행 현황(라운드·턴 수·최근 논점·다음 발언자·전달 원장)을 요약한다."""
     state = get_session()
@@ -735,6 +815,7 @@ def meeting_status(meeting_id: str) -> dict:
 
 
 @mcp.tool()
+@_with_ledger
 def meeting_close(meeting_id: str) -> dict:
     """회의를 폐회하고 회의록(minutes.md)을 생성해 경로와 요약 통계를 반환한다."""
     state = get_session()
@@ -810,6 +891,7 @@ def report_ingest(file: str, assets_dir: str | None = None, run_id: str | None =
 
 
 @mcp.tool()
+@_block_owned
 def report_fragmentize(run_id: str) -> dict:
     """정규화 보고서를 Claim/Evidence/Case/Metric/CTA 조각으로 분해해 fragments.json으로 저장한다.
 
@@ -857,6 +939,8 @@ def report_fragmentize(run_id: str) -> dict:
 
 
 @mcp.tool()
+@_block_owned
+@_with_ledger
 def scenario_build(meeting_id: str, run_id: str | None = None) -> dict:
     """회의 산출물(decision·scenario_patch)을 집계하고 규칙 기반 ScenarioDoc을 조립·검증·저장한다.
 
@@ -939,6 +1023,7 @@ def scenario_build(meeting_id: str, run_id: str | None = None) -> dict:
 
 
 @mcp.tool()
+@_block_owned
 def render_submit(
     scenario_path: str | None = None,
     targets: list[str] | None = None,
@@ -1080,6 +1165,7 @@ def render_status(job_id: str) -> dict:
 
 
 @mcp.tool()
+@_block_owned
 def qa_run(build_path: str, gates: list[str] | None = None, scenario_path: str | None = None) -> dict:
     """빌드 디렉터리에 품질 게이트를 실행해 리포트를 반환한다.
 
@@ -1345,6 +1431,7 @@ def meeting_minutes(meeting_id: str) -> dict:
 
 
 @mcp.tool()
+@_block_owned
 def scene_list(run_id: str) -> dict:
     """씬 목록(name/tpl/dur/내레이션·데이터 요약)을 반환한다 — 핀포인트 수정의 탐색 진입점.
 
@@ -1372,6 +1459,7 @@ def scene_list(run_id: str) -> dict:
 
 
 @mcp.tool()
+@_block_owned
 def scene_html(run_id: str, scene: str, mode: str = "self", still: float | None = None) -> dict:
     """씬 하나만 도는 엔트리 HTML 을 파일로 저장하고 경로를 반환한다.
 
@@ -1413,6 +1501,7 @@ def scene_html(run_id: str, scene: str, mode: str = "self", still: float | None 
 
 
 @mcp.tool()
+@_block_owned
 def scene_still(run_id: str, scene: str, t: float | None = None) -> dict:
     """씬 스틸 PNG 를 캡처해 저장 경로를 반환한다 (t 미지정 = 대표 스틸 시각).
 
@@ -1442,6 +1531,7 @@ def scene_still(run_id: str, scene: str, t: float | None = None) -> dict:
 
 
 @mcp.tool()
+@_block_owned
 def scenario_revise(run_id: str, slug: str = "") -> dict:
     """사람이 고친 시나리오와 마지막 빌드를 대조한다 (PLAN §11 사람 편집 왕복).
 
@@ -1478,6 +1568,7 @@ def scenario_revise(run_id: str, slug: str = "") -> dict:
 
 
 @mcp.tool()
+@_block_owned
 def scenario_patch(run_id: str, ops: list[dict]) -> dict:
     """핀포인트 패치 — 원자 연산 목록을 정본(patch_scenario)으로 적용·전량 검증·재빌드한다.
 

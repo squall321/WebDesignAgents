@@ -64,7 +64,9 @@ def test_health(client: TestClient) -> None:
     from wdpipeline.format import format_catalog
 
     live = {f["id"] for f in format_catalog() if "error" not in f}
-    assert set(body["features"]) == {f"format:{i}" for i in live}
+    # 포맷 표지는 레지스트리에서 뽑히고, 능력 표지(W-6)가 함께 실린다.
+    assert {f"format:{i}" for i in live} <= set(body["features"])
+    assert "owner" in body["features"]          # 포털은 이것이 없으면 단추를 숨긴다
     assert set(body["formats"]) == live
     # version 은 HEAXHub 가 매니페스트와 대조하는 값이다 — pyproject 와 어긋나면
     # 카탈로그가 조용히 구버전을 표시하므로 손으로 적지 않고 메타데이터에서 뽑는다.
@@ -83,13 +85,15 @@ def test_envelope_shape(client: TestClient) -> None:
     assert set(body) == {"success", "data", "message"}
     assert body["success"] is True
 
-    # 오류도 같은 봉투로 나간다
+    # 오류도 같은 봉투로 나간다 — W-10 의 code 가 한 칸 더 붙는다.
+    # 포털은 code 와 HTTP 상태로 가르고 message 는 사람에게 보여 줄 뿐 파싱하지 않는다.
     res = client.get("/api/runs/no-such-run")
     assert res.status_code == 404
     body = res.json()
-    assert set(body) == {"success", "data", "message"}
+    assert set(body) == {"success", "data", "message", "code"}
     assert body["success"] is False
     assert body["message"]
+    assert body["code"] == "NOT_FOUND"
 
 
 # ── 파이프라인 실행 (report_sample end-to-end) ───────────────────────────────

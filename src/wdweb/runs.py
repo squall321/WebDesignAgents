@@ -4,7 +4,9 @@
 from __future__ import annotations
 
 import json
+import os
 import re
+import secrets
 import threading
 import uuid
 from datetime import datetime, timezone
@@ -44,8 +46,35 @@ def run_file(run_id: str) -> Path:
     return runs_dir() / f"{run_id}.json"
 
 
-def new_run_id() -> str:
-    return f"wr-{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex[:4]}"
+# W-5 — run_id 꼴. 경로 조각으로 그대로 이어 붙는 값이라 꼴 검사가 곧 경로 탈출 차단이다.
+#
+# 검사의 뜻은 **"경로로 안전한가"** 이지 "우리가 만든 꼴인가" 가 아니다. 시각 꼴까지
+# 강제하면 MCP·CLI 가 붙인 id(`delib_v2` 류)와 테스트 픽스처가 통째로 404 가 된다.
+# 점·슬래시·퍼센트를 막으면 탈출은 불가능하다.
+RUN_ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+
+
+def new_run_id(*, owned: bool = False) -> str:
+    """실행 id. 주인 있는 실행은 **128비트 무작위**를 담는다(W-5).
+
+    주인 없는 실행은 종전 꼴(16비트)을 유지한다 — 바꾸면 기존 경로·원장과 어긋난다.
+    주인 있는 실행만 추측 가능해서는 안 된다: 시각이 알려지면 16비트는 65,536 후보뿐이고,
+    소유권 검사가 붙기 전에는 그것만으로 남의 산출물에 닿을 수 있었다.
+    """
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    tail = secrets.token_hex(16) if owned else uuid.uuid4().hex[:4]
+    return f"wr-{stamp}-{tail}"
+
+
+def valid_run_id(run_id: str) -> bool:
+    """꼴 검사 — 어긋나면 '없는 것' 으로 다룬다(존재 여부를 알리지 않는다)."""
+    return bool(RUN_ID_RE.match(str(run_id)))
+
+
+def normalize_owner(email: str | None) -> str | None:
+    """신원 머리 → 주인 값. 공백은 주인 없음, 대소문자는 접는다(W-1)."""
+    v = (email or "").strip().lower()
+    return v or None
 
 
 def sanitize_slug(slug: str | None) -> str | None:
@@ -122,6 +151,94 @@ def list_runs() -> list[dict]:
     return out
 
 
+def _run_by_key(key: str, owner: str | None) -> dict | None:
+    """같은 Idempotency-Key + 같은 주인의 앞선 실행. 주인이 다르면 남의 것이므로 못 본다."""
+    for r in list_runs():
+        if r.get("idempotency_key") == key and r.get("owner") == owner:
+            return r
+    return None
+
+
+# W-13 — 보존 기한. 지금까지 아무것도 지우지 않아 **남의 보고서 본문이 든 실행과 산출물이
+# 끝없이 쌓였다**(실측 60건 372MB).
+#
+# ⚠ 기본값은 **끔(0)** 이다. 기한을 기본으로 켜면 이 기능이 들어간 첫 기동에서 몇 달치
+# 산출물이 한 번에 사라진다 — 운영자가 모르는 사이에 일어나는 삭제는 기능이 아니라 사고다.
+# 켜는 것은 `WDA_RETENTION_DAYS=7` 처럼 운영자가 명시한다(포털은 잡 기록을 7일 둔다).
+RETENTION_DAYS = max(0, int(os.environ.get("WDA_RETENTION_DAYS", "0")))
+
+
+def sweep_retention(days: int | None = None) -> list[str]:
+    """보존 기한이 지난 실행의 **산출물을 지우고** 원장에 지운 시각을 남긴다.
+
+    원장 자체는 남긴다 — 지웠다는 사실을 답할 수 있어야 호출자가 '모르는 실행'(404)과
+    '지워진 실행'(410)을 가른다.
+    """
+    import shutil
+    from datetime import timedelta
+
+    days = RETENTION_DAYS if days is None else days
+    if days <= 0:
+        return []
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    droot = data_dir()
+    swept: list[str] = []
+    for run in list_runs():
+        if run.get("deleted_at"):
+            continue
+        try:
+            made = datetime.fromisoformat(str(run.get("created_at")))
+        except ValueError:
+            continue
+        if made.tzinfo is None:
+            made = made.replace(tzinfo=timezone.utc)
+        if made > cutoff:
+            continue
+        for d in (droot / "pipeline" / run["run_id"],
+                  droot / "build" / run["slug"],
+                  droot / "renders" / run["slug"]):
+            shutil.rmtree(d, ignore_errors=True)
+        run["deleted_at"] = _now_iso()
+        run["build_dir"] = None
+        run["entry"] = None
+        if isinstance(run.get("render"), dict):
+            run["render"]["outputs"] = {}
+        run["updated_at"] = _now_iso()
+        write_run(run)
+        swept.append(run["run_id"])
+    return swept
+
+
+def mark_interrupted() -> list[str]:
+    """W-12 — 기동 시, 끊긴 채 남은 실행·렌더를 failed(interrupted) 로 적는다.
+
+    파이프라인·렌더는 데몬 스레드라 프로세스가 죽으면 원장이 running 인 채 남는다.
+    재개도 running 을 거절하므로(이미 진행 중이다) **손댈 수 없는 유령**이 된다.
+    """
+    touched: list[str] = []
+    for run in list_runs():
+        changed = False
+        if run.get("status") in ("queued", "running"):
+            run["status"] = "failed"
+            run["error"] = run.get("error") or "interrupted"
+            for row in run.get("stages") or []:
+                if row.get("status") in ("queued", "running", "pending"):
+                    row["status"] = "failed"
+                    row["error"] = row.get("error") or "interrupted"
+            changed = True
+        rnd = run.get("render")
+        if isinstance(rnd, dict) and rnd.get("status") in ("queued", "building", "rendering"):
+            rnd["status"] = "failed"
+            rnd["error"] = rnd.get("error") or "interrupted"
+            rnd["finished_at"] = _now_iso()
+            changed = True
+        if changed:
+            run["updated_at"] = _now_iso()
+            write_run(run)
+            touched.append(run["run_id"])
+    return touched
+
+
 # ── 파이프라인 실행 (POST /api/runs) ─────────────────────────────────────────
 
 
@@ -137,7 +254,9 @@ def _format_of(build_dir: Path) -> str | None:
         return None
 
 
-def submit_run(report: dict, slug: str | None = None, format_id: str | None = None) -> dict:
+def submit_run(report: dict, slug: str | None = None, format_id: str | None = None,
+               owner: str | None = None, render: dict | None = None,
+               idempotency_key: str | None = None) -> dict:
     """보고서 JSON을 임시 저장하고 백그라운드 스레드로 ingest→fragmentize→scenario→build 를 돌린다.
 
     format_id 를 주면 그 포맷의 골격으로 조립한다(미지정은 기본 포맷). 알 수 없는 포맷은
@@ -149,7 +268,14 @@ def submit_run(report: dict, slug: str | None = None, format_id: str | None = No
         known = list_formats()
         if format_id not in known:
             raise ValueError(f"알 수 없는 포맷: {format_id} — 쓸 수 있는 포맷: {', '.join(known)}")
-    run_id = new_run_id()
+    owner = normalize_owner(owner)
+    # W-15 — '결과 모름' 으로 다시 보낸 요청이 run 을 둘 만들지 않게 한다. 같은 키의
+    # 앞선 실행이 있으면 그것을 그대로 돌려준다(새로 만들지 않는다).
+    if idempotency_key:
+        prior = _run_by_key(idempotency_key, owner)
+        if prior is not None:
+            return prior
+    run_id = new_run_id(owned=owner is not None)
     # slug 는 표시용 이름일 뿐 디렉터리 키가 아니다 — 같은 slug 두 실행이 build/renders
     # 를 공유해 서로 덮어쓰는 사고를 막기 위해 run_id 꼬리를 붙여 항상 유일하게 만든다.
     base = sanitize_slug(slug)
@@ -170,6 +296,11 @@ def submit_run(report: dict, slug: str | None = None, format_id: str | None = No
             {"stage": s, "status": "pending", "error": None, "output": None} for s in STAGES
         ],
         "format": format_id,
+        # W-1 — 주인은 REST 의 X-Heax-User-Email 로만 정한다. 본문의 어떤 owner 칸도 믿지
+        # 않는다. 주인 없는 실행은 비공개가 아니다(종전 그대로 열려 있다).
+        "owner": owner,
+        "idempotency_key": idempotency_key or None,
+        "render_request": render or None,     # W-8 — 빌드 뒤 이어서 걸 렌더 옵션
         "scenario_summary": None,
         "build_dir": None,
         "entry": None,
@@ -181,7 +312,7 @@ def submit_run(report: dict, slug: str | None = None, format_id: str | None = No
     }
     write_run(run)
     t = threading.Thread(
-        target=_run_pipeline, args=(run_id, raw_path, slug_s, droot, None, format_id),
+        target=_run_pipeline, args=(run_id, raw_path, slug_s, droot, None, format_id, render),
         daemon=True,
         name=f"wdweb-pipeline-{run_id}",
     )
@@ -190,7 +321,8 @@ def submit_run(report: dict, slug: str | None = None, format_id: str | None = No
 
 
 def _run_pipeline(run_id: str, raw_path: Path, slug: str, droot: Path,
-                  start_from: str | None = None, format_id: str | None = None) -> None:
+                  start_from: str | None = None, format_id: str | None = None,
+                  render: dict | None = None) -> None:
     """워커 본체 — 단계별 상태를 원장에 기록하며 순차 실행. 예외는 해당 단계 failed 로 남긴다.
 
     start_from 을 주면 그 단계부터 돈다(재개). 앞 단계 산출물은 디스크에서 읽어 잇는다 —
@@ -271,6 +403,17 @@ def _run_pipeline(run_id: str, raw_path: Path, slug: str, droot: Path,
         _update_stage(run_id, stage, status="done", output=str(entry))
         update_run(run_id, status="done", build_dir=str(entry.parent), entry=entry.name,
                    error=None)
+        # W-8 — 만들기에 render 칸이 있으면 빌드가 끝난 자리에서 이어서 렌더를 맡는다.
+        # 호출자가 done 을 폴링해 따로 렌더를 거는 왕복을 없앤다(그 사이 화면이 비어 있다).
+        if render:
+            submit_render(
+                run_id,
+                targets=list(render.get("targets") or ["pptx"]),
+                fps=render.get("fps"),
+                doc_style=str(render.get("doc_style") or "report"),
+                pptx_mode=str(render.get("pptx_mode") or "hybrid"),
+                narration=bool(render.get("narration")),
+            )
     except Exception as exc:  # 워커 스레드 — 어떤 실패든 원장에 남긴다
         msg = f"{type(exc).__name__}: {exc}"
         try:
@@ -283,6 +426,13 @@ def _run_pipeline(run_id: str, raw_path: Path, slug: str, droot: Path,
 # ── 렌더 실행 (POST /api/runs/{id}/render) ───────────────────────────────────
 
 
+# W-14 — 렌더 동시 상한. chromium 이 뜨는 작업이라 요청마다 스레드를 띄우면 박스가 먼저
+# 죽는다. 넘치면 거절하지 않고 세마포어 앞에서 queued 로 기다린다(포털은 queued 를 '차례
+# 기다림' 으로 읽는다). 0 이하면 제한 없음.
+RENDER_CONCURRENCY = max(0, int(os.environ.get("WDA_RENDER_CONCURRENCY", "2")))
+_render_slots = threading.BoundedSemaphore(RENDER_CONCURRENCY) if RENDER_CONCURRENCY else None
+
+
 def submit_render(run_id: str, targets: list[str], fps: int | None = None,
                   doc_style: str = "report", pptx_mode: str = "hybrid",
                   narration: bool = False) -> dict:
@@ -290,9 +440,9 @@ def submit_render(run_id: str, targets: list[str], fps: int | None = None,
     run = read_run(run_id)
     assert run is not None
     _update_render(
-        run_id, status="queued", targets=targets, doc_style=doc_style,
-        pptx_mode=pptx_mode, narration=narration, outputs={}, error=None,
-        started_at=_now_iso(),
+        run_id, status="queued", targets=targets, requested=list(targets),
+        doc_style=doc_style, pptx_mode=pptx_mode, narration=narration,
+        outputs={}, skipped=[], error=None, started_at=_now_iso(),
     )
     t = threading.Thread(
         target=_run_render, args=(run_id, targets, fps, data_dir(), doc_style, pptx_mode, narration),
@@ -336,7 +486,8 @@ def resume_run(run_id: str) -> dict:
 
     threading.Thread(
         target=_run_pipeline,
-        args=(run_id, raw_path, run["slug"], droot, start, run.get("format")),
+        args=(run_id, raw_path, run["slug"], droot, start, run.get("format"),
+              run.get("render_request")),
         daemon=True, name=f"wdweb-resume-{run_id}",
     ).start()
     return {"run_id": run_id, "resumed": True, "start_from": start}
@@ -347,6 +498,11 @@ def _run_render(run_id: str, targets: list[str], fps: int | None, droot: Path,
                 narration: bool = False) -> None:
     """렌더 워커 — wdmcp/jobs.py 의 exporter 실행부 동형. 실패는 render.status=failed 로 기록."""
     work: Path | None = None   # 내레이션 씬 음성 임시 보관 — 끝나면 지운다
+    if _render_slots is not None:
+        _render_slots.acquire()    # 차례를 기다린다 — 원장은 queued 인 채로 남는다(W-14)
+    # 차례가 왔다. 준비(설정·vendor·내레이션 합성)와 실제 굽기를 나눠 알린다 — 호출자
+    # 화면이 '차례 기다림 / 준비 / 만드는 중' 셋을 가른다.
+    _update_render(run_id, status="building")
     try:
         run = read_run(run_id)
         assert run is not None
@@ -378,8 +534,16 @@ def _run_render(run_id: str, targets: list[str], fps: int | None, droot: Path,
         from wdpipeline.format import render_targets
 
         # 문서 3형식은 무대 규격과 무관하다(심의 산출물에서 나온다) — 포맷 outputs 필터 면제.
-        allowed = set(render_targets(_format_of(root))) | {"html", "pdf", "docx"}
+        fmt = _format_of(root)
+        allowed = set(render_targets(fmt)) | {"html", "pdf", "docx"}
+        # W-9 — 뺀 출력을 말없이 거르지 않는다. 호출자는 "요청한 영상이 왜 없는가" 를
+        # 물을 수 있어야 한다. 종전에는 targets 를 조용히 줄이고 끝이었다.
+        skipped = [{"target": t,
+                    "reason": f"포맷 {fmt or '(미상)'} 가 내지 않는 출력입니다"}
+                   for t in targets if t not in allowed]
         targets = [t for t in targets if t in allowed]
+        if skipped:
+            _update_render(run_id, skipped=skipped)
 
         # 내레이션 — 실측·재조정·재빌드를 영상 렌더 앞에 끝낸다 (결정 56~59)
         plan = None
@@ -453,6 +617,8 @@ def _run_render(run_id: str, targets: list[str], fps: int | None, droot: Path,
         except Exception:
             pass
     finally:
+        if _render_slots is not None:
+            _render_slots.release()
         if work is not None:
             import shutil
 
