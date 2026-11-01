@@ -48,7 +48,13 @@ class SceneEntry(StrictModel):
     narration_sha: str | None = Field(
         default=None, description="narration_sec 을 잰 원문의 해시 (narration_sha() 값)"
     )
-    transition: str = "cut"
+    # 전환 — 이 씬이 **다음 씬으로 넘기는** 방식(이음매는 앞 씬이 소유한다).
+    # 씬 N 의 퇴장 + 씬 N+1 의 등장 짝으로 구현된다. dur 를 건드리지 않으므로
+    # 내레이션·자막·스틸 시각이 밀리지 않는다. 영상·PPT·HTML 전부에 같게 들어간다.
+    transition: Literal[
+        "cut", "pushLeft", "pushRight", "pushUp", "pushDown",
+        "slideLeft", "slideUp", "dissolve",
+    ] = "cut"
     # 카메라 워크 — 씬 **전체**에 거는 변환(요소 등장과 다른 층). 빌드의 바인딩 층이 걸므로
     # 템플릿은 몰라도 된다. 기본 'hold' 는 아무것도 하지 않아 기존 산출물이 그대로 남는다.
     # 양 끝 속도 0(easeInOutCubic)이라 게이트 7(경계 프레임 정적)을 설계상 통과한다.

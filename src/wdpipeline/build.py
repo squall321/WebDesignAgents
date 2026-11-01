@@ -141,11 +141,15 @@ def _render_scenes_jsx(
     babel standalone 전역 스코프 규약: 엔진 최상위 선언(Easing/Stage/SceneStage/animate 등)과
     겹치지 않는 wda* 접두 이름만 선언한다.
     """
+    # 전환은 **이음매**라 앞 씬이 소유한다 — 씬 N 의 transition 이 씬 N+1 의 등장을 정한다.
+    # 첫 씬에는 들어올 전환이 없고(앞이 없다), 마지막 씬에는 나갈 전환이 없다(뒤가 없다).
+    prev_tr = [None] + [s.transition for s in doc.scenes[:-1]]
     entries = ",\n".join(
         f"  {json.dumps(s.name, ensure_ascii=False)}: "
         f"wdaBind({json.dumps(_tpl_id(s.tpl, spec, modules_root))}, "
-        f"{json.dumps(s.data_ref)}, {json.dumps(s.camera)}, {float(s.dur)})"
-        for s in doc.scenes
+        f"{json.dumps(s.data_ref)}, {json.dumps(s.camera)}, {float(s.dur)}, "
+        f"{json.dumps(pin)}, {json.dumps(s.transition if i < len(doc.scenes) - 1 else 'cut')})"
+        for i, (s, pin) in enumerate(zip(doc.scenes, prev_tr))
     )
     return f"""// P4 자동 생성 씬 바인딩 — 템플릿 재사용 모드 (손편집 금지, 데이터는 scene-data.json)
 const SceneRoot = window.SceneStage; // 비충돌 별칭 (const 충돌 규약)
@@ -162,16 +166,29 @@ function wdaRef(path) {{
   return node;
 }}
 
-function wdaBind(tplId, dataRef, camera, dur) {{
+function wdaBind(tplId, dataRef, camera, dur, trIn, trOut) {{
   var Tpl = window.OMX.templateIndex[tplId];
   if (!Tpl) throw new Error('scenes.jsx: 레지스트리에 없는 템플릿 — ' + tplId);
   var data = wdaRef(dataRef);
   // 카메라는 **바인딩 층**에서 건다 — 템플릿 40종을 고치지 않고 전부가 같은 연출을 얻는다.
   // camera 가 'hold'(기본)면 OMX.motion.camera 가 빈 스타일을 돌려주므로 DOM 도 그대로다.
   return function WdaBound(props) {{
+    var t = props.localTime || 0;
     var inner = <Tpl {{...props}} data={{data}} theme={{wdaTheme}} />;
-    if (!camera || camera === 'hold') return inner;
-    var style = window.OMX.motion.camera(wdaTheme, props.localTime || 0, dur, camera);
+    var M = window.OMX.motion;
+    var hasCam = camera && camera !== 'hold';
+    var hasTr = (trIn && trIn !== 'cut') || (trOut && trOut !== 'cut');
+    if (!hasCam && !hasTr) return inner;
+    var style = hasCam ? M.camera(wdaTheme, t, dur, camera) : {{}};
+    // 전환은 카메라 **위에** 얹는다 — 둘 다 걸리면 변환을 이어 붙인다.
+    if (hasTr) {{
+      var half = Math.min(0.45, dur / 3);
+      var tin = (trIn && trIn !== 'cut') ? M.transition(wdaTheme, t, dur, trIn, 'in', half) : {{}};
+      var tout = (trOut && trOut !== 'cut') ? M.transition(wdaTheme, t, dur, trOut, 'out', half) : {{}};
+      var tr = (t < dur / 2) ? tin : tout;
+      if (tr.transform) style.transform = (style.transform ? style.transform + ' ' : '') + tr.transform;
+      if (tr.opacity != null) style.opacity = tr.opacity;
+    }}
     // 카메라는 무대 밖으로 확대·이동한다 — 그게 프레이밍이다. 게이트 5(오버플로)가
     // 가리키는 data-qa-clip-ok 로 "의도된 넘침" 임을 선언한다(DotGrid 와 같은 규약).
     return (
