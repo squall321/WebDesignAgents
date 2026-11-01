@@ -191,3 +191,24 @@ tts_client·mux 는 있었지만 어느 창구도 부르지 않았고, 목소리
 - [ ] 어휘를 쓰는 신규 템플릿 1종 — 지금은 창작 모드가 쓸 수 있을 뿐 실적이 없다
 - [ ] (검토) stagger row 1.1s vs 업계 0.3~0.4s — 바꾸려면 심의가 필요하다
 - [ ] (보류) 필름 룩 — grain 0.04~0.08 · vignette 0.2~0.35. 대비 게이트와 충돌 검토 필요
+
+## 2026-11-01 — 심의 장르 (포털 심의 결과 → 영상)
+측정 근거: `wr-20261101-083510-53a9`. 심의 템플릿 보고서(화두·라운드·결정·액션)를 태우니
+조각 8건은 전부 정확히 추출되는데, 씬에는 결정문·액션아이템이 **안 들어간다**.
+`scenario_build` 가 제품 소개용 7씬 설득 골격에 억지로 끼우고 빈자리를 필러로 채운다.
+- [x] 측정 — 심의 보고서 표본 1건 전 구간 실행, 유실 지점 특정 (fragmentize ✅ / scenario_build ❌)
+- [x] 섹션 추론 — heading 텍스트 → `section` 태그. **RA 정본 어휘를 따른다**(action_item·
+      alternatives·recommendation·constraint·decision). 심의 전용만 신설(topic·round)
+- [x] 빌더 6종 신설 — `o-question`·`o-statement`·`o-metric`·`x-next`·`x-quote`·`x-summary`
+      (등록·JSX·스키마는 다 있는데 빌더가 없어 **어떤 시나리오도 쓸 수 없던** 템플릿들)
+      → 템플릿 40종 전부 조립 경로 확보. 회귀 테스트가 이 불변을 지킨다
+- [x] `delib-16x9` 포맷 (status draft) — 골격 `topic→rounds→decision→action→summary` 5씬 56초
+      → 결정 수치(1.0mm·0.82mm·2.1%)·액션 담당(구조·열·품질)이 씬 데이터에 존재함을 테스트로 고정
+      → 필러("보고서 참조"·"항목 1") 0건, 7게이트 통과(info 1), 5씬 스틸 육안 확인
+- [x] 포맷 선택 경로 — 웹 `POST /api/runs {format}` · MCP `scenario_build` 가 회의 format_id 사용
+      (종전 MCP 는 format_id 를 브리핑 인용에만 쓰고 **조립에는 안 넘겼다**)
+- [x] 포맷 카탈로그 — `GET /api/formats` + MCP `format_list` + `/api/health` features
+      (양쪽 어디에도 포맷을 발견할 방법이 없었다. 포털이 심의 단추를 가르는 표지)
+- [x] 회귀 — `wide-16x9` 골격 불변 테스트 포함, 전체 테스트 통과
+- [ ] pilot 승격 — format_review 심의 + 완주 산출물 (지금은 draft)
+- [ ] 쟁점 씬 — 현 골격에 `problem` 역할이 없다. 라운드가 대립을 담지만 쟁점 자체는 안 선다
