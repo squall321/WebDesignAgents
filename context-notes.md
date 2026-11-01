@@ -419,3 +419,20 @@ cd ~/claude/HWAXPortal && bash infra/env-kits/apply-envs.sh webdesignagents
   `wda run --narration` 전 단계 테스트가 이제 막는다.
 - 씬 툴(_ensure_scene_build)은 index.html 이 scenario.json 보다 낡으면 다시 빌드한다 — prepare 는
   시나리오를 먼저 쓰고 빌드한다.
+
+## 2026-11-01 — 포털 연계 구도 확정 (사용자 지시)
+
+### 결정 56. 메인 심의는 포털이 한다 — 우리는 발표자료 담당
+- HWAXPortal 에 이미 **5단계 심의 파이프라인**이 있다(`docs/DELIBERATION-PIPELINE.md`). 0 불량환기 → 1 발굴 → 2 정량분석 → 3 N라운드 심의 → 4 시각화(`infra/pipeline/viz_module.py`, 인라인 SVG 4종) → 5 **RA 보고서 작성**(`create_report_draft`).
+- 진입점 셋 — ① Workflow(좌석=Claude, 품질 정본) ② 포털 웹 `/심의`(좌석=vLLM/GLM) ③ MCP `deliberate_start`(②와 같은 엔진).
+- **우리가 심의를 중복하지 않는다.** 포털 심의의 끝(RA 보고서)이 곧 우리 입력 포맷이다. 사슬은 이렇게 된다.
+  ```
+  포털 심의(hwax-deliberation) → RA 보고서 → [WebDesignAgents] → 영상·PPT·문서 → 포털 챗
+  ```
+- 우리 자체 심의(wdcore)는 **자료 제작 심의**로 남는다 — 씬 구성·카피·dur 을 정하는 일이지 리스크 판단이 아니다. 둘은 다른 회의다.
+- WDA 는 이미 게이트웨이 앱으로 등록돼 있다(`heax-web_design_agents`), 페르소나 `he-doc-webdesign` 이 붙어 있다. 챗 목적지(`frontend/src/components/chat/destApps.ts`)에는 **아직 없다** — 거기가 수신 접점이다.
+
+### 결정 57. VLM 은 "시각 심의" 를 위한 것이다
+- cae00 GLM 엔드포인트를 VLM 가능한 것으로 붙인다(사용자 지시 2026-11-01).
+- 쓰임은 **렌더된 씬을 보고 비평하는 것** — 지금 우리 심의는 데이터와 스키마만 보고 화면을 못 본다. 게이트가 대비·폰트·오버플로를 수치로 잡지만 "이 화면이 설득력 있는가" 는 아무도 안 본다.
+- 전제 결함 — `wdllm.client.Message` 가 `{"role", "content": str}` 이다. OpenAI 호환 비전은 content 가 **블록 배열**이어야 한다. 텍스트 전용 구조부터 고쳐야 한다.

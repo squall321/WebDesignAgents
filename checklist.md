@@ -157,3 +157,23 @@ tts_client·mux 는 있었지만 어느 창구도 부르지 않았고, 목소리
 - [x] 가짜 VoiceRecorder(MockTransport)로 단위·통합 테스트 — 재조정 규칙, 트랙 배치, 먹싱, 세 창구
 - [x] 실제 VoiceRecorder(MeloTTS 1.2배)로 실렌더 1편 — delib_v2 7씬 Σ78→84.6초, 무음 6.9%(v1 41.8% · v2 25.2%), 한계 초과 0씬, 24fps 2030프레임+PPTX 8장 3분 42초
 - [x] 전체 테스트(2347 passed, 실패 1 = 워크트리에 없는 gitignore 리포트 — main 체크아웃에선 통과) · 문서(PLAN §10.2, voicerecorder-api.md) 갱신
+
+## 2026-11-01 — 포털 연계 (메인 심의=포털 · 발표자료=우리)
+
+### A. cae00 VLM
+- [ ] `wdllm` 메시지 구조를 블록 배열로 — 지금은 `content: str` 이라 이미지를 못 싣는다
+- [ ] 이미지 첨부 헬퍼 (씬 스틸 PNG → data URL 블록)
+- [ ] `vllm.toml`·env 에 비전 모델 설정 (cae00 엔드포인트는 사용자가 지정)
+- [ ] 시각 심의 채널 — 렌더된 씬을 페르소나가 보고 비평하는 라운드
+- [ ] cae00 실연결 확인 (사용자 작업)
+
+### B. 포털 챗 수신·가시화
+- [ ] `destApps.ts` 에 발표자료 목적지 추가 (WDA 는 게이트웨이 앱으로는 이미 등록됨)
+- [ ] 포털 → WDA 전달 계약 (RA 보고서 또는 심의 결과 → render job)
+- [ ] 결과를 챗에 돌려주는 경로 (포털에 `test_chat_ppt_in_browser.py` 선례 있음)
+- [ ] 진행 상황 스트리밍 (심의는 `test_delib_stream_in_browser.py` 선례 있음)
+
+### C. 심의 내용의 발표자료화
+- [ ] 포털 심의 결과(의사결정문 + viz SVG) → 우리 ingest 어댑터
+- [ ] viz_module 의 인라인 SVG 를 씬 자산으로 받는 경로 (지금 위젯은 ReportArchive 38종 기준)
+- [ ] 리스크 심사 장르 포맷 (`risk-review` format) — 의사결정 매트릭스·민감도가 주인공인 골격
