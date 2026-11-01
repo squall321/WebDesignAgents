@@ -197,6 +197,11 @@ class FormatPresets(StrictModel):
     """한 번의 제작 경험이 남긴 재사용 프리셋 묶음."""
 
     deliberation: FormatDeliberation = Field(default_factory=FormatDeliberation)
+    # 청중 파라미터 — 심의가 확정한 값이다. 비어 있으면 용어 문턱 기준이 없어 적발
+    # 자체가 불가능하다(delib-16x9 제작 심의 F-AU-2). 조립이 meta 로 실어 보낸다.
+    audience: str = Field(default="", description="이 장르의 타깃 — 누가 보는가")
+    tone: str = Field(default="", description="말투 — 정보 전달 / 판단 보고 등")
+    viewing_context: str = Field(default="", description="시청 맥락 — 길이 판단의 근거")
     copy_guide: dict[str, int] = Field(
         default_factory=dict, description="문안 필드 경로 → 실측 자수 상한"
     )

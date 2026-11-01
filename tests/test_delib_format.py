@@ -38,7 +38,8 @@ DELIB_REPORT = {
             ],
             "content": {
                 "h_q": {"text": "화두"},
-                "rt_q": {"markdown": "셀 팽창 여유를 현행 **1.2mm** 에서 줄일 수 있는가."},
+                "rt_q": {"markdown": "셀 팽창 여유를 현행 **1.2mm** 에서 줄일 수 있는가. "
+                                     "줄이면 에너지 밀도가 오르지만 수명 말기 변형을 감당해야 한다."},
                 "h_r": {"text": "라운드 요지"},
                 "rt_r": {"markdown": "- **R1** 구조는 0.9mm 까지 견딘다고 보고.\n"
                                      "- **R2** 구조가 열의 경계조건을 반박했다.\n"
@@ -113,9 +114,10 @@ def test_every_scene_template_has_a_builder():
 def test_format_registered_and_loadable():
     assert FORMAT_ID in list_formats()
     spec = load_format(FORMAT_ID)
-    assert spec.skeleton == ["topic", "rounds", "decision", "action", "summary"]
+    assert spec.skeleton == ["topic", "stakes", "rounds", "decision", "action", "summary"]
     assert [spec.primary_tpl(r) for r in spec.skeleton] == [
-        "tpl.o-question", "tpl.concept", "tpl.o-statement", "tpl.x-next", "tpl.x-summary",
+        "tpl.o-question", "tpl.l-quote", "tpl.concept",
+        "tpl.o-statement", "tpl.x-next", "tpl.x-summary",
     ]
 
 
@@ -135,8 +137,8 @@ def _built():
 def test_delib_scenario_validates():
     doc = assemble_demo_scenario(*_built())
     assert validate_scenario(doc) == []
-    assert len(doc.scenes) == 5
-    assert sum(s.dur for s in doc.scenes) == pytest.approx(56.0)
+    assert len(doc.scenes) == 6
+    assert sum(s.dur for s in doc.scenes) == pytest.approx(64.0)
 
 
 # 이 테스트가 이 작업의 존재 이유다 — 조립은 늘 "성공" 했고, 유실된 것은 내용이었다.
@@ -254,3 +256,66 @@ def test_explicit_sections_win_over_heading_inference():
     by_id = {f["source"]["block_id"]: f.get("section") for f in frags}
     assert by_id["rt3"] == "decision"      # 명시 태그 유지 (추론값 action_item 이 아니다)
     assert by_id["h0"] == "action_item"    # 태그 없는 heading 은 추론값
+
+
+# ── C-6 / C-7 (제작 심의 2026-11-01 조건) ────────────────────────────────
+
+
+def test_presets_audience_reaches_meta():
+    """청중·톤은 포맷 프리셋이 정본이다 — 선언만 하고 도달하지 않으면 빈칸과 같다."""
+    from wdpipeline.format import load_format
+
+    spec = load_format(FORMAT_ID)
+    assert spec.presets.audience and spec.presets.tone, "프리셋에 청중·톤이 비었다"
+    doc = assemble_demo_scenario(*_built())
+    assert doc.meta.audience == spec.presets.audience
+    assert doc.meta.tone == spec.presets.tone
+
+
+def test_core_message_is_the_decision_not_the_title():
+    """심의 보고서가 남길 한 문장은 결정이다. 제목은 '무엇에 대한' 일 뿐이다."""
+    doc = assemble_demo_scenario(*_built())
+    assert "1.0mm" in doc.meta.core_message
+    assert doc.meta.core_message != normalize_report(DELIB_REPORT)["title"]
+
+
+def test_stakes_scene_keeps_the_tradeoff_sentence():
+    """화두의 둘째 문장(득실)은 질문 슬롯(1~2행×18자)에 들어가지 않아 통째로 사라졌었다."""
+    doc = assemble_demo_scenario(*_built())
+    assert "stakes" in doc.content, doc.content.keys()
+    quote = doc.content["stakes"]["quote"]
+    assert "에너지 밀도" in quote and "수명 말기 변형" in quote
+    assert not quote.endswith("…"), f"쟁점 문장이 잘렸다: {quote}"
+
+
+def test_mcp_ledger_survives_a_fresh_session():
+    """MCP 서버가 재기동해도 known_refs 가 살아 있어야 한다 — 없으면 정당한 인용이 거부된다."""
+    from wdmcp.ledger_store import hydrate, ledger_path, persist
+    from wdmcp.session import MeetingLedger, SessionState
+
+    from wdweb.deliberation import call_tool
+
+    out = call_tool("meeting_start", topic="원장 영속 회귀", type="design_review",
+                    participants=["impl-technical-director", "qa-consistency"])
+    mid = out["data"]["meeting_id"]
+    assert ledger_path(mid) is not None
+
+    seeded = SessionState()
+    seeded.meetings[mid] = MeetingLedger(known_refs={"AX-C-001"}, format_id=FORMAT_ID)
+    persist(seeded, mid)
+
+    fresh = SessionState()                 # 재기동한 프로세스를 흉내낸다
+    hydrate(fresh, mid)
+    assert "AX-C-001" in fresh.meetings[mid].known_refs
+    assert fresh.meetings[mid].format_id == FORMAT_ID
+
+
+def test_stakes_falls_back_to_the_question_not_the_rounds():
+    """득실 문장이 없으면 화두 자체를 싣는다 — 라운드 경과가 쟁점 자리에 들어가면 안 된다."""
+    rep = json.loads(json.dumps(DELIB_REPORT))
+    rep["pages"][0]["content"]["rt_q"] = {"markdown": "셀 팽창 여유를 줄일 수 있는가."}
+    norm = normalize_report(rep)
+    doc = assemble_demo_scenario(norm, fragmentize(norm), FORMAT_ID)
+    quote = doc.content["stakes"]["quote"]
+    assert "줄일 수 있는가" in quote
+    assert "R1" not in quote and "수렴" not in quote

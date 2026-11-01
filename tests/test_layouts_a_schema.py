@@ -116,7 +116,9 @@ def test_module_yaml_contract(name):
     assert SEMVER.match(str(doc["version"]))
     assert doc["engine_compat"] == "animations-v2"
     assert doc["origin"] == ORIGIN
-    assert doc["formats"] == [FORMAT_ID], "레이아웃 4종은 formats: [wide-16x9] 를 선언한다"
+    # 한 템플릿이 여러 포맷을 지원할 수 있다 — formats 는 그러라고 있는 목록이다.
+    # 검사의 뜻은 "이 포맷을 지원하는가" 이지 "이 포맷만 지원하는가" 가 아니다.
+    assert FORMAT_ID in doc["formats"], "레이아웃 4종은 wide-16x9 를 지원해야 한다"
     assert doc["stage"] == STAGE
     assert isinstance(doc["nat_default"], (int, float)) and doc["nat_default"] > 0
     assert doc["in_scope"] and doc["out_of_scope"]

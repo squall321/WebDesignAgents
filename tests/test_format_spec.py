@@ -369,3 +369,31 @@ def test_assemble_stretches_to_format_target(tmp_path: Path, monkeypatch):
     doc = assemble_demo_scenario(norm, fragmentize(norm))
     assert round(sum(s.dur for s in doc.scenes), 2) == 45.0
     assert doc.scenes[0].dur == 4.0 and doc.scenes[0].nat == 8.0  # nat 은 자연 길이 유지
+
+
+# ── C-2 (delib-16x9 제작 심의 2026-11-01) — 선언한 테마가 실제로 적용되는가 ──
+#
+# 데모 조립이 tokens_theme 를 "hwax-blue" 로 박아 두어, 포맷이 무엇을 선언하든 결과가
+# 하나였다. 조건은 검사되지 않으면 조건이 아니다 — 사람이 다시 확인하는 조건은 다음
+# 사람이 지키지 않는다(QA 재검 조건).
+
+
+@pytest.mark.parametrize("format_id", sorted(list_formats()))
+def test_declared_theme_reaches_scenario(format_id):
+    """format.yaml 의 theme 가 조립 산출의 tokens_theme 와 같아야 한다 (포맷 전수)."""
+    spec = load_format(format_id)
+    norm = ingest_report_file(SAMPLE)
+    frags = fragmentize(norm)
+    doc = assemble_demo_scenario(norm, frags, format_id)
+    assert doc.tokens_theme == spec.theme, (
+        f"{format_id}: 선언 {spec.theme} / 조립 {doc.tokens_theme} — 포맷의 테마 선언이 버려졌다"
+    )
+
+
+@pytest.mark.parametrize("format_id", sorted(list_formats()))
+def test_declared_theme_has_tokens(format_id):
+    """선언한 테마의 토큰 파일이 실재해야 한다 — 없으면 빌드가 FileNotFoundError 로 죽는다."""
+    spec = load_format(format_id)
+    assert (REPO_ROOT / "web" / "tokens" / f"{spec.theme}.json").is_file(), (
+        f"{format_id}: 테마 토큰 없음 — web/tokens/{spec.theme}.json"
+    )

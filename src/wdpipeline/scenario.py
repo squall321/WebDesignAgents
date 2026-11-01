@@ -1955,6 +1955,28 @@ def _build_l_quote(norm: dict, fragments: list[dict], idx: int, plan: dict) -> d
     지어낸 선언이 아니라 원문에서 온 문장만 쓴다: ai_summary → 첫 주장 조각 → 제목 순.
     """
     q_max = _lim("l-quote", "quote", default=70)
+    # 쟁점 역할로 세워졌으면 **무엇이 걸려 있는가**를 싣는다. 심의 보고서의 화두 조각은
+    # "…줄일 수 있는가. 줄이면 A 가 오르지만 B 를 감당해야 한다." 꼴이라 둘째 문장이 곧
+    # 쟁점이다. 질문 슬롯(1~2행×18자)에는 들어갈 자리가 없어 화면에서 통째로 사라졌다
+    # (delib-16x9 제작 심의 O-1 · AU 반박). 70자 슬롯인 여기가 그 자리다.
+    if plan.get("_role") == "stakes":
+        pool = _delib_texts(fragments, "problem") + _delib_texts(fragments, "topic")
+        for text in pool:
+            # 득실 문장(둘째 문장)이 있으면 그것, 없으면 화두 자체. 라운드로 흘러가서는
+            # 안 된다 — 쟁점 자리에 경과가 들어가면 두 씬이 같은 말을 한다.
+            tail = _sentences(text)[1:] or _sentences(text)[:1]
+            if tail:
+                data = {
+                    "kicker": "쟁점",
+                    "quote": _clip(" ".join(tail), q_max),
+                    "speaker": _clip(norm["title"], _lim("l-quote", "speaker", default=20)),
+                    "texture": "rule",
+                    "frame": _frame(norm, idx, plan.get("_skeleton_len")),
+                }
+                role = norm.get("report_date", "")
+                if role:
+                    data["role"] = _clip(role, _lim("l-quote", "role", default=26))
+                return data
     # 제목·소제목이 아니라 **문장**을 고른다 — 종결어미로 끝나고 슬롯에 들어가는 것 중 가장 긴 것
     claims = [t.strip() for t in _texts(fragments, 30, type="claim") if t.strip()]
 
@@ -3396,7 +3418,20 @@ def _build_o_statement(norm: dict, fragments: list[dict], idx: int, plan: dict) 
     hi = _cap("o-statement", "lines", default=3)
     pool = _delib_texts(fragments, "decision") or _delib_texts(fragments, "topic") \
         or [t.strip() for t in _texts(fragments, 6, type="claim") if t.strip()]
-    head = _first_sentence(pool[0], lim * hi) if pool else norm["title"]
+    # 결정문은 "…로 정한다. 근거는 … 이다." 꼴이 흔하다. 첫 문장만 세우면 **왜 그렇게
+    # 정했는가**가 화면에서 빠진다 — 심의에 참여하지 않은 사람에게는 그쪽이 더 중요하다
+    # (delib-16x9 제작 심의 O-2). 3행 안에 들어가는 만큼 근거 문장까지 받는다.
+    if pool:
+        sents = _sentences(pool[0]) or [" ".join(str(pool[0]).split())]
+        head = sents[0]
+        for extra in sents[1:]:
+            cand = f"{head} {extra}"
+            if len(_wrap_lines(cand, lim, hi + 1)) <= hi and len(cand) <= lim * hi:
+                head = cand
+            else:
+                break
+    else:
+        head = norm["title"]
     texts = _wrap_lines(head, lim, hi)
     while len(texts) < lo:  # 1행뿐이면 제목을 둘째 행으로 — 스키마가 2행을 요구한다
         texts.append(_clip(norm["title"], lim))
@@ -3906,22 +3941,40 @@ def assemble_demo_scenario(
                 "transition": "cut",
             }
         )
-    core_message = norm.get("ai_summary") or norm["title"]
+    # core_message — 심의 보고서에서 시청자가 가져갈 한 문장은 **결정**이지 제목이 아니다.
+    # 제목은 "무엇에 대한 이야기인가"일 뿐 "그래서 무엇인가"가 아니다. 내레이션 예산·씬
+    # 배분이 이 값에서 파생되므로 표시 문제가 아니다 (delib-16x9 제작 심의 F-AU-1).
+    # **골격이 decision 역할을 선언한 포맷에서만** 결정 조각을 올린다. RA 정본 어휘의
+    # decision 은 심의 아닌 보고서에도 흔히 붙어 있어(표본의 "작성자 + 보직장 편집" 류),
+    # 섹션 유무로 가르면 일반 보고서의 핵심 메시지가 엉뚱한 운영 메모로 바뀐다.
+    core_message = (
+        norm.get("ai_summary")
+        or (_first_sentence(next(iter(_delib_texts(fragments, "decision")), ""), 80)
+            if "decision" in spec.skeleton else "")
+        or norm["title"]
+    )
     return ScenarioDoc.model_validate(
         {
             "version": "1.0",
             "format": spec.id,
             "meta": {
                 "core_message": core_message,
-                "audience": "사내 청중",
+                # 청중·톤은 포맷 프리셋이 정본이다. 비어 있던 "사내 청중"·"정보 전달" 은
+                # 파라미터가 아니라 빈칸이었다 — 타깃이 없으면 용어 문턱 적발이 불가능하다
+                # (delib-16x9 제작 심의 F-AU-2 · C-6).
+                "audience": spec.presets.audience or "사내 청중",
                 "duration_sec": sum(s["dur"] for s in scenes),
-                "tone": "정보 전달",
+                "tone": spec.presets.tone or "정보 전달",
                 "meeting_id": None,
                 "source_report_id": None,
             },
             "content": content,
             "scenes": scenes,
-            "tokens_theme": "hwax-blue",
+            # 포맷이 선언한 테마를 쓴다. 종전에는 문자열이 박혀 있어 **어떤 포맷이 어떤
+            # 테마를 선언하든 결과가 하나**였다(delib-16x9 제작 심의 F-QA-1, 2026-11-01).
+            # 문서형 경로(assemble_doc_scenario)는 처음부터 spec.theme 를 썼다 — 두 경로가
+            # 갈라져 있었고 그중 하나만 명세를 읽었다.
+            "tokens_theme": spec.theme,
             "playback": {"mode": "times", "count": 1},
         }
     )

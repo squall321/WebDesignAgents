@@ -26,7 +26,8 @@
       "white": "#FFFFFF",
       "dot": "#E0E4F0",
       "badgeBg": "#FFFFFFB0",
-      "typingBg": "#EEF0F5"
+      "typingBg": "#EEF0F5",
+      "decisionDesc": "#FFFFFFD9"
     },
     "font": {
       "base": "'Pretendard Variable', Pretendard, 'Noto Sans KR', sans-serif"
@@ -251,6 +252,11 @@
         "fg": "{palette.sub}",
         "bg": "{extra.typingBg}",
         "role": "판정 필 텍스트 / 타이핑 그레이"
+      },
+      {
+        "fg": "{extra.decisionDesc}",
+        "bg": "{palette.blue}",
+        "role": "결정 상자 보조 설명(opacity 0.85 합성색) / 강조 배경 — tpl.concept outcome.desc"
       }
     ]
   },

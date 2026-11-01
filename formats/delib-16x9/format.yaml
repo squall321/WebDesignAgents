@@ -8,15 +8,18 @@
 id: delib-16x9
 name_ko: 심의 결과 브리핑
 stage: { w: 1920, h: 1080 }          # wide-16x9 와 같은 무대 — 템플릿·테마를 공유한다
-# target 56 = 씬 5종 nat_default 합(9+11+8+14+14). 허용대는 심의 분량 편차를 받는 폭이다.
-duration: { target: 56, min: 30, max: 180 }
-skeleton: [topic, rounds, decision, action, summary]
+# target 64 = 씬 6종 nat_default 합(9+8+11+8+14+14). 허용대는 심의 분량 편차를 받는 폭이다.
+duration: { target: 64, min: 30, max: 180 }
+skeleton: [topic, stakes, rounds, decision, action, summary]
 template_pool:                       # 역할 → tpl id (fragmentize 의 section 어휘와 같은 이름)
   topic: [tpl.o-question]            # 화두를 답 없이 띄운다 — 예고 칩은 다루는 섹션
+  stakes: [tpl.l-quote]              # 무엇이 걸려 있는가 — 화두 둘째 문장(득실). 70자 슬롯
   rounds: [tpl.concept]              # concept.rounds ← section="round" 조각 (코드·담당·요지)
   decision: [tpl.o-statement]        # 의사결정문 한 문장이 화면을 채운다
   action: [tpl.x-next]               # 결정 + 액션아이템. steps 의 when·owner 가 필수다
   summary: [tpl.x-summary]           # 수치를 가진 요지를 앞세운 되짚기 + 질의응답 대기
+# 내레이션은 **보조**다 — 이 장르의 골든은 무음이고(format_review L-4·L-8), 시청 맥락이
+# 혼자 보는 자료라 소리를 못 켜는 경우가 흔하다. 화면만으로 읽혀야 한다.
 narration: { enabled: true, rate: 5.5 }
 outputs: [video, pptx]
 pptx: { slide_w_in: 13.333, slide_h_in: 7.5 }      # PowerPoint 표준 16:9
@@ -26,12 +29,82 @@ theme: neutral-slate                 # 심의는 판단의 자리다 — 카메�
 # ── 승격 루프 (PLAN §8.0) ──
 # draft — 아직 심의를 거치지 않았다. 실측 표본 1건(아래 origin)으로 세운 초안이고,
 # pilot 승격에는 완주 산출물과 format_review 판정이 필요하다.
-status: draft
-usage_count: 1
+status: active
+usage_count: 2
 origin:
   created: "2026-11-01"
+
+presets:
+  # 제작 심의(2026-11-01, 6인 20턴, Conditional-Go) 가 확정한 청중 파라미터 — C-6.
+  # 청중이 비어 있으면(종전 "사내 청중") 용어 문턱 기준이 없어 적발 자체가 불가능하다.
+  audience: "심의 비참여 결재선·인접 부서"
+  tone: "판단 보고"
+  viewing_context: "메일·메신저로 받아 혼자 보는 자료 (되감기 가능 — 밀도를 올려도 된다)"
+  deliberation:
+    type: design_review
+    participants:
+      - dir-creative-director     # CD — 쟁점 조직화·판정 집계
+      - narr-story-architect      # ST — 골격·핵심 메시지 (scenario_patch 독점 작성권)
+      - impl-technical-director   # TD — 엔진 계약·조립 경로
+      - qa-consistency            # QA — 레지스트리 대조·회귀·게이트 리포트
+      - ux-accessibility          # AX — 대비·자수·모션 (조건부 거부권)
+      - ux-audience-advocate      # AU — 청중·인지 부하·기억 잔존
+    agenda:
+      - "골격이 심의의 논증을 다 담는가 — 쟁점·근거의 자리가 있는가"
+      - "조립이 원문을 버리지 않는가 — 결정값·근거·담당이 화면까지 오는가"
+      - "선언한 것이 적용되는가 — 테마·청중·톤이 명세에서 산출까지 닿는가"
+
+# 골든 — 제작 심의 조건 C-3 의 순서대로 ①테마 수정 ②재빌드 ③게이트 재실행을 거친
+# 산출물이다. 그 앞의 wr-20261101-095212-e8ed 은 테마가 틀린 화면이라 골든이 될 수 없다
+# (TD: "골든은 회귀선이지 기록물이 아니다").
+golden:
+  run_id: wr-20261101-122319-7de1
+  artifacts:
+    - data/renders/delib-golden-7de1/video.mp4
+    - data/renders/delib-golden-7de1/slides.pptx
+    - data/pipeline/wr-20261101-122319-7de1/scenario.json
+  qa_report: data/qa_reports/20261101-122558-0fcb66/qa.json
+
+# 승격 이력 — 회의록은 data/(gitignore) 라 다른 사람 손에 없다. 근거를 여기 남긴다.
+promotions:
+  - to: pilot
+    meeting_id: 9f6226ac-b06a-4fad-8d05-87f2de36815d
+    verdict: Conditional-Go
+    date: "2026-11-01"
+    note: >-
+      제작 심의 6인(CD·ST·TD·QA·AX·AU) 20턴. 엔진 계약 위반 0, AX 거부권 미행사,
+      QA 조건부 보류. Go 가 아닌 이유는 **선언한 테마가 적용되지 않아 이 포맷의 색을
+      심의하지 못했기** 때문이다(QA 가 게이트 info 1건을 단서로 빌드 대조해 찾았다).
+      조건 C-1~C-7 중 C-5 의 '결정 씬에 근거 문장' 만 스키마 상한으로 불가하여 교훈으로
+      접었고, 나머지 6건은 전부 이행했다.
+  - to: active
+    meeting_id: 3efabdb0-7b91-41a4-b4da-699fdce82f88
+    verdict: Go
+    date: "2026-11-01"
+    note: >-
+      포맷 승격 심사 6인 20턴, 전원 찬성·반대 0. 유일한 실질 쟁점이던 F-TD-3(골든에
+      내레이션 없음)은 TD 본인이 내렸다 — 내레이션은 scenario.json 에서 파생되므로
+      대본은 재현되고, 외부 TTS 를 회귀선에 넣지 않기로 했다. O-1(쟁점 역할)은 2회차
+      실측으로 유보를 풀었다: 득실 문장은 질문 슬롯에 들어갈 자리가 없다는 AU 의 반박이
+      옳았고, 골격을 5→6씬으로 늘려 해결했다(신규 템플릿 0건).
 
 lessons:
   - "조각 추출은 결백했다 — 유실은 전부 scenario_build 에서 났다. 장르 문제를 ingest 에서 찾지 마라"
   - "템플릿이 있어도 _BUILDERS 에 없으면 그 템플릿은 존재하지 않는다 — o-question·o-statement·o-metric·x-next·x-quote·x-summary 6종이 그 상태로 등록만 돼 있었다"
   - "담당·시점이 원문에 없으면 '미지정'·'후속' 로 드러낸다 — 지어내면 심의 결과가 아니라 창작이 된다"
+  # ── format_review(2026-11-01, 6인 20턴, Go) 확정 교훈 ──
+  - "이 장르의 골든은 무음이다 — 내레이션은 scenario.json 에서 파생되므로 대본은 재현되지만 음성 실측 기준은 없다. 내레이션 켠 산출을 골든과 비교하려 하지 마라(외부 TTS 를 회귀선에 넣지 않기로 했다)"
+  - "copy_guide·dur_plan 은 TTS 실측 전이라 비워 둔다 — 빈 칸은 '상한이 없다' 가 아니라 '아직 재지 않았다' 다. 추정치를 적으면 다음 사람이 그것을 실측으로 알고 집필한다"
+  - "빌드는 토큰을 복사한다(산출물 자기완결성) — 토큰 선언을 고쳤으면 재빌드해야 게이트가 새 선언으로 판정한다. 고치고 게이트만 다시 돌리면 옛 복사본을 읽는다"
+  - "쟁점 슬롯 70자를 넘기면 말줄임이 아니라 오독이 된다 — 득실은 'A 하면 B 지만 C 다' 꼴이라 뒷절반이 핵심이고, 잘리면 문장이 반대 뜻이 된다"
+  - "이 장르는 화면만으로 읽혀야 한다 — 시청 맥락이 혼자 보는 자료라 소리를 못 켜는 경우가 흔하다. 내레이션은 보조이지 전제가 아니다"
+  - "결정문을 두 씬에 넣지 마라 — 결정 씬은 선언(한 문장), 액션 씬은 근거와 이행이다. tpl.o-statement 의 3행×18자는 96px 역산값이라 근거를 더 넣을 자리가 아니다"
+  - "쟁점 역할은 빌더 수정으로 대체되지 않는다 — 득실 문장은 질문 슬롯(1~2행×18자)에 들어갈 자리가 없다. 제작 심의에서 ST 가 유보했고 AU 가 자수 계산으로 반박했으며, 2회차 실측에서 AU 가 옳았다"
+  - "포맷 승격 심의가 다른 포맷이 통과시킨 결함을 함께 닫을 수 있다 — 이번에 선언한 미선언 색 조합은 active 인 wide-16x9 의 골든에도 있던 것이다. 공유 자산(템플릿·테마)의 결함은 어느 심의에서든 잡힌다"
+
+# ── 미해결 쟁점 (format_review 2026-11-01 보존) ──
+# O-2 근거의 자리 — 비참여자에게는 결정보다 근거가 중요한데, 근거는 액션 씬 좌측 패널의
+#     26자 points 다. 쟁점 역할 신설로 득실은 자리를 얻었으나 근거는 못 얻었다. 답이
+#     없으므로 교훈이 아니라 미해결로 둔다.
+# O-4 총 길이 — 64초도 템플릿 nat_default 의 합일 뿐 실측이 아니다. 시청 맥락이 정해졌으니
+#     이제 정할 수 있다. 3회차 또는 TTS 실측 때 확정한다.
