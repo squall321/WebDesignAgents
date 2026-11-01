@@ -3,305 +3,1167 @@
   "_source_schema": "/home/koopark/claude/ReportArchive/backend/app/widgets/registry.py :: WIDGET_REGISTRY",
   "blocks": [
     {
-      "id": "w_heading", "type": "heading", "section": null,
-      "props": {"level": 2},
-      "content": {"text": "합성 제목", "level": 2}
-    },
-    {
-      "id": "w_rich_text", "type": "rich_text", "section": null,
-      "props": {"label": "본문"},
-      "content": {"markdown": "**굵게** 한 문단."}
-    },
-    {
-      "id": "w_bulleted_list", "type": "bulleted_list", "section": null,
-      "props": {"label": "목록"},
-      "content": {"items": ["항목 1", "항목 2"]}
-    },
-    {
-      "id": "w_card", "type": "card", "section": null,
-      "props": {"label": "카드"},
-      "content": {"columns": 2, "cards": [{"title": "카드 A", "body": {"items": [{"depth": 0, "text": "요약"}]}}]}
-    },
-    {
-      "id": "w_equation", "type": "equation", "section": null,
-      "props": {"label": "수식"},
-      "content": {"latex": "E = mc^2", "display_mode": "block", "number": "(1)"}
-    },
-
-    {
-      "id": "w_table", "type": "table", "section": "analysis",
-      "props": {"label": "합성 표", "columns": [
-        {"key": "step", "label": "단계", "type": "text"},
-        {"key": "owner", "label": "담당", "type": "text"},
-        {"key": "due", "label": "기한", "type": "date"},
-        {"key": "status", "label": "상태", "type": "select", "options": ["대기", "완료"]}
-      ]},
-      "content": {"caption": "작업 배분", "rows": [
-        {"step": "요구 정리", "owner": "박", "due": "2026-01-10", "status": "완료"},
-        {"step": "설계", "owner": "김", "due": "2026-02-10", "status": "대기"}
-      ]}
-    },
-    {
-      "id": "w_comparison", "type": "comparison", "section": null,
-      "props": {"label": "AS-IS / TO-BE", "cases": [
-        {"key": "asis", "label": "AS-IS"}, {"key": "tobe", "label": "TO-BE"}
-      ]},
-      "content": {"rows": [
-        {"key": "speed", "label": "속도", "kind": "text", "values": {"asis": "3일", "tobe": "4시간"}},
-        {"key": "shot", "label": "화면", "kind": "image",
-         "values": {"asis": {"file_id": "f-old-ui", "alt": "구 화면", "caption": "이전 UI"},
-                    "tobe": {"file_id": "f-new-ui", "alt": "신 화면", "caption": "신규 UI"}}}
-      ]}
-    },
-    {
-      "id": "w_raci_matrix", "type": "raci_matrix", "section": null,
-      "props": {"label": "책임 분담"},
-      "content": {"roles": [{"key": "pm", "label": "PM"}, {"key": "dev", "label": "개발"}],
-        "rows": [{"label": "설계 승인", "assignments": {"pm": "R/A", "dev": "C"}}]}
-    },
-    {
-      "id": "w_fmea", "type": "fmea", "section": null,
-      "props": {"label": "FMEA", "rpn_threshold": 100},
-      "content": {"fmea_items": {"caption": "위험 분석", "rows": [
-        {"id": "r1", "failure_mode": {"name": "셀 단락", "entity_id": null},
-         "potential_effect": "열폭주", "potential_cause": "분리막 손상",
-         "current_controls": "X-ray 검사", "severity": 9, "occurrence": 3,
-         "detection": 4, "rpn": 108, "recommended_action": "검사 주기 단축",
-         "responsible": "품질팀", "due_date": "2026-03-01", "status": "진행"}
-      ]}}
-    },
-    {
-      "id": "w_record_table", "type": "record_table", "section": null,
-      "props": {"label": "장비 목록", "axis_slug": "equipment"},
-      "content": {"axis_slug": "equipment", "rows": [
-        {"name": "프레스 1호", "properties": {"tonnage": "400t", "line": "A"}, "entity_id": 11},
-        {"name": "프레스 2호", "properties": {"tonnage": "600t", "line": "B"}, "entity_id": 12}
-      ]}
-    },
-    {
-      "id": "w_record", "type": "record", "section": null,
-      "props": {"label": "단일 레코드", "axis_slug": "equipment"},
-      "content": {"axis_slug": "equipment", "name": "프레스 1호",
-        "properties": {"tonnage": "400t", "line": "A"}, "entity_id": 11}
-    },
-
-    {
-      "id": "w_flowchart", "type": "flowchart", "section": null,
-      "props": {"label": "절차", "orientation": "vertical"},
-      "content": {"items": [
-        {"label": "수집", "description": "원천 데이터 적재"},
-        {"label": "정규화", "description": "스키마 정합"},
-        {"label": "배포", "description": "산출물 게시"}
-      ]}
-    },
-    {
-      "id": "w_tree", "type": "tree", "section": null,
-      "props": {"label": "구성"},
-      "content": {"rows": [
-        {"label": "루트"},
-        {"label": "가지 A", "parent": "루트", "subtitle": "좌측"},
-        {"label": "잎 A1", "parent": "가지 A"},
-        {"label": "가지 B", "parent": "루트"}
-      ], "orientation": "horizontal"}
-    },
-    {
-      "id": "w_mind_map", "type": "mind_map", "section": null,
-      "props": {"label": "발상"},
-      "content": {"rows": [
-        {"label": "중심 주제"},
-        {"label": "축 1", "parent": "중심 주제"},
-        {"label": "축 2", "parent": "중심 주제"}
-      ], "layout": "radial"}
-    },
-    {
-      "id": "w_network", "type": "network", "section": null,
-      "props": {"label": "관계도"},
+      "id": "w_heading",
+      "type": "heading",
+      "section": null,
+      "props": {
+        "level": 2
+      },
       "content": {
-        "nodes": [{"id": "n1", "label": "설계", "group": "내부", "value": 3},
-                  {"id": "n2", "label": "생산", "group": "내부", "value": 5},
-                  {"id": "n3", "label": "협력사", "group": "외부"}],
-        "edges": [{"source": "n1", "target": "n2", "label": "도면", "weight": 2},
-                  {"source": "n2", "target": "n3", "label": "발주"}],
-        "directed": true, "layout": "force"}
+        "text": "합성 제목",
+        "level": 2
+      }
     },
     {
-      "id": "w_sankey", "type": "sankey", "section": null,
-      "props": {"label": "물량 흐름", "unit": "톤"},
+      "id": "w_rich_text",
+      "type": "rich_text",
+      "section": null,
+      "props": {
+        "label": "본문"
+      },
       "content": {
-        "nodes": [{"label": "입고"}, {"label": "가공"}, {"label": "출하"}],
-        "links": [{"source": "입고", "target": "가공", "value": 120},
-                  {"source": "가공", "target": "출하", "value": 95}],
-        "unit": "톤"}
-    },
-
-    {
-      "id": "w_chart", "type": "chart", "section": null,
-      "props": {"label": "월별 실적", "chart_type": "bar", "x_column_key": "month",
-        "columns": [{"key": "month", "label": "월", "type": "text"},
-                    {"key": "plan", "label": "계획", "type": "number"},
-                    {"key": "actual", "label": "실적", "type": "number"}],
-        "y_axis_title": "건수"},
-      "content": {"caption": "월별 처리 건수",
-        "rows": [{"month": "1월", "plan": 100, "actual": 92},
-                 {"month": "2월", "plan": 110, "actual": 118}],
-        "y_min": 0, "y_max": 150}
+        "markdown": "**굵게** 한 문단."
+      }
     },
     {
-      "id": "w_scatter", "type": "scatter", "section": null,
-      "props": {"label": "상관", "mode": "markers",
-        "columns": [{"key": "temp", "label": "온도", "type": "number"},
-                    {"key": "yield_pct", "label": "수율", "type": "number"}]},
-      "content": {"series": [{"label": "라인 A", "x_key": "temp", "y_key": "yield_pct"}],
-        "rows": [{"temp": 20, "yield_pct": 91.2}, {"temp": 30, "yield_pct": 95.4}],
-        "y_min": 80, "y_max": 100}
+      "id": "w_bulleted_list",
+      "type": "bulleted_list",
+      "section": null,
+      "props": {
+        "label": "목록"
+      },
+      "content": {
+        "items": [
+          "항목 1",
+          "항목 2"
+        ]
+      }
     },
     {
-      "id": "w_scatter3d", "type": "scatter3d", "section": null,
-      "props": {"label": "응답면",
-        "columns": [{"key": "x", "label": "X", "type": "number"},
-                    {"key": "y", "label": "Y", "type": "number"},
-                    {"key": "z", "label": "Z", "type": "number"}]},
-      "content": {"series": [{"label": "실험", "kind": "markers", "x_key": "x", "y_key": "y", "z_key": "z"}],
-        "rows": [{"x": 1, "y": 2, "z": 3}, {"x": 2, "y": 4, "z": 6}]}
+      "id": "w_card",
+      "type": "card",
+      "section": null,
+      "props": {
+        "label": "카드"
+      },
+      "content": {
+        "columns": 2,
+        "cards": [
+          {
+            "title": "카드 A",
+            "body": {
+              "items": [
+                {
+                  "depth": 0,
+                  "text": "요약"
+                }
+              ]
+            }
+          }
+        ]
+      }
     },
     {
-      "id": "w_heatmap", "type": "heatmap", "section": null,
-      "props": {"label": "히트맵"},
-      "content": {"x_labels": ["1분기", "2분기"], "y_labels": ["A라인", "B라인"],
-        "matrix": [[1.2, 3.4], [5.6, null]], "z_min": 0, "z_max": 6}
+      "id": "w_equation",
+      "type": "equation",
+      "section": null,
+      "props": {
+        "label": "수식"
+      },
+      "content": {
+        "latex": "E = mc^2",
+        "display_mode": "block",
+        "number": "(1)"
+      }
     },
     {
-      "id": "w_contour", "type": "contour", "section": null,
-      "props": {"label": "등고선"},
-      "content": {"mode": "rows", "rows": [{"x": 1, "y": 1, "z": 10}, {"x": 2, "y": 1, "z": 14}]}
+      "id": "w_table",
+      "type": "table",
+      "section": "analysis",
+      "props": {
+        "label": "합성 표",
+        "columns": [
+          {
+            "key": "step",
+            "label": "단계",
+            "type": "text"
+          },
+          {
+            "key": "owner",
+            "label": "담당",
+            "type": "text"
+          },
+          {
+            "key": "due",
+            "label": "기한",
+            "type": "date"
+          },
+          {
+            "key": "status",
+            "label": "상태",
+            "type": "select",
+            "options": [
+              "대기",
+              "완료"
+            ]
+          }
+        ]
+      },
+      "content": {
+        "caption": "작업 배분",
+        "rows": [
+          {
+            "step": "요구 정리",
+            "owner": "박",
+            "due": "2026-01-10",
+            "status": "완료"
+          },
+          {
+            "step": "설계",
+            "owner": "김",
+            "due": "2026-02-10",
+            "status": "대기"
+          }
+        ]
+      }
     },
     {
-      "id": "w_treemap", "type": "treemap", "section": null,
-      "props": {"label": "비중"},
-      "content": {"unit": "억원", "rows": [
-        {"label": "전사"}, {"label": "국내", "parent": "전사", "value": 120},
-        {"label": "해외", "parent": "전사", "value": 80}]}
+      "id": "w_comparison",
+      "type": "comparison",
+      "section": null,
+      "props": {
+        "label": "AS-IS / TO-BE",
+        "cases": [
+          {
+            "key": "asis",
+            "label": "AS-IS"
+          },
+          {
+            "key": "tobe",
+            "label": "TO-BE"
+          }
+        ]
+      },
+      "content": {
+        "rows": [
+          {
+            "key": "speed",
+            "label": "속도",
+            "kind": "text",
+            "values": {
+              "asis": "3일",
+              "tobe": "4시간"
+            }
+          },
+          {
+            "key": "shot",
+            "label": "화면",
+            "kind": "image",
+            "values": {
+              "asis": {
+                "file_id": "f-old-ui",
+                "alt": "구 화면",
+                "caption": "이전 UI"
+              },
+              "tobe": {
+                "file_id": "f-new-ui",
+                "alt": "신 화면",
+                "caption": "신규 UI"
+              }
+            }
+          }
+        ]
+      }
     },
     {
-      "id": "w_packing", "type": "packing", "section": null,
-      "props": {"label": "패킹"},
-      "content": {"unit": "건", "rows": [{"label": "A", "value": 12}, {"label": "B", "value": 7}]}
+      "id": "w_raci_matrix",
+      "type": "raci_matrix",
+      "section": null,
+      "props": {
+        "label": "책임 분담"
+      },
+      "content": {
+        "roles": [
+          {
+            "key": "pm",
+            "label": "PM"
+          },
+          {
+            "key": "dev",
+            "label": "개발"
+          }
+        ],
+        "rows": [
+          {
+            "label": "설계 승인",
+            "assignments": {
+              "pm": "R/A",
+              "dev": "C"
+            }
+          }
+        ]
+      }
     },
     {
-      "id": "w_pie", "type": "pie", "section": null,
-      "props": {"label": "구성비"},
-      "content": {"unit": "%", "chart_type": "doughnut", "hole": 0.4,
-        "rows": [{"label": "정상", "value": 82}, {"label": "재작업", "value": 13},
-                 {"label": "폐기", "value": 5}]}
+      "id": "w_fmea",
+      "type": "fmea",
+      "section": null,
+      "props": {
+        "label": "FMEA",
+        "rpn_threshold": 100
+      },
+      "content": {
+        "fmea_items": {
+          "caption": "위험 분석",
+          "rows": [
+            {
+              "id": "r1",
+              "failure_mode": {
+                "name": "셀 단락",
+                "entity_id": null
+              },
+              "potential_effect": "열폭주",
+              "potential_cause": "분리막 손상",
+              "current_controls": "X-ray 검사",
+              "severity": 9,
+              "occurrence": 3,
+              "detection": 4,
+              "rpn": 108,
+              "recommended_action": "검사 주기 단축",
+              "responsible": "품질팀",
+              "due_date": "2026-03-01",
+              "status": "진행"
+            }
+          ]
+        }
+      }
     },
     {
-      "id": "w_waffle", "type": "waffle", "section": null,
-      "props": {"label": "와플"},
-      "content": {"unit": "%", "cols": 10, "grid_rows": 10,
-        "rows": [{"label": "달성", "value": 70}, {"label": "미달", "value": 30}]}
+      "id": "w_record_table",
+      "type": "record_table",
+      "section": null,
+      "props": {
+        "label": "장비 목록",
+        "axis_slug": "equipment"
+      },
+      "content": {
+        "axis_slug": "equipment",
+        "rows": [
+          {
+            "name": "프레스 1호",
+            "properties": {
+              "tonnage": "400t",
+              "line": "A"
+            },
+            "entity_id": 11
+          },
+          {
+            "name": "프레스 2호",
+            "properties": {
+              "tonnage": "600t",
+              "line": "B"
+            },
+            "entity_id": 12
+          }
+        ]
+      }
     },
     {
-      "id": "w_box", "type": "box", "section": null,
-      "props": {"label": "분포", "y_axis_title": "치수"},
-      "content": {"unit": "mm", "orientation": "v",
-        "rows": [{"group": "A", "value": 10.1}, {"group": "A", "value": 10.4},
-                 {"group": "B", "value": 11.2}]}
+      "id": "w_record",
+      "type": "record",
+      "section": null,
+      "props": {
+        "label": "단일 레코드",
+        "axis_slug": "equipment"
+      },
+      "content": {
+        "axis_slug": "equipment",
+        "name": "프레스 1호",
+        "properties": {
+          "tonnage": "400t",
+          "line": "A"
+        },
+        "entity_id": 11
+      }
     },
     {
-      "id": "w_density", "type": "density", "section": null,
-      "props": {"label": "밀도"},
-      "content": {"unit": "mm",
-        "groups": [{"name": "before", "values": [1.0, 1.2, 1.4]},
-                   {"name": "after", "values": [0.9, 1.0]}]}
+      "id": "w_flowchart",
+      "type": "flowchart",
+      "section": null,
+      "props": {
+        "label": "절차",
+        "orientation": "vertical"
+      },
+      "content": {
+        "items": [
+          {
+            "label": "수집",
+            "description": "원천 데이터 적재"
+          },
+          {
+            "label": "정규화",
+            "description": "스키마 정합"
+          },
+          {
+            "label": "배포",
+            "description": "산출물 게시"
+          }
+        ]
+      }
     },
     {
-      "id": "w_radar", "type": "radar", "section": null,
-      "props": {"label": "역량"},
-      "content": {"axis_labels": ["속도", "정확도", "비용"],
-        "series": [{"label": "현행"}, {"label": "개선"}],
-        "values": [[3, 4, 2], [5, 5, 4]], "value_min": 0, "value_max": 5}
+      "id": "w_tree",
+      "type": "tree",
+      "section": null,
+      "props": {
+        "label": "구성"
+      },
+      "content": {
+        "rows": [
+          {
+            "label": "루트"
+          },
+          {
+            "label": "가지 A",
+            "parent": "루트",
+            "subtitle": "좌측"
+          },
+          {
+            "label": "잎 A1",
+            "parent": "가지 A"
+          },
+          {
+            "label": "가지 B",
+            "parent": "루트"
+          }
+        ],
+        "orientation": "horizontal"
+      }
     },
     {
-      "id": "w_progress_bar", "type": "progress_bar", "section": null,
-      "props": {"label": "진척", "default_max": 100, "unit": "%"},
-      "content": {"items": [{"label": "Phase 1", "value": 100},
-                            {"label": "Phase 2", "value": 60, "note": "검증 중", "status": "진행"}]}
+      "id": "w_mind_map",
+      "type": "mind_map",
+      "section": null,
+      "props": {
+        "label": "발상"
+      },
+      "content": {
+        "rows": [
+          {
+            "label": "중심 주제"
+          },
+          {
+            "label": "축 1",
+            "parent": "중심 주제"
+          },
+          {
+            "label": "축 2",
+            "parent": "중심 주제"
+          }
+        ],
+        "layout": "radial"
+      }
     },
     {
-      "id": "w_quadrant", "type": "quadrant", "section": null,
-      "props": {"label": "우선순위", "default_mode": "plot",
-        "x_axis_title": "노력", "y_axis_title": "효과",
-        "x_range": [0, 10], "y_range": [0, 10]},
-      "content": {"mode": "plot", "plot_items": [
-        {"id": "i1", "label": "자동 리포트", "x": 3, "y": 8, "group": "quick"},
-        {"id": "i2", "label": "전면 재설계", "x": 9, "y": 7}]}
+      "id": "w_network",
+      "type": "network",
+      "section": null,
+      "props": {
+        "label": "관계도"
+      },
+      "content": {
+        "nodes": [
+          {
+            "id": "n1",
+            "label": "설계",
+            "group": "내부",
+            "value": 3
+          },
+          {
+            "id": "n2",
+            "label": "생산",
+            "group": "내부",
+            "value": 5
+          },
+          {
+            "id": "n3",
+            "label": "협력사",
+            "group": "외부"
+          }
+        ],
+        "edges": [
+          {
+            "source": "n1",
+            "target": "n2",
+            "label": "도면",
+            "weight": 2
+          },
+          {
+            "source": "n2",
+            "target": "n3",
+            "label": "발주"
+          }
+        ],
+        "directed": true,
+        "layout": "force"
+      }
     },
     {
-      "id": "w_quadrant_bucket", "type": "quadrant", "section": null,
-      "props": {"label": "버킷 모드", "default_mode": "bucket"},
-      "content": {"mode": "bucket", "bucket_items": [
-        {"id": "b1", "quadrant": "tl", "text": "즉시 착수", "weight": 2},
-        {"id": "b2", "quadrant": "br", "text": "보류"}]}
+      "id": "w_sankey",
+      "type": "sankey",
+      "section": null,
+      "props": {
+        "label": "물량 흐름",
+        "unit": "톤"
+      },
+      "content": {
+        "nodes": [
+          {
+            "label": "입고"
+          },
+          {
+            "label": "가공"
+          },
+          {
+            "label": "출하"
+          }
+        ],
+        "links": [
+          {
+            "source": "입고",
+            "target": "가공",
+            "value": 120
+          },
+          {
+            "source": "가공",
+            "target": "출하",
+            "value": 95
+          }
+        ],
+        "unit": "톤"
+      }
     },
     {
-      "id": "w_milestone", "type": "milestone", "section": "schedule",
-      "props": {"label": "로드맵", "start_date": "2026-01-01", "end_date": "2026-12-31"},
-      "content": {"items": [
-        {"date": "2026-02", "label": "착수", "status": "done"},
-        {"date": "2026-06", "label": "중간 검증", "status": "current", "note": "필드 테스트"},
-        {"date": "2026-11", "label": "양산", "status": "planned"}]}
+      "id": "w_chart",
+      "type": "chart",
+      "section": null,
+      "props": {
+        "label": "월별 실적",
+        "chart_type": "bar",
+        "x_column_key": "month",
+        "columns": [
+          {
+            "key": "month",
+            "label": "월",
+            "type": "text"
+          },
+          {
+            "key": "plan",
+            "label": "계획",
+            "type": "number"
+          },
+          {
+            "key": "actual",
+            "label": "실적",
+            "type": "number"
+          }
+        ],
+        "y_axis_title": "건수"
+      },
+      "content": {
+        "caption": "월별 처리 건수",
+        "rows": [
+          {
+            "month": "1월",
+            "plan": 100,
+            "actual": 92
+          },
+          {
+            "month": "2월",
+            "plan": 110,
+            "actual": 118
+          }
+        ],
+        "y_min": 0,
+        "y_max": 150
+      }
     },
     {
-      "id": "w_key_value", "type": "key_value", "section": null,
-      "props": {"label": "사양", "items": [
-        {"key": "cpu", "label": "CPU", "type": "text"},
-        {"key": "mem", "label": "메모리", "type": "text"}]},
-      "content": {"items": [{"key": "cpu", "label": "CPU", "type": "text"},
-                            {"key": "mem", "label": "메모리", "type": "text"}],
-        "cpu": "Xeon 6338", "mem": "256GB"}
+      "id": "w_scatter",
+      "type": "scatter",
+      "section": null,
+      "props": {
+        "label": "상관",
+        "mode": "markers",
+        "columns": [
+          {
+            "key": "temp",
+            "label": "온도",
+            "type": "number"
+          },
+          {
+            "key": "yield_pct",
+            "label": "수율",
+            "type": "number"
+          }
+        ]
+      },
+      "content": {
+        "series": [
+          {
+            "label": "라인 A",
+            "x_key": "temp",
+            "y_key": "yield_pct"
+          }
+        ],
+        "rows": [
+          {
+            "temp": 20,
+            "yield_pct": 91.2
+          },
+          {
+            "temp": 30,
+            "yield_pct": 95.4
+          }
+        ],
+        "y_min": 80,
+        "y_max": 100
+      }
     },
-
     {
-      "id": "w_image", "type": "image", "section": null,
-      "props": {"label": "사진", "max_count": 4},
-      "content": {"caption": "시험 장면", "files": [
-        {"file_id": "f-shot-1", "caption": "정면", "alt": "시험기 정면"},
-        {"file_id": "f-shot-2", "alt": "측면"}]}
+      "id": "w_scatter3d",
+      "type": "scatter3d",
+      "section": null,
+      "props": {
+        "label": "응답면",
+        "columns": [
+          {
+            "key": "x",
+            "label": "X",
+            "type": "number"
+          },
+          {
+            "key": "y",
+            "label": "Y",
+            "type": "number"
+          },
+          {
+            "key": "z",
+            "label": "Z",
+            "type": "number"
+          }
+        ]
+      },
+      "content": {
+        "series": [
+          {
+            "label": "실험",
+            "kind": "markers",
+            "x_key": "x",
+            "y_key": "y",
+            "z_key": "z"
+          }
+        ],
+        "rows": [
+          {
+            "x": 1,
+            "y": 2,
+            "z": 3
+          },
+          {
+            "x": 2,
+            "y": 4,
+            "z": 6
+          }
+        ]
+      }
     },
     {
-      "id": "w_video", "type": "video", "section": null,
-      "props": {"label": "영상"},
-      "content": {"caption": "낙하 시험", "files": [
-        {"file_id": "f-clip-1", "filename": "drop.mp4", "size": 10485760, "mime_type": "video/mp4"}]}
+      "id": "w_heatmap",
+      "type": "heatmap",
+      "section": null,
+      "props": {
+        "label": "히트맵"
+      },
+      "content": {
+        "x_labels": [
+          "1분기",
+          "2분기"
+        ],
+        "y_labels": [
+          "A라인",
+          "B라인"
+        ],
+        "matrix": [
+          [
+            1.2,
+            3.4
+          ],
+          [
+            5.6,
+            null
+          ]
+        ],
+        "z_min": 0,
+        "z_max": 6
+      }
     },
     {
-      "id": "w_attachment", "type": "attachment", "section": null,
-      "props": {"label": "첨부"},
-      "content": {"caption": "원자료", "files": [
-        {"file_id": "f-raw-1", "filename": "raw.csv", "size": 20480}]}
+      "id": "w_contour",
+      "type": "contour",
+      "section": null,
+      "props": {
+        "label": "등고선"
+      },
+      "content": {
+        "mode": "rows",
+        "rows": [
+          {
+            "x": 1,
+            "y": 1,
+            "z": 10
+          },
+          {
+            "x": 2,
+            "y": 1,
+            "z": 14
+          }
+        ]
+      }
     },
     {
-      "id": "w_cad_3d", "type": "cad_3d", "section": null,
-      "props": {"label": "3D 모델", "unit": "mm"},
-      "content": {"caption": "조립체", "file_id": "f-cad-1", "loaded_filename": "assy.step"}
+      "id": "w_treemap",
+      "type": "treemap",
+      "section": null,
+      "props": {
+        "label": "비중"
+      },
+      "content": {
+        "unit": "억원",
+        "rows": [
+          {
+            "label": "전사"
+          },
+          {
+            "label": "국내",
+            "parent": "전사",
+            "value": 120
+          },
+          {
+            "label": "해외",
+            "parent": "전사",
+            "value": 80
+          }
+        ]
+      }
     },
     {
-      "id": "w_doc_viewer", "type": "doc_viewer", "section": null,
-      "props": {"label": "규격서"},
-      "content": {"caption": "시험 규격", "file_id": "f-doc-1", "filename": "spec.pdf",
-        "mime_type": "application/pdf", "page_count": 12}
+      "id": "w_packing",
+      "type": "packing",
+      "section": null,
+      "props": {
+        "label": "패킹"
+      },
+      "content": {
+        "unit": "건",
+        "rows": [
+          {
+            "label": "A",
+            "value": 12
+          },
+          {
+            "label": "B",
+            "value": 7
+          }
+        ]
+      }
     },
     {
-      "id": "w_html_embed", "type": "html_embed", "section": null,
-      "props": {"label": "임베드"},
-      "content": {"caption": "대시보드", "file_id": "f-bundle-1", "bundle_id": "b1",
-        "entry_path": "index.html", "title": "실시간 대시보드"}
+      "id": "w_pie",
+      "type": "pie",
+      "section": null,
+      "props": {
+        "label": "구성비"
+      },
+      "content": {
+        "unit": "%",
+        "chart_type": "doughnut",
+        "hole": 0.4,
+        "rows": [
+          {
+            "label": "정상",
+            "value": 82
+          },
+          {
+            "label": "재작업",
+            "value": 13
+          },
+          {
+            "label": "폐기",
+            "value": 5
+          }
+        ]
+      }
     },
-
     {
-      "id": "w_unknown_future", "type": "gantt_v2", "section": null,
-      "props": {"label": "미지 위젯"},
-      "content": {"bars": [{"label": "미래에 추가될 위젯", "from": 1, "to": 5}]}
+      "id": "w_waffle",
+      "type": "waffle",
+      "section": null,
+      "props": {
+        "label": "와플"
+      },
+      "content": {
+        "unit": "%",
+        "cols": 10,
+        "grid_rows": 10,
+        "rows": [
+          {
+            "label": "달성",
+            "value": 70
+          },
+          {
+            "label": "미달",
+            "value": 30
+          }
+        ]
+      }
+    },
+    {
+      "id": "w_box",
+      "type": "box",
+      "section": null,
+      "props": {
+        "label": "분포",
+        "y_axis_title": "치수"
+      },
+      "content": {
+        "unit": "mm",
+        "orientation": "v",
+        "rows": [
+          {
+            "group": "A",
+            "value": 10.1
+          },
+          {
+            "group": "A",
+            "value": 10.4
+          },
+          {
+            "group": "B",
+            "value": 11.2
+          }
+        ]
+      }
+    },
+    {
+      "id": "w_density",
+      "type": "density",
+      "section": null,
+      "props": {
+        "label": "밀도"
+      },
+      "content": {
+        "unit": "mm",
+        "groups": [
+          {
+            "name": "before",
+            "values": [
+              1.0,
+              1.2,
+              1.4
+            ]
+          },
+          {
+            "name": "after",
+            "values": [
+              0.9,
+              1.0
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "w_radar",
+      "type": "radar",
+      "section": null,
+      "props": {
+        "label": "역량"
+      },
+      "content": {
+        "axis_labels": [
+          "속도",
+          "정확도",
+          "비용"
+        ],
+        "series": [
+          {
+            "label": "현행"
+          },
+          {
+            "label": "개선"
+          }
+        ],
+        "values": [
+          [
+            3,
+            4,
+            2
+          ],
+          [
+            5,
+            5,
+            4
+          ]
+        ],
+        "value_min": 0,
+        "value_max": 5
+      }
+    },
+    {
+      "id": "w_progress_bar",
+      "type": "progress_bar",
+      "section": null,
+      "props": {
+        "label": "진척",
+        "default_max": 100,
+        "unit": "%"
+      },
+      "content": {
+        "items": [
+          {
+            "label": "Phase 1",
+            "value": 100
+          },
+          {
+            "label": "Phase 2",
+            "value": 60,
+            "note": "검증 중",
+            "status": "진행"
+          }
+        ]
+      }
+    },
+    {
+      "id": "w_quadrant",
+      "type": "quadrant",
+      "section": null,
+      "props": {
+        "label": "우선순위",
+        "default_mode": "plot",
+        "x_axis_title": "노력",
+        "y_axis_title": "효과",
+        "x_range": [
+          0,
+          10
+        ],
+        "y_range": [
+          0,
+          10
+        ]
+      },
+      "content": {
+        "mode": "plot",
+        "plot_items": [
+          {
+            "id": "i1",
+            "label": "자동 리포트",
+            "x": 3,
+            "y": 8,
+            "group": "quick"
+          },
+          {
+            "id": "i2",
+            "label": "전면 재설계",
+            "x": 9,
+            "y": 7
+          }
+        ]
+      }
+    },
+    {
+      "id": "w_quadrant_bucket",
+      "type": "quadrant",
+      "section": null,
+      "props": {
+        "label": "버킷 모드",
+        "default_mode": "bucket"
+      },
+      "content": {
+        "mode": "bucket",
+        "bucket_items": [
+          {
+            "id": "b1",
+            "quadrant": "tl",
+            "text": "즉시 착수",
+            "weight": 2
+          },
+          {
+            "id": "b2",
+            "quadrant": "br",
+            "text": "보류"
+          }
+        ]
+      }
+    },
+    {
+      "id": "w_milestone",
+      "type": "milestone",
+      "section": "schedule",
+      "props": {
+        "label": "로드맵",
+        "start_date": "2026-01-01",
+        "end_date": "2026-12-31"
+      },
+      "content": {
+        "items": [
+          {
+            "date": "2026-02",
+            "label": "착수",
+            "status": "done"
+          },
+          {
+            "date": "2026-06",
+            "label": "중간 검증",
+            "status": "current",
+            "note": "필드 테스트"
+          },
+          {
+            "date": "2026-11",
+            "label": "양산",
+            "status": "planned"
+          }
+        ]
+      }
+    },
+    {
+      "id": "w_key_value",
+      "type": "key_value",
+      "section": null,
+      "props": {
+        "label": "사양",
+        "items": [
+          {
+            "key": "cpu",
+            "label": "CPU",
+            "type": "text"
+          },
+          {
+            "key": "mem",
+            "label": "메모리",
+            "type": "text"
+          }
+        ]
+      },
+      "content": {
+        "items": [
+          {
+            "key": "cpu",
+            "label": "CPU",
+            "type": "text"
+          },
+          {
+            "key": "mem",
+            "label": "메모리",
+            "type": "text"
+          }
+        ],
+        "cpu": "Xeon 6338",
+        "mem": "256GB"
+      }
+    },
+    {
+      "id": "w_image",
+      "type": "image",
+      "section": null,
+      "props": {
+        "label": "사진",
+        "max_count": 4
+      },
+      "content": {
+        "caption": "시험 장면",
+        "files": [
+          {
+            "file_id": "f-shot-1",
+            "caption": "정면",
+            "alt": "시험기 정면"
+          },
+          {
+            "file_id": "f-shot-2",
+            "alt": "측면"
+          }
+        ]
+      }
+    },
+    {
+      "id": "w_video",
+      "type": "video",
+      "section": null,
+      "props": {
+        "label": "영상"
+      },
+      "content": {
+        "caption": "낙하 시험",
+        "files": [
+          {
+            "file_id": "f-clip-1",
+            "filename": "drop.mp4",
+            "size": 10485760,
+            "mime_type": "video/mp4"
+          }
+        ]
+      }
+    },
+    {
+      "id": "w_attachment",
+      "type": "attachment",
+      "section": null,
+      "props": {
+        "label": "첨부"
+      },
+      "content": {
+        "caption": "원자료",
+        "files": [
+          {
+            "file_id": "f-raw-1",
+            "filename": "raw.csv",
+            "size": 20480
+          }
+        ]
+      }
+    },
+    {
+      "id": "w_cad_3d",
+      "type": "cad_3d",
+      "section": null,
+      "props": {
+        "label": "3D 모델",
+        "unit": "mm"
+      },
+      "content": {
+        "caption": "조립체",
+        "file_id": "f-cad-1",
+        "loaded_filename": "assy.step"
+      }
+    },
+    {
+      "id": "w_doc_viewer",
+      "type": "doc_viewer",
+      "section": null,
+      "props": {
+        "label": "규격서"
+      },
+      "content": {
+        "caption": "시험 규격",
+        "file_id": "f-doc-1",
+        "filename": "spec.pdf",
+        "mime_type": "application/pdf",
+        "page_count": 12
+      }
+    },
+    {
+      "id": "w_html_embed",
+      "type": "html_embed",
+      "section": null,
+      "props": {
+        "label": "임베드"
+      },
+      "content": {
+        "caption": "대시보드",
+        "file_id": "f-bundle-1",
+        "bundle_id": "b1",
+        "entry_path": "index.html",
+        "title": "실시간 대시보드"
+      }
+    },
+    {
+      "id": "w_unknown_future",
+      "type": "gantt_v2",
+      "section": null,
+      "props": {
+        "label": "미지 위젯"
+      },
+      "content": {
+        "bars": [
+          {
+            "label": "미래에 추가될 위젯",
+            "from": 1,
+            "to": 5
+          }
+        ]
+      }
+    },
+    {
+      "id": "pam_1",
+      "type": "part_axis_matrix",
+      "props": {
+        "label": "부품 × 축 최대응력",
+        "x_axis_title": "축",
+        "y_axis_title": "부품"
+      },
+      "content": {
+        "caption": "부품별 축 방향 최대응력 (MPa)",
+        "x_labels": [
+          "X",
+          "Y",
+          "Z"
+        ],
+        "y_labels": [
+          "브래킷",
+          "하우징",
+          "커버"
+        ],
+        "matrix": [
+          [
+            142.0,
+            98.5,
+            61.2
+          ],
+          [
+            87.3,
+            155.9,
+            74.0
+          ],
+          [
+            53.1,
+            66.8,
+            121.4
+          ]
+        ]
+      }
+    },
+    {
+      "id": "sph_1",
+      "type": "sphere_map",
+      "props": {
+        "label": "전방위 낙하",
+        "value_title": "최대 G"
+      },
+      "content": {
+        "caption": "방향별 최대 가속도",
+        "points": [
+          {
+            "roll": 0,
+            "pitch": 0,
+            "value": 12.4
+          },
+          {
+            "roll": 90,
+            "pitch": 30,
+            "value": 18.1
+          },
+          {
+            "roll": 180,
+            "pitch": -30,
+            "value": 9.7
+          },
+          {
+            "roll": 270,
+            "pitch": 60,
+            "value": 15.2
+          }
+        ]
+      }
     }
   ]
 }

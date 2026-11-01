@@ -21,7 +21,9 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 SAMPLE = REPO_ROOT / "examples" / "reportarchive" / "report_sample.json"
 SYNTHETIC = REPO_ROOT / "data" / "widget_check" / "synthetic_blocks.json"
 
-# ReportArchive registry.WIDGET_REGISTRY 전수 (2026-07 기준 38종)
+# ReportArchive registry.WIDGET_REGISTRY 전수 (2026-11-01 실측 40종)
+# RA 가 늘면 여기가 먼저 깨져야 한다 — 우리가 모르는 위젯은 조각으로 들어와도
+# 구조를 잃고 텍스트로 떨어진다(표가 문장이 되고 수치가 사라진다).
 REGISTRY_TYPES = {
     "heading", "rich_text", "key_value", "bulleted_list", "table", "record",
     "record_table", "image", "attachment", "video", "html_embed", "doc_viewer",
@@ -29,6 +31,9 @@ REGISTRY_TYPES = {
     "tree", "network", "mind_map", "pie", "waffle", "box", "density", "radar",
     "equation", "milestone", "flowchart", "progress_bar", "raci_matrix",
     "comparison", "cad_3d", "quadrant", "sankey", "fmea", "card",
+    # 2026-11-01 최신화 — RA 가 그 사이 늘린 둘
+    "part_axis_matrix",   # 부품 × 축(수천 개) 행렬. 데이터 모양은 heatmap 과 같다
+    "sphere_map",         # 방향(roll·pitch)별 값 — 전방위 해석 결과
 }
 
 
@@ -51,10 +56,10 @@ def norm() -> dict:
 
 def test_group_table_covers_registry():
     assert set(GROUP_BY_TYPE) == REGISTRY_TYPES, (
-        "GROUP_BY_TYPE 가 registry.WIDGET_REGISTRY 38종과 어긋난다 — "
+        "GROUP_BY_TYPE 가 registry.WIDGET_REGISTRY 와 어긋난다 — "
         f"누락={REGISTRY_TYPES - set(GROUP_BY_TYPE)} 초과={set(GROUP_BY_TYPE) - REGISTRY_TYPES}"
     )
-    assert len(GROUP_BY_TYPE) == 38
+    assert len(GROUP_BY_TYPE) == len(REGISTRY_TYPES) == 40
 
 
 def test_synthetic_fixture_covers_every_type(blocks: dict):
@@ -263,7 +268,8 @@ def test_every_structured_type_yields_payload(blocks: dict):
     """구조군 33종은 합성 픽스처에서 전부 payload 가 나와야 한다."""
     failed = [t for t in sorted(STRUCTURED_TYPES) if extract_structured(blocks[t][0]) is None]
     assert not failed, f"구조 추출 실패 타입: {failed}"
-    assert len(STRUCTURED_TYPES) == 33
+    # 2026-11-01 — RA 최신화로 part_axis_matrix·sphere_map 이 더해져 35 종
+    assert len(STRUCTURED_TYPES) == 35
 
 
 # ── 실물 보고서 커버리지 ─────────────────────────────────────────────────
@@ -382,3 +388,36 @@ def test_collect_media_joins_assets_meta(blocks: dict):
     assert media[0]["asset"]["width"] == 800
     assert media[1]["asset"] is None
     assert media[2]["media_type"] == "image" and media[2]["block_id"] == "w_comparison"
+
+
+# ── RA 레지스트리 현행성 (2026-11-01) ────────────────────────────────────────
+
+RA_REGISTRY = Path("/home/koopark/claude/ReportArchive/backend/app/widgets/registry.py")
+
+
+@pytest.mark.skipif(not RA_REGISTRY.is_file(), reason="ReportArchive 리포가 없는 환경")
+def test_registry_types_match_the_real_reportarchive():
+    """손으로 적은 목록은 낡는다 — RA 원본을 직접 읽어 대조한다.
+
+    우리가 모르는 위젯은 조각으로 들어와도 **구조를 잃고 텍스트로 떨어진다** —
+    표가 문장이 되고 수치가 사라진다. RA 가 늘면 여기가 먼저 깨져야 한다.
+    실제로 그 사이 part_axis_matrix·sphere_map 둘이 늘어 있었다(2026-11-01 실측).
+    """
+    import re
+
+    src = RA_REGISTRY.read_text(encoding="utf-8")
+    block = src.split("WIDGET_REGISTRY: dict[str, WidgetDescriptor] = {")[1]
+    names = re.findall(r"^\s{8}([A-Z][A-Z0-9_]+),\s*$", block, re.M)
+    assert names, "RA registry.py 의 구조가 바뀌었다 — 이 파서를 고쳐라"
+
+    live = set()
+    for n in names:
+        m = re.search(rf'^{n}(?::[^=]*)?\s*=\s*\{{.{{0,400}}?["\']type["\']\s*:\s*["\']([a-z0-9_]+)["\']',
+                      src, re.S | re.M)
+        assert m, f"RA 상수 {n} 의 type 을 못 읽었다"
+        live.add(m.group(1))
+
+    assert live == REGISTRY_TYPES, (
+        "RA 위젯 목록이 우리 기준과 어긋난다 — "
+        f"RA 에만={sorted(live - REGISTRY_TYPES)} 우리에만={sorted(REGISTRY_TYPES - live)}"
+    )

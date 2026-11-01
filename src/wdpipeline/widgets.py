@@ -52,6 +52,12 @@ GROUP_BY_TYPE: dict[str, str] = {
     "scatter": "series",
     "scatter3d": "series",
     "heatmap": "series",
+    # part_axis_matrix — 데이터 모양은 heatmap 과 같다(x_labels/y_labels/matrix).
+    # RA 가 따로 둔 이유는 편집이 아니라 **읽기**(묶기·구간 확대·정렬)이고, 축이 수천 개다.
+    # 우리는 씬 데이터로 소비할 뿐이라 추출은 heatmap 과 같은 경로를 쓴다.
+    "part_axis_matrix": "series",
+    # sphere_map — 방향(roll·pitch)별 값. 각도는 축이 아니라 좌표라 라벨로 펴서 계열로 본다.
+    "sphere_map": "series",
     "contour": "series",
     "treemap": "series",
     "packing": "series",
@@ -105,6 +111,8 @@ _CHART_LABEL = {
     "waffle": "와플",
     "radar": "레이더",
     "heatmap": "히트맵",
+    "part_axis_matrix": "부품×축 행렬",
+    "sphere_map": "구면 분포도",
     "contour": "등고선",
     "treemap": "트리맵",
     "packing": "원형 패킹",
@@ -564,6 +572,32 @@ def _x_scatter(block: dict) -> dict | None:
                    _caption(c, p), _axis(c, p, "y_min", "y_max"))
 
 
+def _x_sphere(block: dict) -> dict | None:
+    """sphere_map — 방향(roll·pitch)별 값. 각도는 축이 아니라 좌표라 라벨로 편다.
+
+    씬 템플릿은 구면을 그리지 않는다(그건 RA 뷰어의 일이다). 우리가 쓸 수 있는 것은
+    "어느 방향이 얼마였나" 라서 방향을 라벨로, 값을 수치로 눕힌 계열로 본다.
+    """
+    c, pr = _cp(block)
+    entries = []
+    for pt in (c.get("points") or []):
+        if not isinstance(pt, dict):
+            continue
+        val = _num(pt.get("value"))
+        if val is None:
+            continue
+        roll, pitch = _num(pt.get("roll")), _num(pt.get("pitch"))
+        if roll is None and pitch is None:
+            label = _s(pt.get("label")) or "방향"
+        else:
+            label = f"roll {roll if roll is not None else '-'}° · pitch {pitch if pitch is not None else '-'}°"
+        entries.append({"label": label, "value": val})
+    if not entries:
+        return None
+    return _series(entries, "sphere_map", _caption(c, pr),
+                   unit=_s(pr.get("value_title")))
+
+
 def _x_matrix(block: dict) -> dict | None:
     """heatmap · contour — x_labels × y_labels 격자를 셀 단위 계열로 편다."""
     c, p = _cp(block)
@@ -779,6 +813,8 @@ _EXTRACTORS = {
     "scatter": _x_scatter,
     "scatter3d": _x_scatter,
     "heatmap": _x_matrix,
+    "part_axis_matrix": _x_matrix,   # 데이터 모양이 heatmap 과 같다
+    "sphere_map": _x_sphere,
     "contour": _x_matrix,
     "radar": _x_radar,
     "box": _x_distribution,
