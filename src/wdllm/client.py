@@ -46,7 +46,41 @@ class ChatResult:
     finish_reason: Optional[str] = None
 
 
-Message = dict  # {"role": "system"|"user"|"assistant", "content": str}
+# content 는 문자열이거나 **블록 배열**이다 — OpenAI 호환 비전 규약.
+#   {"role": "user", "content": [{"type": "text", "text": "..."},
+#                                {"type": "image_url", "image_url": {"url": "data:image/png;base64,..."}}]}
+# 전송은 body["messages"] 로 그대로 직렬화되므로 전송 계층은 손댈 것이 없다(실측).
+# 모델이 비전을 지원하지 않으면 서버가 400 을 돌려준다 — 그건 설정 문제이지 포맷 문제가 아니다.
+Message = dict
+
+
+def image_block(source: "str | Path | bytes", *, mime: str = "image/png") -> dict:
+    """이미지 하나를 비전 블록으로 만든다 (data URL 인라인).
+
+    URL 대신 data URL 을 쓰는 이유 — 렌더 산출물은 사내 파일이고 vLLM 서버가 우리
+    파일 시스템을 못 본다. 외부에 올려 링크를 주는 경로는 보고서 내용을 밖으로 내보낸다.
+    """
+    import base64 as _b64
+    from pathlib import Path as _Path
+
+    if isinstance(source, (str, _Path)):
+        raw = _Path(source).read_bytes()
+    else:
+        raw = source
+    b64 = _b64.b64encode(raw).decode("ascii")
+    return {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{b64}"}}
+
+
+def user_message(text: str, images: "list[str | Path | bytes] | None" = None) -> Message:
+    """텍스트(+이미지) 사용자 메시지. 이미지가 없으면 종전과 똑같은 문자열 content 다.
+
+    이미지가 없을 때까지 블록 배열로 보내면 비전을 안 쓰는 모델에서 불필요한 위험을 진다.
+    """
+    if not images:
+        return {"role": "user", "content": text}
+    blocks: list[dict] = [{"type": "text", "text": text}]
+    blocks.extend(image_block(src) for src in images)
+    return {"role": "user", "content": blocks}
 
 
 class SupportsChat(Protocol):
