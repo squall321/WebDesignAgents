@@ -186,3 +186,8 @@ tts_client·mux 는 있었지만 어느 창구도 부르지 않았고, 목소리
 - [ ] (보류) 영상 전용 xfade — 세그먼트 렌더 + 내레이션/SRT/stills 재계산이 선행 조건
 - [x] `transition` 되살림 — 8종 enum(cut·push 4방향·slide 2·dissolve), 앞 씬이 이음매 소유
 - [x] frame-match 통과 확인 — 카메라 경계 0.006%, 전환 경계 0.000% (임계 2%)
+- [x] 요소 행동 어휘 6종 — countUp·drawIn·revealWord·wake·pulse·float (업계 수치 참조)
+- [x] MO-C-003 연출 어휘 카드 — 창작 모드의 도달 경로
+- [ ] 어휘를 쓰는 신규 템플릿 1종 — 지금은 창작 모드가 쓸 수 있을 뿐 실적이 없다
+- [ ] (검토) stagger row 1.1s vs 업계 0.3~0.4s — 바꾸려면 심의가 필요하다
+- [ ] (보류) 필름 룩 — grain 0.04~0.08 · vignette 0.2~0.35. 대비 게이트와 충돌 검토 필요
