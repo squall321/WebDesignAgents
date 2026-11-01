@@ -6,10 +6,10 @@ status: draft
 version: 1.0.0
 engine_compat: "animations-v2"
 origin: "창작 모드 오프닝 변주 2026-07-29"
-formats: [wide-16x9]
+formats: [wide-16x9, delib-16x9]
 stage: { w: 1920, h: 1080 }
 nat_default: 8
-scene_name_default: "오프닝"
+scene_name_default: "선언"
 entry:
   template: "web/templates/omx-openings.jsx#StatementOpeningScene"
   schema: schema.json

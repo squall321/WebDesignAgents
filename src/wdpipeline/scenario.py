@@ -1040,26 +1040,68 @@ def _build_concept(norm: dict, fragments: list[dict], idx: int, plan: dict) -> d
     nodes, omitted = ([], 0)
     if plan.get("graph") is not None:
         nodes, omitted = _graph_nodes(plan["graph"][1])
+    # 이 템플릿이 **라운드 역할로 세워졌을 때만** 심의 경로를 탄다. alternatives·action_item
+    # 은 RA 가 이미 쓰는 어휘라(기존 보고서 37건) 섹션 유무로 가르면 종전 조립이 바뀐다.
+    # 역할은 포맷이 선언한 의도다 — 그것으로 가르면 wide-16x9 산출은 한 글자도 안 변한다.
+    is_rounds = plan.get("_role") == "rounds"
+    # 노드는 라운드 주체다 — 페이지 이름에서 짜낸 "항목 1" 보다 낫다. 액션 담당이 먼저고
+    # (실제 이해관계자다), graph payload 가 노드를 댔으면 그쪽이 이긴다(구조가 더 정확하다).
+    delib_nodes = [p for sec in ("action_item", "round", "alternatives")
+                   for t in _delib_texts(fragments, sec) for p in _split_items(t)
+                   ] if is_rounds and len(nodes) < 4 else []
+    if delib_nodes:
+        names: list[str] = []
+        for piece in delib_nodes:
+            om = _OWNER_RE.match(piece)
+            nm = _PARTICLE_RE.sub("", om.group("owner")) if om else _clip(piece, 12)
+            if nm and nm not in names:
+                names.append(nm)
+        floor = _floor("concept", "nodes", default=4)
+        if len(names) >= floor - 1:
+            while len(names) < floor:
+                names.append(_clip(norm["title"].split()[0], 12))
+            # ini 는 원 안의 머리글자다 — 한글은 한 자여야 아래 name 과 겹쳐 보이지 않는다
+            nodes = [{"ini": n[:1], "name": _clip(n, 12)}
+                     for n in names[:_cap("concept", "nodes", default=8)]]
+            omitted = 0
     if len(nodes) < 4:
         nodes, omitted = _concept_nodes(norm), 0
 
-    # 라운드 — 흐름도 앞 3단계 (기존 동작: _flow_items 의 label/description)
-    flow_nodes = (plan["flow"][1].get("nodes") or []) if plan.get("flow") else []
-    items = [{"label": n.get("label", ""), "description": n.get("note", "")} for n in flow_nodes]
-    items = items or _flow_items(norm)
+    # 라운드 — 라운드 역할일 때는 섹션(round·alternatives)이 흐름도보다 먼저다
+    delib = [piece for t in _delib_texts(fragments, "round", "alternatives")
+             for piece in _split_items(t)] if is_rounds else []
+    if delib:
+        items = []
+        for piece in delib:
+            om = _OWNER_RE.match(piece)
+            items.append({
+                "code": om.group("code").strip() if om else "",
+                "label": _PARTICLE_RE.sub("", om.group("owner")) if om else piece,
+                "description": piece[om.end():].strip() if om else piece,
+            })
+        title = _first_text(fragments, title, type="claim", widget="heading", section="round")
+    else:
+        flow_nodes = (plan["flow"][1].get("nodes") or []) if plan.get("flow") else []
+        items = [{"label": n.get("label", ""), "description": n.get("note", "")}
+                 for n in flow_nodes]
+        items = items or _flow_items(norm)
     rounds = [
         {
-            "chip": f"S{i + 1}",
+            "chip": item.get("code") or f"S{i + 1}",
             "name": _clip(item.get("label", f"단계 {i + 1}"), 14),
             "desc": _clip(item.get("description", "") or item.get("label", ""), 40),
         }
-        for i, item in enumerate(items[:3])
+        for i, item in enumerate(items[:_cap("concept", "rounds", default=4) if delib else 3])
     ]
     while len(rounds) < 2:
         n = len(rounds) + 1
         rounds.append({"chip": f"S{n}", "name": f"단계 {n}", "desc": "보고서 내용 정리"})
 
-    summary = norm.get("ai_summary") or _first_text(fragments, norm["title"], type="claim")
+    # 심의면 한눈 요약은 결정문이다. 종전엔 첫 주장 조각(= 섹션 heading)이 올라와
+    # "한눈 요약 / 화두" 처럼 섹션 이름이 요약 행세를 했다.
+    summary = norm.get("ai_summary") or (
+        next(iter(_delib_texts(fragments, "decision")), "") if is_rounds else ""
+    ) or _first_text(fragments, norm["title"], type="claim")
     # 생략은 화면에 밝힌다 — concept 에는 푸터가 없어 outcome.desc 꼬리에 붙인다
     note = _omit_note(omitted, "개 노드")
     desc = f"{_clip(summary, 40 - len(note) - 3)} · {note}" if note else _clip(summary, 40)
@@ -1070,7 +1112,7 @@ def _build_concept(norm: dict, fragments: list[dict], idx: int, plan: dict) -> d
         "nodes": nodes,
         "rounds": rounds,
         "outcome": {"title": "한눈 요약", "desc": desc},
-        "frame": _frame(norm, idx),
+        "frame": _frame(norm, idx, plan.get("_skeleton_len")),
     }
 
 
@@ -3176,6 +3218,362 @@ def _build_doc_summary(norm: dict, fragments: list[dict], idx: int, plan: dict) 
     }
 
 
+# ── 심의 장르 빌더 (o-question·o-statement·o-metric·x-next·x-quote·x-summary) ──
+#
+# 이 6종은 JSX·스키마·레지스트리가 다 있는데 _BUILDERS 에 없어서 **어떤 시나리오도
+# 쓸 수 없었다**(scenario.py 의 조립이 short 를 키로 디스패치한다). 심의 보고서가
+# 제품 소개 골격에 끼여 결정문·액션아이템을 잃는 것이 그 대가였다.
+#
+# 공통 원칙 — 없는 것을 지어내지 않는다. 담당·시점이 원문에 없으면 "미지정"·"후속"
+# 으로 비워 두고 화면에 드러낸다. 그래야 작성자가 보고 채운다.
+
+# 수치 토큰 — 앞에 글자/숫자가 붙은 것은 수치가 아니다("A1" 의 1, "R1" 의 1).
+# 단위는 **붙어 있어야** 단위다("1.2 다" 의 다는 종결어미이고, "A1 구조" 의 구조는 담당이다).
+_NUM_RE = re.compile(
+    r"(?<![A-Za-z0-9.])(\d+(?:\.\d+)?)(%|℃|[A-Za-z]{1,3}|배|건|개|원|만원|명|일|주|월|년|K)?"
+)
+# 액션아이템 하나가 rich_text 한 덩어리로 들어오는 경우가 많다 — 항목 코드 앞에서 쪼갠다
+_ITEM_SPLIT_RE = re.compile(r"(?=(?:^|\s)(?:[A-Za-z]\d+|\d+[.)]|[①-⑩])\s)")
+# 줄 머리에 혼자 서면 안 되는 조사 — 마크다운 강조(**1.2mm** 에서)가 남긴 공백 탓에
+# "1.2mm / 에서" 로 갈라지는 일이 잦다. 그 경우 앞 어절을 함께 내린다.
+_LEADING_PARTICLES = frozenset(
+    "에서 에게 으로 로서 로써 부터 까지 에는 에도 이나 라고 하고 와는 과는 에 를 을 은 는 이 가 의 도 만 로".split()
+)
+# 항목 표기 — "A1 구조", "1. 품질", "액션 2 열" 류. code=항목 코드, owner=뒤따르는 한 낱말
+_OWNER_RE = re.compile(
+    r"^(?P<code>[A-Za-z]?\d+[.)]?|[가-힣]{2}\s*\d+)\s*(?P<owner>[가-힣A-Za-z]{1,7})"
+)
+# 라벨 슬롯(칩·이름)에서만 떼는 조사 — 본문 desc 는 원문을 그대로 둔다
+_PARTICLE_RE = re.compile(r"(?<=[가-힣]{2})(?:은|는|이|가|도)$")
+# 시점 표기 — 원문에 있을 때만 집는다
+_WHEN_RE = re.compile(r"(즉시|이번\s*주|차주|다음\s*주|이번\s*달|\d+\s*(?:일|주|개월|달|분기)\s*(?:내|이내|후)?|\d{1,2}월(?:\s*\d{1,2}일)?|[Dd]\+\d+)")
+
+
+def _wrap_lines(text: str, limit: int, max_lines: int) -> list[str]:
+    """어절 단위 줄바꿈 — 한 행 limit 자, 최대 max_lines 행. 넘치면 마지막 행을 말줄임."""
+    words = " ".join(str(text).split()).split(" ")
+    lines: list[str] = []
+    cur = ""
+    for w in words:
+        cand = f"{cur} {w}".strip()
+        if len(cand) <= limit or not cur:
+            cur = cand if len(cand) <= limit else _clip(cand, limit)
+        elif w in _LEADING_PARTICLES and " " in cur:
+            # 조사만 다음 줄로 넘기지 않는다 — 앞 어절과 함께 내린다
+            head, _, last = cur.rpartition(" ")
+            lines.append(head)
+            cur = f"{last} {w}"
+            if len(lines) == max_lines:
+                break
+        else:
+            lines.append(cur)
+            cur = w if len(w) <= limit else _clip(w, limit)
+            if len(lines) == max_lines:
+                break
+    if cur and len(lines) < max_lines:
+        lines.append(cur)
+    if not lines:
+        return []
+    # 꼬리가 잘렸으면 마지막 행에 말줄임을 남긴다 — 문장이 끝난 척하지 않게
+    used = len(" ".join(lines))
+    if used < len(" ".join(words)) and not lines[-1].endswith("…"):
+        lines[-1] = _clip(lines[-1] + " …", limit)
+    return lines
+
+
+def _num_token(text: str) -> tuple[float, int, str] | None:
+    """첫 수치 토큰 → (값, 소수자릿수, 단위). 없으면 None."""
+    m = _NUM_RE.search(str(text))
+    if not m:
+        return None
+    raw, unit = m.group(1), (m.group(2) or "").strip()
+    decimals = 1 if "." in raw else 0   # 1.0mm 은 "1" 이 아니라 "1.0" 으로 읽어야 한다
+    try:
+        return float(raw), decimals, unit[:3]
+    except ValueError:
+        return None
+
+
+def _key_phrase(text: str, limit: int) -> str:
+    """limit 안에 들어가는 핵심 어구 — 수치 토큰이 있으면 그 주변을 창으로 집는다."""
+    flat = " ".join(str(text).split())
+    if len(flat) <= limit:
+        return flat
+    m = _NUM_RE.search(flat)
+    if m:
+        words = flat.split(" ")
+        hit = next((i for i, w in enumerate(words) if m.group(1) in w), None)
+        if hit is not None:
+            lo = hit
+            while lo > 0 and len(" ".join(words[lo - 1:hit + 1])) <= limit:
+                lo -= 1
+            hi = hit + 1
+            while hi < len(words) and len(" ".join(words[lo:hi + 1])) <= limit:
+                hi += 1
+            win = " ".join(words[lo:hi])
+            if win:
+                return _clip(win, limit)
+    return _clip(flat, limit)
+
+
+def _delib_texts(fragments: list[dict], *sections: str, n: int = 8) -> list[str]:
+    """섹션 태그로 본문 조각을 집는다. **heading 은 제외한다** — 그것은 섹션 이름이지 내용이 아니다.
+
+    heading 을 함께 싣던 동안 결정 근거 자리에 "의사결정문" 이, 액션 자리에 "액션아이템"
+    이 들어갔다. 섹션 제목이 그 섹션의 내용으로 둔갑한 것이다.
+    """
+    xs: list[str] = []
+    for section in sections:
+        xs += [f["text"].strip() for f in _frags(fragments, type="claim", section=section)[:n]
+               if f.get("widget") != "heading" and f["text"].strip()]
+    return xs
+
+
+def _split_items(text: str) -> list[str]:
+    """항목 코드(A1 · 1. · ①)로 묶인 한 덩어리를 항목별로 쪼갠다. 코드가 없으면 통째로."""
+    parts = [p.strip() for p in _ITEM_SPLIT_RE.split(" ".join(str(text).split())) if p.strip()]
+    return parts if len(parts) > 1 else [" ".join(str(text).split())]
+
+
+def _sentences(text: str) -> list[str]:
+    """문장 단위 분해 — 8자 미만 토막은 버린다(약어·번호 뒤 마침표)."""
+    flat = " ".join(str(text).split())
+    return [seg.strip() for seg in re.split(r"(?<=[.?!])\s+", flat) if len(seg.strip()) >= 8]
+
+
+def _first_sentence(text: str, limit: int) -> str:
+    """첫 문장만 — 질문/선언 슬롯은 뒷문장이 붙으면 메시지가 흐려진다."""
+    xs = _sentences(text)
+    if not xs:
+        return " ".join(str(text).split())
+    return xs[0] if len(xs[0]) <= limit else xs[0][:limit]
+
+
+# 섹션 id → 화면 라벨 (예고 칩 · 요약 수치 라벨 공용)
+_DELIB_LABEL = {"topic": "화두", "problem": "쟁점", "round": "라운드",
+                "alternatives": "대안", "decision": "결정", "recommendation": "권고",
+                "constraint": "제약", "action_item": "액션"}
+
+
+def _build_o_question(norm: dict, fragments: list[dict], idx: int, plan: dict) -> dict:
+    """질문형 오프닝 — 심의의 화두를 답 없이 띄운다."""
+    q_lim = _lim("o-question", "question", "[]", default=18)
+    pool = _delib_texts(fragments, "topic") or _delib_texts(fragments, "problem") \
+        or [t.strip() for t in _texts(fragments, 6, type="claim") if t.strip()]
+    n_lines = _cap("o-question", "question", default=2)
+    head = _first_sentence(pool[0], q_lim * n_lines) if pool else norm["title"]
+    question = _wrap_lines(head, q_lim, n_lines) or [_clip(norm["title"], q_lim)]
+    # 예고 칩 — **실제로 다루는 섹션**이 먼저다. 태그는 보고서 분류이고 예고가 아니다.
+    # (태그를 앞세우던 동안 칩이 "심의 · 리스크 · 화두" 로 나왔다 — 뒤 영상과 맞지 않는다.)
+    t_lim = _lim("o-question", "topics", "[]", default=10)
+    present = {f.get("section") for f in fragments}
+    cands = [*[_DELIB_LABEL[k] for k in ("problem", "alternatives", "round",
+                                         "decision", "action_item") if k in present],
+             *norm.get("tags", []),
+             *[p.get("name", "") for p in norm.get("pages", [])]]
+    topics: list[str] = []
+    for c in cands:
+        c = _clip(" ".join(str(c).split()), t_lim)
+        if c and c not in topics:
+            topics.append(c)
+        if len(topics) == _floor("o-question", "topics", default=3):
+            break
+    while len(topics) < _floor("o-question", "topics", default=3):
+        topics.append(["쟁점", "근거", "결정"][len(topics)])
+    data = {
+        "question": question,
+        "promise": _clip("이 심의가 답합니다", _lim("o-question", "promise", default=24)),
+        "topics": topics,
+    }
+    data["source"] = _clip(norm["title"], _lim("o-question", "source", default=30))
+    return data
+
+
+def _build_o_statement(norm: dict, fragments: list[dict], idx: int, plan: dict) -> dict:
+    """선언형 오프닝 — 결정문 한 문장이 화면을 채운다. accent 는 text 안의 수치 어구."""
+    lim = _lim("o-statement", "lines", "[]", "text", default=18)
+    lo = _floor("o-statement", "lines", default=2)
+    hi = _cap("o-statement", "lines", default=3)
+    pool = _delib_texts(fragments, "decision") or _delib_texts(fragments, "topic") \
+        or [t.strip() for t in _texts(fragments, 6, type="claim") if t.strip()]
+    head = _first_sentence(pool[0], lim * hi) if pool else norm["title"]
+    texts = _wrap_lines(head, lim, hi)
+    while len(texts) < lo:  # 1행뿐이면 제목을 둘째 행으로 — 스키마가 2행을 요구한다
+        texts.append(_clip(norm["title"], lim))
+    a_lim = _lim("o-statement", "lines", "[]", "accent", default=12)
+    lines = []
+    for t in texts:
+        line: dict = {"text": t}
+        m = _NUM_RE.search(t)
+        if m:
+            tok = m.group(0).strip()
+            if tok and tok in t and len(tok) <= a_lim:
+                line["accent"] = tok
+        lines.append(line)
+    data = {"lines": lines}
+    data["source"] = _clip(norm["title"], _lim("o-statement", "source", default=30))
+    return data
+
+
+def _build_o_metric(norm: dict, fragments: list[dict], idx: int, plan: dict) -> dict:
+    """수치 충격형 오프닝 — 원문에서 온 수치만 쓴다. 수치가 없으면 분량으로 대체한다."""
+    # 결정 → 액션 → 라운드 → 전체 순. 심의의 '충격 수치' 는 정해진 값이지 현행값이 아니다
+    claims = [*_delib_texts(fragments, "decision"), *_delib_texts(fragments, "action_item"),
+              *_delib_texts(fragments, "round", "alternatives"),
+              *[t.strip() for t in _texts(fragments, 30, type="claim") if t.strip()]]
+    found = next(((c, n) for c in claims if (n := _num_token(c))), None)
+    if found is not None:
+        sentence, (value, decimals, suffix) = found
+        meaning = _line(sentence, _lim("o-metric", "meaning", default=34))
+    else:  # 수치가 없는 보고서 — 지어내지 않고 조각 수를 센다
+        value, decimals, suffix = float(len(fragments)), 0, "건"
+        meaning = _line("추출된 근거 조각", _lim("o-metric", "meaning", default=34))
+    data = {
+        "value": max(0.0, min(999999.0, value)),
+        "decimals": decimals,
+        "meaning": meaning,
+        "title": _clip(norm["title"], _lim("o-metric", "title", default=24)),
+    }
+    if suffix:
+        data["suffix"] = suffix
+    src = _clip(norm.get("report_date", ""), _lim("o-metric", "source", default=30))
+    if src:
+        data["source"] = src
+    return data
+
+
+def _build_x_next(norm: dict, fragments: list[dict], idx: int, plan: dict) -> dict:
+    """결정 + 액션아이템 클로징 — steps 의 when·owner 가 필수라 주체 없는 권유를 못 싣는다."""
+    decisions = _delib_texts(fragments, "decision")
+    actions = _delib_texts(fragments, "action_item")
+    rounds = _delib_texts(fragments, "round", "alternatives")
+
+    d_text = decisions[0] if decisions else (norm.get("ai_summary") or norm["title"])
+    # 근거는 결정 **조각이 여럿일 때만** 뒤 조각에 있는 것이 아니다. 심의 결정문은 보통
+    # 한 덩어리로 들어오고 "…로 정한다. 근거는 … 이다." 처럼 뒷문장이 근거다. 문장을 쪼개
+    # 쓰지 않던 동안 실측값(0.82mm)과 효과(+2.1%)가 화면에서 통째로 빠졌다.
+    tail = _sentences(d_text)[1:]
+    grounds = decisions[1:] or tail or _delib_texts(fragments, "recommendation") \
+        or rounds or [norm["title"]]
+    points = [_line(t, _lim("x-next", "decision", "points", "[]", default=26))
+              for t in grounds][: _cap("x-next", "decision", "points", default=3)]
+    decision = {
+        "label": _clip("결정 사항", _lim("x-next", "decision", "label", default=8)),
+        "headline": _key_phrase(d_text, _lim("x-next", "decision", "headline", default=14)),
+        "points": points or [_line(norm["title"], 26)],
+    }
+    if norm.get("report_date"):
+        decision["meta"] = _clip(f"{norm['report_date']} 확정",
+                                 _lim("x-next", "decision", "meta", default=20))
+
+    w_lim = _lim("x-next", "steps", "[]", "when", default=7)
+    o_lim = _lim("x-next", "steps", "[]", "owner", default=7)
+    t_lim = _lim("x-next", "steps", "[]", "what", default=28)
+    steps = []
+    items = [piece for a in (actions or rounds) for piece in _split_items(a)]
+    for flat in items:
+        om = _OWNER_RE.match(flat)
+        wm = _WHEN_RE.search(flat)
+        body = flat[om.end():].strip() if om else flat
+        steps.append({
+            # 원문에 없으면 지어내지 않는다 — 비었음을 화면에 드러내 작성자가 채우게 한다
+            "when": _clip(wm.group(1), w_lim) if wm else "후속",
+            "owner": _clip(_PARTICLE_RE.sub("", om.group("owner")), o_lim) if om else "미지정",
+            "what": _line(body or flat, t_lim),
+        })
+        if len(steps) == _cap("x-next", "steps", default=4):
+            break
+    while len(steps) < _floor("x-next", "steps", default=3):
+        steps.append({"when": "후속", "owner": "미지정", "what": _line("액션아이템 미기재", t_lim)})
+    # 제목 — 심의면 이 씬이 무엇인지 말한다. 보고서 제목은 이미 푸터 brand 에 있고,
+    # 22자에 잘린 제목이 x-read 로 내레이션까지 읽히면 문장이 중간에서 끊긴다.
+    title = "결정과 다음 단계" if (decisions or actions) else norm["title"]
+    return {
+        "kicker": _clip("다음 단계", _lim("x-next", "kicker", default=12)),
+        "title": _clip(title, _lim("x-next", "title", default=22)),
+        "decision": decision,
+        "steps": steps,
+        "frame": _frame(norm, idx, plan.get("_skeleton_len")),
+    }
+
+
+def _build_x_quote(norm: dict, fragments: list[dict], idx: int, plan: dict) -> dict:
+    """각인형 클로징 — 결정문을 pre/accent/post 로 갈라 수치만 색을 바꾼다."""
+    pre_lim = _lim("x-quote", "quote", "pre", default=14)
+    acc_lim = _lim("x-quote", "quote", "accent", default=10)
+    post_lim = _lim("x-quote", "quote", "post", default=14)
+    pool = _delib_texts(fragments, "decision") \
+        or [str(norm.get("ai_summary") or "").strip()] \
+        or [t.strip() for t in _texts(fragments, 6, type="claim") if t.strip()]
+    text = _key_phrase(next((p for p in pool if p), norm["title"]),
+                       pre_lim + acc_lim + post_lim)
+    m = _NUM_RE.search(text)
+    quote: dict = {}
+    if m and len(m.group(0).strip()) <= acc_lim:
+        tok = m.group(0).strip()
+        head, _, tail = text.partition(tok)
+        quote = {k: v for k, v in (("pre", _clip(head, pre_lim)),
+                                   ("accent", tok),
+                                   ("post", _clip(tail, post_lim))) if v}
+    if not quote:
+        quote = {"accent": _clip(text, acc_lim), "post": _clip(text[acc_lim:], post_lim)} \
+            if len(text) > acc_lim else {"accent": text}
+    data = {"quote": quote,
+            "source": _clip(norm["title"], _lim("x-quote", "source", default=24))}
+    if norm.get("report_date"):
+        data["date"] = _clip(norm["report_date"], _lim("x-quote", "date", default=16))
+    return data
+
+
+def _build_x_summary(norm: dict, fragments: list[dict], idx: int, plan: dict) -> dict:
+    """요약 클로징 — 수치를 가진 요지를 앞세우고, 없으면 번호를 매긴다(지어내지 않는다)."""
+    t_lim = _lim("x-summary", "points", "[]", "text", default=34)
+    m_lim = _lim("x-summary", "points", "[]", "metric", default=8)
+    l_lim = _lim("x-summary", "points", "[]", "metricLabel", default=12)
+    lo = _floor("x-summary", "points", default=3)
+    hi = _cap("x-summary", "points", default=5)
+
+    seen: list[tuple[str, str | None]] = []
+    for sec in ("decision", "action_item", "round", "alternatives", "recommendation",
+                "problem", "topic"):
+        for t in _delib_texts(fragments, sec, n=6):
+            if len(t) > 8 and all(t != x for x, _ in seen):
+                seen.append((t, sec))
+    for t in _texts(fragments, 20, type="claim"):
+        t = t.strip()
+        if len(t) > 8 and all(t != x for x, _ in seen):
+            seen.append((t, None))
+    numbered = [x for x in seen if _NUM_RE.search(x[0])]
+    ordered = numbered + [x for x in seen if x not in numbered]
+
+    points = []
+    for i, (text, sec) in enumerate(ordered[:hi], start=1):
+        m = _NUM_RE.search(text)
+        tok = m.group(0).strip() if m else ""
+        # 항목 코드(A1·R1)는 요약에서 뜻이 없다 — 떼고 첫 문장만 싣는다.
+        # 문장을 안 끊으면 "…재계산한다.…" 처럼 마침표 뒤에 말줄임이 겹친다.
+        body = _split_items(text)[0]
+        om = _OWNER_RE.match(body)
+        body = f"{om.group('owner')} {body[om.end():].strip()}".strip() if om else body
+        point = {"text": _line(_first_sentence(body, t_lim), t_lim),
+                 "metric": _clip(tok, m_lim) if tok and len(tok) <= m_lim else f"{i:02d}"}
+        label = _DELIB_LABEL.get(sec or "")
+        if label:
+            point["metricLabel"] = _clip(label, l_lim)
+        points.append(point)
+    while len(points) < lo:
+        points.append({"text": _line(norm["title"], t_lim), "metric": f"{len(points) + 1:02d}"})
+    title = "심의 요지" if any(s in _DELIB_LABEL for s in {f.get("section") for f in fragments}) \
+        else norm["title"]
+    return {
+        "kicker": _clip("요약", _lim("x-summary", "kicker", default=12)),
+        "title": _clip(title, _lim("x-summary", "title", default=22)),
+        "points": points,
+        "standby": _clip("질의응답을 받습니다", _lim("x-summary", "standby", default=30)),
+        "frame": _frame(norm, idx, plan.get("_skeleton_len")),
+    }
+
+
 _BUILDERS = {
     "opening": lambda norm, frags, idx, plan: _build_opening(norm, frags),
     "problem": _build_problem,
@@ -3211,6 +3609,13 @@ _BUILDERS = {
     "doc-section": _build_doc_section,
     "doc-body": _build_doc_body,
     "doc-summary": _build_doc_summary,
+    # 심의 장르 — 오프닝/클로징 변주 6종
+    "o-question": _build_o_question,
+    "o-statement": _build_o_statement,
+    "o-metric": _build_o_metric,
+    "x-next": _build_x_next,
+    "x-quote": _build_x_quote,
+    "x-summary": _build_x_summary,
 }
 
 # 구조 payload 와 **정확 대응**하는 템플릿 (§3). structured_templates=True 일 때
@@ -3470,6 +3875,9 @@ def assemble_demo_scenario(
     scenes: list[dict] = []
     used_names: set[str] = set()
     for idx, (role, (module, schema, short), dur) in enumerate(zip(spec.skeleton, picks, durs), 1):
+        # 같은 템플릿이라도 포맷이 어떤 역할로 세웠는지에 따라 집는 조각이 달라진다.
+        # (tpl.concept 는 wide 에서 '개념' 이고 delib 에서 '라운드' 다)
+        plan["_role"] = role
         data = _conform(_BUILDERS[short](norm, fragments, idx, plan), schema)
         # content/씬 이름 키는 **역할**이다 — 한 템플릿을 두 역할이 쓰는 포맷(예: short-9x16 의
         # problem/solution → vtpl.stack)에서 데이터가 서로를 덮어쓰지 않게 한다.

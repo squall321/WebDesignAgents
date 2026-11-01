@@ -6,7 +6,7 @@ status: draft
 version: 1.0.0
 engine_compat: "animations-v2"
 origin: "창작 모드 클로징 변주 2026-07-29"
-formats: [wide-16x9]
+formats: [wide-16x9, delib-16x9]
 stage: { w: 1920, h: 1080 }
 nat_default: 14
 scene_name_default: "다음 단계"

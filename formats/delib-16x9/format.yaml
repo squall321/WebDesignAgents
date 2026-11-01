@@ -1,0 +1,37 @@
+# delib-16x9 — 심의 결과 브리핑 포맷. 포털(hwax-deliberation) 심의가 낳은 보고서를
+# 그대로 받아 화두→라운드→결정→액션→요약으로 세운다.
+#
+# 왜 별도 포맷인가 — wide-16x9 의 골격은 제품 소개용 설득 골격(문제→개념→절차→차별점→실증)
+# 이다. 심의문을 거기 끼우면 결정문이 "문제 인식" 씬의 꼬리말로 묻히고 액션아이템이 사라진
+# 자리에 "단계 1 / 보고서 참조" 필러가 들어간다(실측 run wr-20261101-083510-53a9).
+# 골격이 장르를 모르면 조립은 성공하고 내용은 유실된다. 그래서 골격을 바꾼다.
+id: delib-16x9
+name_ko: 심의 결과 브리핑
+stage: { w: 1920, h: 1080 }          # wide-16x9 와 같은 무대 — 템플릿·테마를 공유한다
+# target 56 = 씬 5종 nat_default 합(9+11+8+14+14). 허용대는 심의 분량 편차를 받는 폭이다.
+duration: { target: 56, min: 30, max: 180 }
+skeleton: [topic, rounds, decision, action, summary]
+template_pool:                       # 역할 → tpl id (fragmentize 의 section 어휘와 같은 이름)
+  topic: [tpl.o-question]            # 화두를 답 없이 띄운다 — 예고 칩은 다루는 섹션
+  rounds: [tpl.concept]              # concept.rounds ← section="round" 조각 (코드·담당·요지)
+  decision: [tpl.o-statement]        # 의사결정문 한 문장이 화면을 채운다
+  action: [tpl.x-next]               # 결정 + 액션아이템. steps 의 when·owner 가 필수다
+  summary: [tpl.x-summary]           # 수치를 가진 요지를 앞세운 되짚기 + 질의응답 대기
+narration: { enabled: true, rate: 5.5 }
+outputs: [video, pptx]
+pptx: { slide_w_in: 13.333, slide_h_in: 7.5 }      # PowerPoint 표준 16:9
+constraints: { min_font: 24, icon_font: 17, safe_margin: 140 }
+theme: neutral-slate                 # 심의는 판단의 자리다 — 카메라 세기도 가장 낮다(0.8)
+
+# ── 승격 루프 (PLAN §8.0) ──
+# draft — 아직 심의를 거치지 않았다. 실측 표본 1건(아래 origin)으로 세운 초안이고,
+# pilot 승격에는 완주 산출물과 format_review 판정이 필요하다.
+status: draft
+usage_count: 0
+origin:
+  created: "2026-11-01"
+
+lessons:
+  - "조각 추출은 결백했다 — 유실은 전부 scenario_build 에서 났다. 장르 문제를 ingest 에서 찾지 마라"
+  - "템플릿이 있어도 _BUILDERS 에 없으면 그 템플릿은 존재하지 않는다 — o-question·o-statement·o-metric·x-next·x-quote·x-summary 6종이 그 상태로 등록만 돼 있었다"
+  - "담당·시점이 원문에 없으면 '미지정'·'후속' 로 드러낸다 — 지어내면 심의 결과가 아니라 창작이 된다"

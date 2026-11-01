@@ -6,6 +6,7 @@ status: draft
 version: 1.0.0
 engine_compat: "animations-v2"
 origin: "examples/hwax_intro/hwax-scenes.jsx#S3Approach"
+formats: [wide-16x9, delib-16x9]
 nat_default: 11
 scene_name_default: "개념"
 entry:

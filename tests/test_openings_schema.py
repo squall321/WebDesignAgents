@@ -148,10 +148,15 @@ def test_module_yaml_contract(name):
     assert SEMVER.match(str(doc["version"]))
     assert doc["engine_compat"] == "animations-v2"
     assert doc["origin"] == ORIGIN
-    assert doc["formats"] == [FORMAT_ID]
+    # 한 템플릿이 여러 포맷을 지원할 수 있다 — formats 는 그러라고 있는 목록이다.
+    # 검사의 뜻은 "이 포맷을 지원하는가" 이지 "이 포맷만 지원하는가" 가 아니다.
+    assert FORMAT_ID in doc["formats"]
     assert doc["stage"] == STAGE
     assert isinstance(doc["nat_default"], (int, float)) and doc["nat_default"] > 0
-    assert doc["scene_name_default"] == "오프닝"
+    # 씬 이름은 한 골격 안에서 유일해야 한다 — 변주 3종이 같은 이름이면 둘째부터
+    # 역할명이 화면에 노출된다(delib-16x9 에서 실제로 "decision" 이 떴다).
+    assert doc["scene_name_default"]
+    assert len({load_module(n)["scene_name_default"] for n in MODULES}) == len(MODULES)
     assert doc["in_scope"] and doc["out_of_scope"]
     assert doc["imprint_strategy"], "각인 전략 선언이 없다 — 이 라운드의 존재 이유"
     assert doc["metaphors"] == ["frame-chrome", "dot-grid"], "허용 은유는 공통 크롬 2종뿐"

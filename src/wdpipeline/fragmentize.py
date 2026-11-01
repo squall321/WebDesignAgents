@@ -19,6 +19,35 @@ _VISUAL_TYPES = {t for t, g in GROUP_BY_TYPE.items() if g == "media"}
 # 조각 최대 텍스트 길이 — 씬 데이터/회의 인용에 쓰이므로 문장 단위로 짧게 유지
 _MAX_TEXT = 200
 
+# 심의 보고서는 block_sections 태그 없이 heading 으로만 구조를 드러낸다(포털 deliberation
+# 템플릿이 그렇다). 그 경우 **가장 가까운 앞 heading 텍스트**로 섹션을 유추한다.
+# 명시 태그가 있으면 그것이 이긴다 — 추론은 비어 있을 때만 메운다.
+# 섹션 id 는 **RA 정본 어휘**를 따른다(background·current_state·scope·reference·analysis·
+# action_item·purpose·recommendation·stakeholders·decision·constraint·alternatives·schedule).
+# 명시 태그가 있는 보고서와 같은 이름을 써야 소비처가 둘을 가르지 않는다. 심의에만 있는
+# 것(topic·round)만 새로 둔다.
+_HEADING_SECTIONS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("topic", ("화두", "의제", "안건", "논제", "심의 주제", "검토 배경")),
+    ("round", ("라운드", "토론", "논의 경과", "심의 경과", "발언", "쟁점 토의")),
+    ("decision", ("의사결정", "결정", "결론", "판정", "합의", "수렴")),
+    ("action_item", ("액션", "후속", "조치", "다음 단계", "이행", "follow")),
+    ("alternatives", ("대안", "검토안", "선택지", "비교안")),
+    ("recommendation", ("권고", "제언", "건의")),
+    ("constraint", ("제약", "전제", "한계")),
+    ("problem", ("쟁점", "리스크", "위험", "문제", "우려", "이슈")),
+)
+
+
+def infer_section(heading_text: str) -> str | None:
+    """heading 텍스트 → 섹션 id. 못 알아보면 None (그 경우 추론하지 않는다)."""
+    low = heading_text.strip().lower()
+    if not low:
+        return None
+    for section, keys in _HEADING_SECTIONS:
+        if any(k in low for k in keys):
+            return section
+    return None
+
 
 def _clip(text: str, limit: int = _MAX_TEXT) -> str:
     text = text.strip()
@@ -143,9 +172,13 @@ def fragmentize(norm: dict) -> list[dict]:
     seq = 1
     for page in norm.get("pages", []):
         pname = page.get("name", "")
+        heading_section: str | None = None   # 가장 가까운 앞 heading 이 가리킨 섹션
         for block in page.get("blocks", []):
             btype = block.get("type", "")
-            ftype = _classify(btype, block.get("section"))
+            if btype == "heading":
+                heading_section = infer_section(block_text("heading", block.get("content")))
+            section = block.get("section") or heading_section
+            ftype = _classify(btype, section)
             if ftype is None:
                 continue
             payload = extract_structured(block)
@@ -163,7 +196,7 @@ def fragmentize(norm: dict) -> list[dict]:
                     "confidence": _CONFIDENCE.get(btype, 0.5),
                     "widget": btype,        # 하위 호환 (scenario._frags 가 이 키로 필터)
                     "widget_type": btype,
-                    "section": block.get("section"),
+                    "section": section,
                 }
                 if payload is not None:
                     frag["structured"] = payload
