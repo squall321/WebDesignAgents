@@ -164,7 +164,11 @@ def _run_by_key(key: str, owner: str | None) -> dict | None:
 #
 # ⚠ 기본값은 **끔(0)** 이다. 기한을 기본으로 켜면 이 기능이 들어간 첫 기동에서 몇 달치
 # 산출물이 한 번에 사라진다 — 운영자가 모르는 사이에 일어나는 삭제는 기능이 아니라 사고다.
-# 켜는 것은 `WDA_RETENTION_DAYS=7` 처럼 운영자가 명시한다(포털은 잡 기록을 7일 둔다).
+# 켜는 것은 `WDA_RETENTION_DAYS=7` 처럼 운영자가 명시한다.
+#
+# **사용자 결정(2026-11-01) — 꺼 둔다.** 허브 매니페스트에도 env 를 넣지 않는다. 포털은
+# 잡 기록을 7일 두고 그 뒤 '기록이 없다' 로 말하며, WDA 쪽 파일은 남는다. 즉 0 은 미완성이
+# 아니라 **정해진 값**이다. 지우는 동작과 410 응답은 나중에 켤 때를 위해 구현해 뒀다.
 RETENTION_DAYS = max(0, int(os.environ.get("WDA_RETENTION_DAYS", "0")))
 
 
@@ -429,6 +433,9 @@ def _run_pipeline(run_id: str, raw_path: Path, slug: str, droot: Path,
 # W-14 — 렌더 동시 상한. chromium 이 뜨는 작업이라 요청마다 스레드를 띄우면 박스가 먼저
 # 죽는다. 넘치면 거절하지 않고 세마포어 앞에서 queued 로 기다린다(포털은 queued 를 '차례
 # 기다림' 으로 읽는다). 0 이하면 제한 없음.
+#
+# **2 는 합의값이다(2026-11-01).** 포털의 박스 상한 4 보다 조이지만, 넘친 둘이 여기서
+# 기다리는 편이 박스가 죽는 것보다 낫다는 판단이다. 박스 실측 뒤 올릴 수 있다.
 RENDER_CONCURRENCY = max(0, int(os.environ.get("WDA_RENDER_CONCURRENCY", "2")))
 _render_slots = threading.BoundedSemaphore(RENDER_CONCURRENCY) if RENDER_CONCURRENCY else None
 
