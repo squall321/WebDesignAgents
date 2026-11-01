@@ -906,7 +906,12 @@ def scenario_build(meeting_id: str, run_id: str | None = None) -> dict:
         a.content for t in turns for a in t.artifacts if a.type is ArtifactType.scenario_patch
     ]
     try:
-        doc = mod.assemble_demo_scenario(norm, fragments)
+        # 회의가 고른 포맷으로 조립한다. 종전에는 ledger.format_id 를 브리핑 인용에만
+        # 쓰고 조립에는 넘기지 않아, 어떤 포맷을 골라도 산출은 기본 포맷이었다.
+        from wdpipeline.format import DEFAULT_FORMAT_ID
+
+        fmt = state.ledger(meeting_id).format_id or DEFAULT_FORMAT_ID
+        doc = mod.assemble_demo_scenario(norm, fragments, fmt)
         doc = doc.model_copy(
             update={"meta": doc.meta.model_copy(update={"meeting_id": meeting_id})}
         )
@@ -1253,6 +1258,27 @@ def metrics_report() -> dict:
             if r.get("meets_target") is False else
             "재사용률이 목표선 위다. 게이트 1회차 통과율이 떨어지면 픽스처·규칙을 늘려라.")
     return ok_envelope(state, data, hint)
+
+
+@mcp.tool()
+def format_list() -> dict:
+    """포맷 카탈로그 — 어떤 골격(씬 역할 순서)으로 만들 수 있는지의 정본 목록.
+
+    meeting_start 의 format_id 와 scenario_build 의 조립 골격이 여기서 나온다.
+    status 가 draft 면 아직 심의를 거치지 않은 초안이다(쓸 수는 있다).
+    """
+    state = get_session()
+    mod, err = _lazy_import("wdpipeline.format")
+    if mod is None:
+        return error_envelope(
+            state, "PIPELINE_UNAVAILABLE", f"wdpipeline.format 를 불러올 수 없다: {err}",
+            "설치 상태를 확인하라.",
+        )
+    rows = mod.format_catalog()
+    return ok_envelope(
+        state, {"count": len(rows), "formats": rows},
+        "포맷 카탈로그다. id 를 meeting_start 의 format_id 로 넘기면 그 골격으로 조립된다.",
+    )
 
 
 @mcp.tool()

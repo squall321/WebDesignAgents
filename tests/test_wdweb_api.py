@@ -55,7 +55,17 @@ def _poll_run(client: TestClient, run_id: str, timeout: float = 90.0) -> dict:
 def test_health(client: TestClient) -> None:
     res = client.get("/api/health")
     assert res.status_code == 200
-    assert res.json() == {"status": "ok"}
+    body = res.json()
+    # HEAXHub health_check 계약 — 봉투 없이 status 를 최상위에 둔다(이건 못 바꾼다).
+    # 필드 추가는 HEAXHub 쪽이 상태코드와 키 탐색만 하므로 안전하다.
+    assert body["status"] == "ok"
+    # features 는 호출자(포털)가 기능 유무로 UI 를 가르는 표지다. 손으로 적은 목록이
+    # 아니라 실제 포맷 레지스트리에서 뽑혀야 한다 — 안 그러면 거짓말이 된다.
+    from wdpipeline.format import format_catalog
+
+    live = {f["id"] for f in format_catalog() if "error" not in f}
+    assert set(body["features"]) == {f"format:{i}" for i in live}
+    assert set(body["formats"]) == live
 
 
 def test_envelope_shape(client: TestClient) -> None:

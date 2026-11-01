@@ -123,8 +123,28 @@ def _serve_safe(root: Path, rel_path: str) -> FileResponse:
 
 @app.get("/api/health")
 def health() -> dict:
-    """HEAXHub health_check 계약 — 봉투 없이 원형 그대로."""
-    return {"status": "ok"}
+    """HEAXHub health_check 계약 — 봉투 없이 원형 그대로.
+
+    features 는 호출자(포털)가 기능 유무로 UI 를 가르기 위한 표지다. 손으로 적지 않고
+    실제 포맷 레지스트리에서 뽑는다 — 적어 두고 안 지키는 목록은 거짓말이 된다.
+    """
+    from wdpipeline.format import format_catalog
+
+    rows = [f for f in format_catalog() if "error" not in f]
+    return {
+        "status": "ok",
+        "features": sorted(f"format:{f['id']}" for f in rows),
+        "formats": {f["id"]: f["status"] for f in rows},
+    }
+
+
+@app.get("/api/formats")
+def get_formats() -> dict:
+    """포맷 카탈로그 — 어떤 골격으로 만들 수 있는지의 정본 목록 (MCP format_list 와 동형)."""
+    from wdpipeline.format import format_catalog
+
+    rows = format_catalog()
+    return envelope({"count": len(rows), "formats": rows})
 
 
 # ── 실행 (파이프라인) ────────────────────────────────────────────────────────
@@ -135,6 +155,7 @@ async def create_run(request: Request) -> JSONResponse:
     """보고서 JSON(body.report_json) 또는 multipart 파일을 받아 파이프라인 실행을 시작한다."""
     content_type = request.headers.get("content-type", "")
     slug: str | None = None
+    format_id: str | None = None
     if content_type.startswith("multipart/form-data"):
         form = await request.form()
         upload = form.get("file")
@@ -147,6 +168,8 @@ async def create_run(request: Request) -> JSONResponse:
             raise HTTPException(status_code=400, detail=f"파일이 JSON 이 아닙니다: {exc}") from exc
         slug_field = form.get("slug")
         slug = slug_field if isinstance(slug_field, str) else None
+        fmt_field = form.get("format")
+        format_id = fmt_field if isinstance(fmt_field, str) else None
     else:
         try:
             body = await request.json()
@@ -156,10 +179,14 @@ async def create_run(request: Request) -> JSONResponse:
             raise HTTPException(status_code=400, detail="본문은 JSON 객체여야 합니다")
         report = body.get("report_json")
         slug = body.get("slug")
+        format_id = body.get("format")
     if not isinstance(report, dict):
         raise HTTPException(status_code=400, detail="report_json 은 report_archive_draft_v1 객체여야 합니다")
 
-    run = runledger.submit_run(report, slug=slug)
+    try:
+        run = runledger.submit_run(report, slug=slug, format_id=format_id)
+    except ValueError as exc:   # 알 수 없는 포맷 — 조립까지 끌고 가지 않고 여기서 거절한다
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     return JSONResponse(
         status_code=status.HTTP_202_ACCEPTED,
         content=envelope({"run_id": run["run_id"], "slug": run["slug"]},

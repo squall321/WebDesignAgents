@@ -27,6 +27,7 @@ CAPABILITIES: list[tuple[str, str, tuple[str, str]]] = [
     ("씬 HTML",           "scene_html",           ("GET",   "/api/runs/{run_id}/scenes/{scene_name}/html")),
     ("씬 스틸",           "scene_still",          ("GET",   "/api/runs/{run_id}/scenes/{scene_name}/still.png")),
     ("모듈 카탈로그",     "module_list",          ("GET",   "/api/modules")),
+    ("포맷 카탈로그",     "format_list",          ("GET",   "/api/formats")),
     ("보고서 인제스트",   "report_ingest",        ("POST",  "/api/runs")),
     ("사람 편집 대조",     "scenario_revise",      ("GET",   "/api/runs/{run_id}/revise")),
 ]

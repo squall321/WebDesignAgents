@@ -137,8 +137,18 @@ def _format_of(build_dir: Path) -> str | None:
         return None
 
 
-def submit_run(report: dict, slug: str | None = None) -> dict:
-    """보고서 JSON을 임시 저장하고 백그라운드 스레드로 ingest→fragmentize→scenario→build 를 돌린다."""
+def submit_run(report: dict, slug: str | None = None, format_id: str | None = None) -> dict:
+    """보고서 JSON을 임시 저장하고 백그라운드 스레드로 ingest→fragmentize→scenario→build 를 돌린다.
+
+    format_id 를 주면 그 포맷의 골격으로 조립한다(미지정은 기본 포맷). 알 수 없는 포맷은
+    ValueError — 조립까지 가서 실패하면 원인이 원장 깊이 묻힌다.
+    """
+    if format_id:
+        from wdpipeline.format import list_formats
+
+        known = list_formats()
+        if format_id not in known:
+            raise ValueError(f"알 수 없는 포맷: {format_id} — 쓸 수 있는 포맷: {', '.join(known)}")
     run_id = new_run_id()
     # slug 는 표시용 이름일 뿐 디렉터리 키가 아니다 — 같은 slug 두 실행이 build/renders
     # 를 공유해 서로 덮어쓰는 사고를 막기 위해 run_id 꼬리를 붙여 항상 유일하게 만든다.
@@ -159,6 +169,7 @@ def submit_run(report: dict, slug: str | None = None) -> dict:
         "stages": [
             {"stage": s, "status": "pending", "error": None, "output": None} for s in STAGES
         ],
+        "format": format_id,
         "scenario_summary": None,
         "build_dir": None,
         "entry": None,
@@ -170,7 +181,8 @@ def submit_run(report: dict, slug: str | None = None) -> dict:
     }
     write_run(run)
     t = threading.Thread(
-        target=_run_pipeline, args=(run_id, raw_path, slug_s, droot), daemon=True,
+        target=_run_pipeline, args=(run_id, raw_path, slug_s, droot, None, format_id),
+        daemon=True,
         name=f"wdweb-pipeline-{run_id}",
     )
     t.start()
@@ -178,7 +190,7 @@ def submit_run(report: dict, slug: str | None = None) -> dict:
 
 
 def _run_pipeline(run_id: str, raw_path: Path, slug: str, droot: Path,
-                  start_from: str | None = None) -> None:
+                  start_from: str | None = None, format_id: str | None = None) -> None:
     """워커 본체 — 단계별 상태를 원장에 기록하며 순차 실행. 예외는 해당 단계 failed 로 남긴다.
 
     start_from 을 주면 그 단계부터 돈다(재개). 앞 단계 산출물은 디스크에서 읽어 잇는다 —
@@ -223,11 +235,13 @@ def _run_pipeline(run_id: str, raw_path: Path, slug: str, droot: Path,
         stage = "scenario"
         scen_path = pipe_dir / "scenario.json"
         from wdcore.models.scenario import ScenarioDoc
+        from wdpipeline.format import DEFAULT_FORMAT_ID
         from wdpipeline.scenario import assemble_demo_scenario, validate_scenario
 
         if stage in todo:
             _update_stage(run_id, stage, status="running")
-            doc = assemble_demo_scenario(norm, fragments)
+            doc = assemble_demo_scenario(norm, fragments,
+                                         format_id or DEFAULT_FORMAT_ID)
             errors = validate_scenario(doc)
             if errors:
                 raise ValueError("시나리오 검증 실패: " + "; ".join(errors))
@@ -321,7 +335,8 @@ def resume_run(run_id: str) -> dict:
     write_run(run)
 
     threading.Thread(
-        target=_run_pipeline, args=(run_id, raw_path, run["slug"], droot, start),
+        target=_run_pipeline,
+        args=(run_id, raw_path, run["slug"], droot, start, run.get("format")),
         daemon=True, name=f"wdweb-resume-{run_id}",
     ).start()
     return {"run_id": run_id, "resumed": True, "start_from": start}

@@ -606,6 +606,33 @@ def usage_path(format_id: str, formats_root: str | Path | None = None) -> Path:
     return resolve_formats_root(formats_root) / format_id / USAGE_FILE
 
 
+def format_catalog(*, formats_root: str | Path | None = None) -> list[dict]:
+    """쓸 수 있는 포맷 카탈로그 — id·이름·상태·골격·출력. 두 창구(MCP·웹)의 공용 출처다.
+
+    로드에 실패하는 포맷은 **빼지 않고 error 를 달아 싣는다** — 조용히 사라지면
+    호출자는 그 포맷이 없는 것으로 알고, 고장은 다음 사람 몫이 된다.
+    """
+    out: list[dict] = []
+    for fid in list_formats(formats_root):
+        try:
+            spec = load_format(fid, formats_root=formats_root)
+        except Exception as exc:  # noqa: BLE001
+            out.append({"id": fid, "error": f"{type(exc).__name__}: {exc}"})
+            continue
+        out.append({
+            "id": spec.id,
+            "name_ko": spec.name_ko,
+            "status": str(spec.status),
+            "skeleton": list(spec.skeleton),
+            "templates": [spec.primary_tpl(r) for r in spec.skeleton],
+            "outputs": list(spec.outputs),
+            "stage": {"w": spec.stage.w, "h": spec.stage.h},
+            "duration_target": spec.duration.target,
+            "usage_count": spec.usage_count,
+        })
+    return out
+
+
 def load_usage(format_id: str, *, formats_root: str | Path | None = None) -> list[dict]:
     """formats/{id}/usage.jsonl 을 읽어 산출물 기록 목록으로 돌려준다 (없으면 빈 목록)."""
     path = usage_path(format_id, formats_root)
