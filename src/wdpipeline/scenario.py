@@ -3303,6 +3303,24 @@ def _wrap_lines(text: str, limit: int, max_lines: int) -> list[str]:
     return lines
 
 
+def _fit_lines(parts: list[str], limit: int, cap: int) -> list[str]:
+    """문장 목록 → 한 문장 한 줄, 최대 cap 줄. 줄이 모자라면 **생략 건수를 밝힌다**.
+
+    문장 중간을 쪼개 다음 줄로 넘기지 않는다 — 템플릿이 줄마다 불릿을 그리므로
+    이어진 조각이 새 항목처럼 읽힌다(실측으로 확인). 긴 문장의 온전한 보존은
+    note(전폭 한 줄)가 맡는다(delib-16x9 승격 심의 O-2).
+
+    종전에는 넘치는 문장을 **말없이 버렸다** — 생략은 화면에 밝힌다는 이 저장소의
+    관례(_omit_note)가 이 슬롯에만 빠져 있었다.
+    """
+    lines = [_line(t, limit) for t in parts if str(t).strip()]
+    if len(lines) <= cap:
+        return lines
+    kept, note = lines[:cap], _omit_note(len(lines) - cap, "줄")
+    kept[-1] = _clip(f"{kept[-1].rstrip('…').rstrip()} ({note})", limit)
+    return kept
+
+
 def _num_token(text: str) -> tuple[float, int, str] | None:
     """첫 수치 토큰 → (값, 소수자릿수, 단위). 없으면 None."""
     m = _NUM_RE.search(str(text))
@@ -3490,8 +3508,20 @@ def _build_x_next(norm: dict, fragments: list[dict], idx: int, plan: dict) -> di
     tail = _sentences(d_text)[1:]
     grounds = decisions[1:] or tail or _delib_texts(fragments, "recommendation") \
         or rounds or [norm["title"]]
-    points = [_line(t, _lim("x-next", "decision", "points", "[]", default=26))
-              for t in grounds][: _cap("x-next", "decision", "points", default=3)]
+    # 근거의 자리 — 으뜸 근거는 **전폭 한 줄**(note)에 싣는다. 26자 불릿에 욱여넣으면
+    # 잘리거나 이어진 줄이 새 항목처럼 읽힌다(delib-16x9 승격 심의 O-2). note 는
+    # pre+strong+post 54자라 "…실측 0.82mm 에 안전율 1.2 다" 같은 문장이 통째로 들어가고,
+    # 수치를 strong 으로 갈라 강조할 수 있다. 그동안 이 슬롯은 비어 있었다.
+    lead, rest = (grounds[0], grounds[1:]) if grounds else ("", [])
+    note = _note_split(lead) if lead else None
+    # note 가 으뜸 근거를 가져갔으면 points 는 **그것을 되풀이하지 않는다.** 남는 것이
+    # 없으면 라운드·제목으로 채운다(스키마가 1줄 이상을 요구한다).
+    pool = rest if note else grounds
+    if not pool:
+        pool = rounds or [norm["title"]]
+    points = _fit_lines(pool,
+                        _lim("x-next", "decision", "points", "[]", default=26),
+                        _cap("x-next", "decision", "points", default=3))
     decision = {
         "label": _clip("결정 사항", _lim("x-next", "decision", "label", default=8)),
         "headline": _key_phrase(d_text, _lim("x-next", "decision", "headline", default=14)),
@@ -3523,13 +3553,36 @@ def _build_x_next(norm: dict, fragments: list[dict], idx: int, plan: dict) -> di
     # 제목 — 심의면 이 씬이 무엇인지 말한다. 보고서 제목은 이미 푸터 brand 에 있고,
     # 22자에 잘린 제목이 x-read 로 내레이션까지 읽히면 문장이 중간에서 끊긴다.
     title = "결정과 다음 단계" if (decisions or actions) else norm["title"]
+    out_note = note
     return {
         "kicker": _clip("다음 단계", _lim("x-next", "kicker", default=12)),
         "title": _clip(title, _lim("x-next", "title", default=22)),
         "decision": decision,
         "steps": steps,
+        **({"note": out_note} if out_note else {}),
         "frame": _frame(norm, idx, plan.get("_skeleton_len")),
     }
+
+
+def _note_split(text: str) -> dict | None:
+    """문장 → x-next.note {pre, strong, post}. 수치를 strong 으로 갈라 강조한다.
+
+    전폭 한 줄(54자)이라 26자 불릿이 못 담는 근거 문장이 통째로 들어간다.
+    수치가 없으면 pre 에만 담고, 그래도 넘치면 None(= 싣지 않는다 — 잘린 근거보다 낫다).
+    """
+    pre_max = _lim("x-next", "note", "pre", default=20)
+    strong_max = _lim("x-next", "note", "strong", default=14)
+    post_max = _lim("x-next", "note", "post", default=20)
+    flat = " ".join(str(text).split())
+    if not flat:
+        return None
+    m = _NUM_RE.search(flat)
+    if m and len(m.group(0).strip()) <= strong_max:
+        tok = m.group(0).strip()
+        head, _, tail = flat.partition(tok)
+        if len(head) <= pre_max and len(tail) <= post_max:
+            return {k: v for k, v in (("pre", head), ("strong", tok), ("post", tail)) if v}
+    return {"pre": flat} if len(flat) <= pre_max else None
 
 
 def _build_x_quote(norm: dict, fragments: list[dict], idx: int, plan: dict) -> dict:

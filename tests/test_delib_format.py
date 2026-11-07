@@ -319,3 +319,65 @@ def test_stakes_falls_back_to_the_question_not_the_rounds():
     quote = doc.content["stakes"]["quote"]
     assert "줄일 수 있는가" in quote
     assert "R1" not in quote and "수렴" not in quote
+
+
+# ── O-2 근거의 자리 (승격 심의가 미해결로 보존한 건) ────────────────────
+#
+# 결정 근거가 26자 불릿에서 잘려 "안전율 1.2" 가 사라졌고, 그 동안 셋째 줄은 비어
+# 있었다. 심의에 참여하지 않은 사람에게는 결정보다 근거가 중요하다 — 버릴 자리가 아니다.
+
+
+def _action(markdown: str | None = None) -> dict:
+    rep = json.loads(json.dumps(DELIB_REPORT))
+    if markdown:
+        rep["pages"][0]["content"]["rt_d"] = {"markdown": markdown}
+    norm = normalize_report(rep)
+    doc = assemble_demo_scenario(norm, fragmentize(norm), FORMAT_ID)
+    assert validate_scenario(doc) == []
+    return doc.model_dump()["content"]["action"]
+
+
+def _note_text(action: dict) -> str:
+    n = action.get("note") or {}
+    return "".join(n.get(k, "") for k in ("pre", "strong", "post"))
+
+
+def test_primary_grounds_survives_whole():
+    """으뜸 근거는 전폭 한 줄(note)에 통째로 — 잘리면 결정의 까닭이 사라진다."""
+    a = _action()
+    assert "안전율 1.2" in _note_text(a), _note_text(a)
+    assert not _note_text(a).endswith("…")
+    assert (a.get("note") or {}).get("strong") == "0.82mm"   # 수치를 갈라 강조한다
+
+
+def test_points_never_repeat_the_note():
+    """note 가 가져간 문장을 불릿이 되풀이하지 않는다."""
+    for md in (None, "셀 팽창 여유를 1.0mm 로 정한다. 실측 0.82mm 다."):
+        a = _action(md)
+        note = _note_text(a)
+        for p in a["decision"]["points"]:
+            body = p.rstrip("…").strip()
+            assert not (body and body in note), f"{p!r} 가 note 와 겹친다"
+
+
+def test_points_do_not_split_a_sentence_across_bullets():
+    """템플릿이 줄마다 불릿을 그린다 — 이어진 조각은 새 항목처럼 읽힌다."""
+    for md in (None, "셀 팽창 여유를 1.0mm 로 정한다."):
+        for p in _action(md)["decision"]["points"]:
+            assert not p.startswith("…"), f"이어짐 불릿: {p!r}"
+
+
+def test_overflowing_grounds_are_declared_not_dropped():
+    """줄이 모자라면 말없이 버리지 않고 생략 건수를 밝힌다(이 저장소의 관례)."""
+    md = ("셀 팽창 여유를 1.0mm 로 정한다. 근거는 수명 말기 변형 실측 0.82mm 다. "
+          "에너지 밀도는 2.1% 오른다. 양산 공정 변경은 없다. 원가 영향은 뒤에 본다. "
+          "품질 표본은 30개로 늘린다. 열 해석은 다시 돌린다.")
+    pts = _action(md)["decision"]["points"]
+    assert len(pts) <= 3
+    assert "외" in pts[-1], pts
+
+
+def test_grounds_absent_still_validates():
+    """근거가 없는 결정문(한 문장)도 스키마를 만족해야 한다 — points 는 1줄 이상."""
+    a = _action("셀 팽창 여유를 1.0mm 로 정한다.")
+    assert a["decision"]["points"]
