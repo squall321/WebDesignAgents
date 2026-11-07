@@ -3764,6 +3764,24 @@ def _pick_module(spec: FormatSpec, role: str, cand: dict, structured_templates: 
 # ── 공개 API (모듈 간 계약) ─────────────────────────────────────────────
 
 
+def _durs_for(spec, nats: list[float]) -> list[float]:
+    """씬 길이 — **확정 구간 예산(presets.dur_plan)이 있으면 그것이 지배한다.**
+
+    dur_plan 은 그 장르를 실제로 만들어 보고 TTS 로 재서 확정한 값이다. 그런데 조립기가
+    읽지 않아 **적어 두고도 템플릿 nat_default 를 target 에 맞춰 늘린 값이 나갔다** —
+    wide-16x9 는 dur_plan Σ78초를 적고 90초로, delib-16x9 는 72.3초를 적고 64초로
+    조립되고 있었다(2026-11-07 실측). 포맷 명세가 "dur_plan 이 target 을 지배한다" 고
+    적어 둔 관계가 코드에 없었다.
+
+    골격의 **모든 역할**에 값이 있을 때만 쓴다 — 일부만 있으면 어느 씬이 실측값이고
+    어느 씬이 추정인지 화면에서 구분되지 않는다.
+    """
+    plan = spec.presets.dur_plan
+    if plan and all(r in plan for r in spec.skeleton):
+        return [float(plan[r]) for r in spec.skeleton]
+    return _stretch_to_target(nats, spec.duration.target)
+
+
 def _stretch_to_target(nats: list[float], target: float) -> list[float]:
     """자연 길이 목록을 포맷의 duration.target 에 맞게 균일 스케일한다.
 
@@ -3955,9 +3973,7 @@ def assemble_demo_scenario(
     plan = _assign(cand, {short for _, _, short in picks})
     plan["_skeleton_len"] = len(spec.skeleton)  # 세로 프레임 total (vtpl frame 은 정수 계약)
 
-    durs = _stretch_to_target(
-        [float(m.get("nat_default", 10)) for m, _, _ in picks], spec.duration.target
-    )
+    durs = _durs_for(spec, [float(m.get("nat_default", 10)) for m, _, _ in picks])
 
     content: dict[str, dict] = {}
     scenes: list[dict] = []

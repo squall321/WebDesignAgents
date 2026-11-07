@@ -359,6 +359,9 @@ def test_assemble_stretches_to_format_target(tmp_path: Path, monkeypatch):
         (REPO_ROOT / "formats" / "wide-16x9" / "format.yaml").read_text(encoding="utf-8")
     )
     src["duration"] = {"target": 45, "min": 20, "max": 600}
+    # 확정 구간 예산이 있으면 그것이 target 을 지배한다(2026-11-07) — 늘이기 경로를
+    # 보려면 예산을 치운다. '예산이 이긴다' 쪽은 test_dur_plan_governs_assembly 가 본다.
+    src.get("presets", {}).pop("dur_plan", None)
     (tmp_path / "wide-16x9").mkdir(parents=True)
     (tmp_path / "wide-16x9" / "format.yaml").write_text(
         yaml.safe_dump(src, allow_unicode=True), encoding="utf-8"
@@ -396,4 +399,40 @@ def test_declared_theme_has_tokens(format_id):
     spec = load_format(format_id)
     assert (REPO_ROOT / "web" / "tokens" / f"{spec.theme}.json").is_file(), (
         f"{format_id}: 테마 토큰 없음 — web/tokens/{spec.theme}.json"
+    )
+
+
+# ── 확정 구간 예산이 실제로 지배하는가 (2026-11-07 실측에서 드러난 결함) ──
+#
+# dur_plan 은 그 장르를 만들어 보고 TTS 로 재서 확정한 값이다. 그런데 조립기가 읽지
+# 않아 **적어 두고도 nat_default 를 target 에 맞춘 값이 나갔다** — wide-16x9 는 78초를
+# 적고 90초로, delib-16x9 는 72.3초를 적고 64초로 조립되고 있었다. 포맷 명세가
+# "dur_plan 이 target 을 지배한다" 고 적은 관계가 코드에 없었다.
+
+
+@pytest.mark.parametrize("format_id", sorted(list_formats()))
+def test_dur_plan_governs_assembly(format_id):
+    spec = load_format(format_id)
+    plan = spec.presets.dur_plan
+    if not plan:
+        pytest.skip(f"{format_id}: dur_plan 미확정(실측 전)")
+    norm = ingest_report_file(SAMPLE)
+    doc = assemble_demo_scenario(norm, fragmentize(norm), format_id)
+    total = round(sum(s.dur for s in doc.scenes), 3)
+    assert total == pytest.approx(sum(plan.values()), abs=0.05), (
+        f"{format_id}: 적어 둔 예산 {sum(plan.values()):g}s 가 아니라 {total:g}s 로 조립됐다"
+    )
+    by_role = dict(zip(spec.skeleton, (s.dur for s in doc.scenes)))
+    for role, want in plan.items():
+        assert by_role[role] == pytest.approx(want, abs=0.05), role
+
+
+@pytest.mark.parametrize("format_id", sorted(list_formats()))
+def test_partial_dur_plan_is_ignored(format_id):
+    """일부 역할만 있으면 쓰지 않는다 — 어느 씬이 실측이고 어느 씬이 추정인지 섞인다."""
+    spec = load_format(format_id)
+    if not spec.presets.dur_plan:
+        pytest.skip("dur_plan 없음")
+    assert set(spec.presets.dur_plan) >= set(spec.skeleton), (
+        f"{format_id}: dur_plan 이 골격의 일부만 덮는다 — 전부 덮거나 비워라"
     )

@@ -138,7 +138,9 @@ def test_delib_scenario_validates():
     doc = assemble_demo_scenario(*_built())
     assert validate_scenario(doc) == []
     assert len(doc.scenes) == 6
-    assert sum(s.dur for s in doc.scenes) == pytest.approx(64.0)
+    # TTS 실측(2026-11-07)이 확정한 구간 예산 — nat_default 합 64초로는 6씬 중 4씬이
+    # 낭독을 담지 못했다. presets.dur_plan 이 duration.target 을 지배한다.
+    assert sum(s.dur for s in doc.scenes) == pytest.approx(72.3)
 
 
 # 이 테스트가 이 작업의 존재 이유다 — 조립은 늘 "성공" 했고, 유실된 것은 내용이었다.

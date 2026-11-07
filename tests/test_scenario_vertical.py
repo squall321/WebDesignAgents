@@ -48,11 +48,19 @@ def test_rule_assembly_matches_deliberated_skeleton(short_v1_doc, delib_doc):
     assert set(short_v1_doc.content) == {"hook", "problem", "solution", "proof", "cta"}
 
 
-def test_duration_stretched_to_format_target(short_v1_doc):
-    """씬 nat 합(48s)이 duration.target(60s)으로 균일 스케일된다."""
+def test_duration_follows_the_confirmed_budget(short_v1_doc):
+    """확정 구간 예산(presets.dur_plan)이 duration.target 을 지배한다.
+
+    종전 기대값 60초는 nat 합(48s)을 target 으로 늘린 값이었다. 그런데 이 포맷은
+    제작 심의가 확정한 dur_plan(Σ46s)을 갖고 있었고 조립기가 그걸 읽지 않았다
+    (2026-11-07). 심의가 정한 값이 템플릿 기본값에 밀리면 안 된다.
+    """
+    from wdpipeline.format import load_format
+
+    plan = load_format("short-9x16").presets.dur_plan
     total = round(sum(s.dur for s in short_v1_doc.scenes), 2)
-    assert total == 60.0
-    assert 40.0 <= total <= 75.0
+    assert total == pytest.approx(sum(plan.values()), abs=0.05)
+    assert load_format("short-9x16").duration.min <= total <= load_format("short-9x16").duration.max
 
 
 def test_stack_tone_follows_role_order(short_v1_doc):

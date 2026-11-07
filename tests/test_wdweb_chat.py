@@ -106,7 +106,10 @@ def test_set_dur_applies_and_rebuilds(
     run_id = built_run["run_id"]
     build_dir = Path(built_run["build_dir"])
     old_dur = _scene(_scenario(chat_env, run_id), "절차")["dur"]
-    assert old_dur == 18  # process nat_default
+    # 확정 구간 예산(wide-16x9 presets.dur_plan.process = 15.5s)이 지배한다.
+    # 종전 기대값 18은 템플릿 nat_default 였다 — 심의가 정한 값이 그것에 밀리고 있었다
+    # (2026-11-07). 골든 delib_v2 의 절차 씬도 15.5초다.
+    assert old_dur == 15.5
 
     res = _post_chat(client, run_id, "절차 씬 길이를 14초로 줄여줘")
     assert res.status_code == 200
