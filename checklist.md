@@ -283,6 +283,23 @@ tts_client·mux 는 있었지만 어느 창구도 부르지 않았고, 목소리
       wide-16x9(78→90)·short-9x16 도 같았다. 포맷 전수 회귀 테스트로 관계를 못박음
 - [ ] 배치 — **클릭 검증이 끝날 때까지 미룬다**(dev 를 073d205 로 묶어 둠, Drive 와 어긋나지 않게)
 
+### ⛔ 배포 사슬이 허브 장애로 막혀 있다 (2026-11-17 08:5x 확인)
+
+push 까지는 끝냈다 — `origin/main = 9029df9`. **SIF 재빌드·라이브 전환·배치본 검증은 못 한다.**
+
+- 앱은 **08:06 에 내려갔다.** 포트 9529 무응답, uvicorn pid 1939254 없음.
+- 원인은 WDA 가 아니다 — **허브 PostgreSQL(5732)이 죽어 있고** 런처가 포트 할당을 못 해
+  기동이 6번 연속 실패했다(지수 백오프, 다음 시도 1920초 뒤).
+- 더 아래를 보면 **apptainer 인스턴스 전부의 마운트가 끊겼다** —
+  `heax-pg`·`heax-caddy`·`heax_app_web_design_agents` 모두
+  `stat /bin/true: transport endpoint is not connected`. 공유 fuse-overlayfs 세션이 죽었다.
+- 허브 워치독은 이미 복구를 시도하다 백오프에 들어갔다(postgres 6회·caddy 6회·mailhog 5회).
+- **이건 박스 전체(모든 앱)에 걸린 장애라 WDA 세션이 단독으로 손대지 않는다.**
+  인스턴스를 전부 내렸다 올려야 하고, 그 사이 다른 앱·다른 세션이 끊긴다.
+- 허브가 서면 할 일 — `redeploy-app.sh web-design-agents --rebuild` → health 의
+  `version`·`formats["delib-16x9"]` 확인 → **QA 게이트 포함** 배치본 검증 → 포털에
+  main 판·Drive dist·SIF sha256 전달.
+
 ### 포털 통합이 멈춰 있는 지점 (2026-11-07 확인)
 막힌 것이 아니다 — 스위치는 11-02 부터 켜져 있고 단추도 있다. `POST /agent/deck/jobs` 가
 **0건**이고 내 실행 원장도 비었다. **사람이 화면에서 한 번 눌러야** 2절 2~4 가 돈다.
