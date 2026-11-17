@@ -29,19 +29,6 @@
     var v = seg(t, at, d, 0, 1, easeOf(m.ease));
     return { opacity: Math.min(1, v), transform: 'scale(' + v + ')' };
   }
-  // 하단 중앙 풋노트 — {pre, strong, post}
-  function ClosingNote(props) {
-    var t = props.t, theme = props.theme, d = props.data;
-    if (!d) return null;
-    return (
-      <div style={Object.assign({
-        position: 'absolute', left: 0, right: 0, top: props.top, textAlign: 'center',
-        fontSize: theme.type.body, color: theme.color.sub,
-      }, enter(theme, t, props.at, 0.7, 16))}>
-        {d.pre}{d.strong && <span style={{ fontWeight: 800, color: theme.color.ink }}>{d.strong}</span>}{d.post}
-      </div>
-    );
-  }
   var FRAME_SCHED = [
     { id: 'kicker', kind: 'enter', at: 0.15, dur: 0.7, path: '/kicker' },
     { id: 'title', kind: 'enter', at: 0.35, dur: 0.7, path: '/title' },
@@ -295,7 +282,6 @@
   var NX_OWNER_W = 190;
   var NX_INNER_GAP = 20;
   var NX_BAND_BOTTOM = 886;
-  var NX_NOTE_TOP = 906;                                   // 906+31=937 < 971 (푸터 구분선)
 
   function nxGeo(theme, n) {
     var L = theme.layout;
@@ -314,23 +300,31 @@
     var whatLineH = Math.round(theme.type.item * 1.3);         // 40
     var labelH = 42;
     var metaH = 30;
-    // 좌측 패널 세로 흐름 — 라벨 → 결정문(2줄 고정) → 구분선 → 근거 목록(각 2줄) → 확정 메타(하단 고정)
+    // 좌측 패널 세로 흐름 — 라벨 → 결정문(2줄 고정) → 구분선 → **근거**(2줄) → 전제 목록 → 확정 메타
+    //
+    // 근거가 구분선 바로 아래 오는 것은 O-2 심의(2026-11-11, 판정 B)가 정한 자리다. 읽는 순서가
+    // "1.0mm 로 정했다 → 0.82 × 1.2 니까 → (전제) → 확정일" 이 되어 결정문의 원래 문장 순서와
+    // 같아진다. 종전에는 씬 **맨 아래 전폭 각주**였고, 그 자리는 우측 카드 셋이 다 등장한 뒤
+    // 마지막에 붙어 시선 경쟁에서 졌다(AU: 소리를 끈 사람은 그 줄을 지나친다).
+    var groundLineH = Math.round(theme.type.item * 1.3);       // 40
     var rows = { label: leftPad, head: leftPad + labelH + 18 };
     rows.rule = rows.head + headLineH * 2 + 22;
-    rows.points = rows.rule + 23;
+    rows.ground = rows.rule + 23;
+    rows.points = rows.ground + groundLineH * 2 + 20;
     rows.metaTop = H - leftPad - metaH;
     return {
       x: L.marginX, y: top, w: W, h: H,
       leftW: NX_LEFT_W, leftPad: leftPad, leftInner: leftInner,
       labelH: labelH, headLineH: headLineH, headH: headLineH * 2,
       pointLineH: pointLineH, pointH: pointLineH * 2, pointGap: 22,
+      groundLineH: groundLineH, groundH: groundLineH * 2,
       rows: rows, metaH: metaH,
       rightX: L.marginX + NX_LEFT_W + NX_COL_GAP, rightW: rightW,
       count: count, cardH: cardH, cardPad: cardPad, innerW: innerW,
       whenW: NX_WHEN_W, ownerW: NX_OWNER_W, pillH: 46,
       whatW: innerW - NX_WHEN_W - NX_INNER_GAP - NX_OWNER_W - NX_INNER_GAP,  // 560
       whatLineH: whatLineH, whatH: whatLineH * 2,
-      noteTop: NX_NOTE_TOP, footerRuleY: FOOTER_RULE_Y,
+      footerRuleY: FOOTER_RULE_Y,
     };
   }
   function nxPlan(d) {
@@ -347,7 +341,8 @@
       meta: { at: 2.0 + np * 0.5 + 0.4, dur: 0.5 },
       cardAt: cardAt, cardDur: 0.6, whenDelay: 0.1, whatDelay: 0.24, ownerDelay: 0.4,
       stepCount: ns,
-      note: { at: last + 1.0, dur: 0.7 },
+      // 근거는 결정의 일부다 — 구분선이 그려진 직후에 선다(종전엔 카드가 다 등장한 뒤 맨 마지막).
+      note: { at: 1.5, dur: 0.7 },
     };
   }
   function NextScene(props) {
@@ -387,6 +382,21 @@
             transform: 'scaleX(' + seg(t, p.rule.at, p.rule.dur, 0, 1) + ')',
             transformOrigin: '0% 50%',
           }}></div>
+          {d.note && (
+            <div style={Object.assign({
+              position: 'absolute', left: g.leftPad, top: g.rows.ground,
+              width: g.leftInner, height: g.groundH,
+              // 전제보다 **크고 진하다** — 같은 크기면 같은 층위로 읽힌다(AX 조건 C-12).
+              // 전제를 줄이는 쪽으로 차이를 만들면 24px 하한에 걸리므로 근거를 키운다.
+              fontSize: theme.type.item, color: theme.color.ink, lineHeight: g.groundLineH + 'px',
+            }, enter(theme, t, p.note.at, p.note.dur, 14))}>
+              {d.note.pre}
+              {d.note.strong && (
+                <span style={{ fontWeight: 800, color: theme.color.blue }}>{d.note.strong}</span>
+              )}
+              {d.note.post}
+            </div>
+          )}
           {(dec.points || []).map(function (s, i) {
             var top = g.rows.points + i * (g.pointH + g.pointGap);
             return (
@@ -453,7 +463,8 @@
             </div>
           );
         })}
-        <ClosingNote t={t} theme={theme} data={d.note} top={g.noteTop} at={p.note.at} />
+        {/* 근거는 좌측 결정 패널 안으로 올라갔다(O-2 판정 B) — 하단 각주 자리는 더 쓰지 않는다.
+            같은 내용을 두 곳에 두면 중복이고, 아래 자리는 시선 경쟁에서 진다. */}
       </FrameChrome>
     );
   }
