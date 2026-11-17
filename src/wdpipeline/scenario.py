@@ -2658,6 +2658,26 @@ def _cap(short: str, *path: str, default: int) -> int:
     return int(v) if isinstance(v, int) else default
 
 
+def _cap_if(short: str, present: str, *path: str, default: int) -> int:
+    """`if: {required:[present]} / then:` 분기의 maxItems. 분기가 없으면 default.
+
+    조건부 상한을 조립기에 상수로 박지 않는 까닭 — 스키마와 코드 두 곳이 같은 말을
+    하게 되고, 어긋나는 날 어느 쪽이 참인지 알 수 없다(모듈 심의 2026-11-17, F-TD-7).
+    스키마가 정본이고 조립기는 읽는다.
+    """
+    schema = _doc_schema(short)
+    cond = schema.get("if") or {}
+    if present not in (cond.get("required") or []):
+        return default
+    node = schema.get("then") or {}
+    for seg in path:
+        node = (node.get("items") or {}) if seg == "[]" \
+            else ((node.get("properties") or {}).get(seg) or {})
+        node = _deref(schema, node)
+    v = node.get("maxItems")
+    return int(v) if isinstance(v, int) else default
+
+
 def _floor(short: str, *path: str, default: int) -> int:
     v = _node(short, *path).get("minItems")
     return int(v) if isinstance(v, int) else default
@@ -3508,9 +3528,9 @@ def _build_x_next(norm: dict, fragments: list[dict], idx: int, plan: dict) -> di
     tail = _sentences(d_text)[1:]
     grounds = decisions[1:] or tail or _delib_texts(fragments, "recommendation") \
         or rounds or [norm["title"]]
-    # 근거의 자리 — 으뜸 근거는 **전폭 한 줄**(note)에 싣는다. 26자 불릿에 욱여넣으면
-    # 잘리거나 이어진 줄이 새 항목처럼 읽힌다(delib-16x9 승격 심의 O-2). note 는
-    # pre+strong+post 54자라 "…실측 0.82mm 에 안전율 1.2 다" 같은 문장이 통째로 들어가고,
+    # 근거의 자리 — 으뜸 근거는 결정 패널 안 **2줄 칸**(note)에 싣는다. 26자 불릿에
+    # 욱여넣으면 잘리거나 이어진 줄이 새 항목처럼 읽힌다(delib-16x9 승격 심의 O-2).
+    # note 는 합계 36자라 "…실측 0.82mm 에 안전율 1.2 다" 같은 문장이 통째로 들어가고,
     # 수치를 strong 으로 갈라 강조할 수 있다. 그동안 이 슬롯은 비어 있었다.
     lead, rest = (grounds[0], grounds[1:]) if grounds else ("", [])
     note = _note_split(lead) if lead else None
@@ -3519,9 +3539,15 @@ def _build_x_next(norm: dict, fragments: list[dict], idx: int, plan: dict) -> di
     pool = rest if note else grounds
     if not pool:
         pool = rounds or [norm["title"]]
+    # note 가 서면 전제는 2줄까지다 — 패널 세로 예산이 근거 80px 를 내주면 3번째 전제가
+    # 패널을 뚫고 확정 메타와 겹친다(모듈 심의 2026-11-17, 판정 B · C-15). 그 2 는
+    # **스키마의 if/then 분기**에 있고 여기서는 읽기만 한다(F-TD-7).
+    cap = _cap("x-next", "decision", "points", default=3)
+    if note:
+        cap = min(cap, _cap_if("x-next", "note", "decision", "points", default=cap))
     points = _fit_lines(pool,
                         _lim("x-next", "decision", "points", "[]", default=26),
-                        _cap("x-next", "decision", "points", default=3))
+                        cap)
     decision = {
         "label": _clip("결정 사항", _lim("x-next", "decision", "label", default=8)),
         "headline": _key_phrase(d_text, _lim("x-next", "decision", "headline", default=14)),
@@ -3564,17 +3590,30 @@ def _build_x_next(norm: dict, fragments: list[dict], idx: int, plan: dict) -> di
     }
 
 
+# 근거 칸 합계 상한 — 결정 패널 안 524px · 31px · 2줄(80px)에 **실측**으로 드는 자수.
+# 한글만·공백 없음이 최악 36자이고, 어절 3~5자는 40~42자, 숫자·단위 위주는 61자까지 든다
+# (모듈 심의 2026-11-17, 판정 B · C-16). 그래서 이 수는 **한글 기준 안전값**이고,
+# 자수는 폭의 대리값일 뿐이다 — 폭을 재는 일은 파이썬 쪽에서 할 수 없다.
+#
+# 스키마의 필드별 상한(20·14·20)은 합계 54 를 허용한다. 합계는 스키마로 못 쓰므로
+# (JSON Schema 에 길이 합 제약이 없다) 여기서 지킨다. 안 지키면 47자 한글 문장이
+# 3줄이 되어 전제를 40px 밀어내고, 게이트 5 는 그걸 warning 으로만 보고한다.
+NOTE_TOTAL_MAX = 36
+
+
 def _note_split(text: str) -> dict | None:
     """문장 → x-next.note {pre, strong, post}. 수치를 strong 으로 갈라 강조한다.
 
-    전폭 한 줄(54자)이라 26자 불릿이 못 담는 근거 문장이 통째로 들어간다.
-    수치가 없으면 pre 에만 담고, 그래도 넘치면 None(= 싣지 않는다 — 잘린 근거보다 낫다).
+    결정 패널 안 2줄 칸(합계 36자)이라 26자 불릿이 못 담는 근거 문장이 통째로 들어간다.
+    수치가 없으면 pre 에만 담는다. 들어가지 않으면 None 을 돌려주는데, 그건 **버린다는
+    뜻이 아니다** — 호출부에서 그 문장이 전제 목록 맨 앞으로 내려가고(O-2 이전과 같은
+    모습) 거기서 26자 절단의 말줄임·생략 꼬리표가 화면에 남는다.
     """
     pre_max = _lim("x-next", "note", "pre", default=20)
     strong_max = _lim("x-next", "note", "strong", default=14)
     post_max = _lim("x-next", "note", "post", default=20)
     flat = " ".join(str(text).split())
-    if not flat:
+    if not flat or len(flat) > NOTE_TOTAL_MAX:
         return None
     m = _NUM_RE.search(flat)
     if m and len(m.group(0).strip()) <= strong_max:

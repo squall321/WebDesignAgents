@@ -383,3 +383,87 @@ def test_grounds_absent_still_validates():
     """근거가 없는 결정문(한 문장)도 스키마를 만족해야 한다 — points 는 1줄 이상."""
     a = _action("셀 팽창 여유를 1.0mm 로 정한다.")
     assert a["decision"]["points"]
+
+
+# ── module_review(2026-11-17, 판정 B) 회귀 — 근거 칸의 자리가 아래 것들을 밀어낸다 ──
+
+
+def test_note_and_three_premises_are_arithmetically_impossible():
+    """근거가 서면 전제는 2줄까지다 — 셋이면 패널을 뚫고 확정 메타와 겹친다(C-15).
+
+    실측: 3번째 전제가 바닥 570 으로 패널(556)을 14px 뚫고 메타(497~527)와 23px 겹쳤다.
+    게이트 3·4·5 는 형제 겹침·부모 이탈을 보지 않아 `passed: true` 0건이었다 —
+    그래서 이 조합은 **스키마가** 막는다.
+    """
+    schema = json.loads(
+        (REPO_ROOT / "modules/scene-templates/x-next/schema.json").read_text(encoding="utf-8")
+    )
+    assert "note" in (schema.get("if") or {}).get("required", [])
+    then_points = (schema["then"]["properties"]["decision"]["properties"]["points"])
+    assert then_points["maxItems"] == 2
+
+    from jsonschema import Draft202012Validator
+    v = Draft202012Validator(schema)
+    data = {
+        "kicker": "다음 단계", "title": "결정과 다음 단계",
+        "decision": {"headline": "셀 팽창 여유를 1.0mm", "points": ["가", "나", "다"]},
+        "steps": [{"when": "후속", "owner": "구조", "what": "재계산한다"}] * 3,
+        "note": {"pre": "근거는 ", "strong": "0.82mm", "post": " 다."},
+    }
+    assert [e.message for e in v.iter_errors(data)], "근거 + 전제 3줄이 통과했다"
+    data["decision"]["points"] = ["가", "나"]
+    assert not [e.message for e in v.iter_errors(data)]
+    data.pop("note")                                    # 근거가 없으면 셋이 허용된다
+    data["decision"]["points"] = ["가", "나", "다"]
+    assert not [e.message for e in v.iter_errors(data)]
+
+
+def test_assembler_reads_the_conditional_cap_from_the_schema():
+    """조립기에 2 를 상수로 박지 않는다 — 스키마가 정본이다(F-TD-7)."""
+    from wdpipeline.scenario import _cap, _cap_if
+    assert _cap("x-next", "decision", "points", default=3) == 3
+    assert _cap_if("x-next", "note", "decision", "points", default=3) == 2
+    assert _cap_if("x-summary", "note", "points", default=5) == 5   # 분기 없는 템플릿
+
+
+def test_note_total_length_is_capped_by_measurement():
+    """합계 36자(한글 기준) — 스키마 필드별 상한의 합(54)은 상한이 아니다(C-16).
+
+    47자 한글 위주 문장이 3줄이 되어 전제를 40px 밀어냈고, 게이트 5 는 그것을
+    warning 으로만 보고했다. 합계 제약은 JSON Schema 로 못 쓰므로 조립기가 진다.
+    """
+    from wdpipeline.scenario import NOTE_TOTAL_MAX, _note_split
+    assert NOTE_TOTAL_MAX == 36
+    fits = "근거는 수명 말기 변형 실측 0.82mm 에 안전율 1.2 다."
+    assert len(fits) == 35
+    split = _note_split(fits)
+    assert split and sum(len(v) for v in split.values()) <= NOTE_TOTAL_MAX
+    over = "근거는 수명 말기 변형의 실측값과 조립 공차 누적분을 함께 고려해 정한 여유치다"
+    assert len(over) > NOTE_TOTAL_MAX
+    assert _note_split(over) is None
+
+
+def test_overlong_grounds_fall_back_to_premises_not_the_void():
+    """36자를 넘으면 note 가 비는 대신 **전제 맨 앞으로 내려간다**(C-20 주석의 주장)."""
+    long_ground = "수명 말기 변형의 실측값과 조립 공차 누적분을 함께 고려해 정한 여유치다"
+    md = f"셀 팽창 여유를 1.0mm 로 정한다. 근거는 {long_ground}."
+    a = _action(md)
+    assert a.get("note") is None, a.get("note")
+    body = " ".join(a["decision"]["points"])
+    assert "수명 말기 변형" in body, a["decision"]["points"]
+
+
+def test_copy_guide_records_the_measured_note_limit():
+    """C-17 — 근거 칸이 copy_guide 에 있고, 실측 상한이 주석으로 가려 적혀 있다."""
+    spec = load_format(FORMAT_ID)
+    assert "action.note" in spec.presets.copy_guide
+    raw = (REPO_ROOT / "formats" / FORMAT_ID / "format.yaml").read_text(encoding="utf-8")
+    assert "36자(한글 기준)" in raw
+    assert "자수는 폭의 대리값" in raw
+
+
+def test_dead_footnote_geometry_is_gone():
+    """C-19 — 하단 각주 자리를 더 쓰지 않으므로 그 좌표·컴포넌트도 남기지 않는다."""
+    jsx = (REPO_ROOT / "web/templates/omx-closings.jsx").read_text(encoding="utf-8")
+    for dead in ("NX_NOTE_TOP", "noteTop", "ClosingNote"):
+        assert dead not in jsx, dead
