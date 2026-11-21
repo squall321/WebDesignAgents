@@ -318,4 +318,30 @@ push 까지는 끝냈다 — `origin/main = 9029df9`. **SIF 재빌드·라이브
 ### 하지 않는 것
 - 역사 다시 쓰기(rebase·force) — 문서가 커밋 해시를 인용한다
 - 포털 `backend/.env` 의 `WDA_DECK_ENABLED` — 그쪽 설정이다
-- W-16~W-20 — M2. W-19(슬라이드 PDF)는 청하지 않기로 결정됨.
+- W-16(그림 함께 받기)·W-20(취소) — M2 에 남는다. W-19(슬라이드 PDF)는 청하지 않기로 결정됨.
+  W-17·W-18 은 2026-11-21 에 지었다(아래).
+
+## 2026-11-21 — 포털 계약 M2 (가지 `wt1121/deck` · 사용자 지시 — 포털 세션이 전했다)
+정본: 포털 `docs/wda-deck/wda-request.md` §6 그림 · §9(W-17·W-18) · 포털 체크리스트 44·186행.
+결정은 context-notes.md 결정 83~86. **이 가지는 커밋까지다 — push·SIF·redeploy 는 하지 않았다**(포털 세션이 검토 뒤 병합한다).
+
+- [x] **주인 있는 실행은 서비스 자격(`WDA_RA_*`)으로 RA 그림을 받지 않는다** — `bca5988`·`66a606c`.
+      `resolve_assets(service_rest=False)` 가 REST 걸음을 통째로 건너뛴다(로그인도 없다). 주인은 원장에서 읽는다(재개도 같은 워커).
+      건너뛴 사실은 원장 `run.assets{service_fetch,total,resolved,skipped[],skipped_count}`·`run.warnings` 와 정규화본 `assets_meta` 에 남는다.
+      주인 없는 실행은 호출 글자까지 종전 그대로다
+- [x] **W-17 지우기** `DELETE /api/runs/{id}` — `7664a70`. 주인만(남·익명 404 — 미들웨어 + 핸들러 두 겹) · 주인 없는 실행 403 ·
+      도는 중 409 BUSY · 멱등(지운 뒤 200 already) · 못 지운 조각이 있으면 500. 원장은 묘비로 남는다(주인·slug 유지, 내용 칸은 비움).
+      health features 에 `delete`. 실기동 시험(`--root-path` 있는/없는 두 조건)
+- [x] **W-18 MCP 쪽 주인** — `28d7c69`. `POST /api/auth/sso`(공유 비밀 + `X-Hwax-Delegate-Email` → 단기 단언 `wdsso_`) ·
+      도구는 `X-Heax-Sso-Assertion` 의 서명으로 확인된 주인에게만 연다(`wdmcp/delegation.py`·`ownership.closed_to`).
+      **기본 꺼짐** — 비밀(`secrets.env` 의 `WDA_GATEWAY_SECRET`)이 있는 박스에서만 켜지고 health features 에 `mcp_owner` 가 실린다.
+      실기동 시험 — 진짜 uvicorn `/mcp` 에 streamable HTTP 로 붙어 두 조건에서 확인
+- [x] **재개는 받은 자리에서 running** — `19dc123`. 판정과 적기를 한 잠금 안에서(포털 '다시 시도' 가 재개 직후 진행을 묻는다 · 두 재개가 겹치지 않는다)
+- [x] 전체 회귀 — 고치기 전 2 실패(작업 폴더에 없는 버전 관리 밖 데이터 — `data/qa_reports`·`short_v2`) 그대로, 새 실패 0(수치는 context-notes 결정 86 아래)
+- [ ] **박스에서 켜기(사람)** — W-18 은 ① 허브 앱 데이터의 `secrets.env` 에 `WDA_GATEWAY_SECRET`(16자 이상) ② 게이트웨이
+      `gateway_config.json` 의 `heax_registry.per_user_sso.web_design_agents`(HWAXMcpGateway README 'WebDesignAgents — MCP 쪽 주인') ③ 게이트웨이 재기동
+- [ ] 배치 — main 병합 · push · SIF 재빌드 · redeploy · **배치본 검증(QA 게이트 포함)**. 지우기·W-18 은 배치본에서 한 번 더 본다(허브 Caddy 뒤)
+- [ ] **발견(고치지 않았다 — 결정이 필요하다)** — W-4 가 덮지 않는 길이 있다(context-notes 결정 85 끝 '발견').
+      `meeting_start(run_id)`·`report_ingest(file·run_id)` 가 주인 있는 실행의 조각·원본에 닿고(run_id 를 알아야 한다 — 128비트),
+      회의에는 주인이 없으며(`meeting_list`·`meeting_get_briefing`), 웹 콘솔의 심의 → 시나리오(`/api/meetings/{id}/scenario`)는
+      주인 있는 실행에서 주인에게도 막힌다(`scenario_build` 의 `_block_owned` 가 웹 길의 신원을 모른다)

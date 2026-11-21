@@ -23,6 +23,18 @@ WebDesignAgents 를 "통째로" 다른 서버(폐쇄망 cae00)로 옮겨 돌리�
 
 모델·LLM·TTS 는 자체 서빙하지 않는다 — vLLM(HWAXPortal 상속)·VoiceRecorder TTS API 를 소비.
 
+### 박스 비밀 — `secrets.env` (선택 · 기본 없음)
+
+매니페스트 env 는 git 에 있으므로 박스마다 다른 비밀을 둘 자리가 아니다. 앱 데이터 디렉터리
+(`HEAXHub/var/app_data/web_design_agents/` = 컨테이너의 `/data`)의 `secrets.env`(0600)에 둔다.
+
+| 키 | 무엇 | 없으면 |
+|---|---|---|
+| `WDA_GATEWAY_SECRET` | MCP 게이트웨이와만 나누는 값(16자 이상). 있으면 `POST /api/auth/sso` 가 열리고, 게이트웨이 사람별 위임으로 확인된 사람이 **자기** 실행을 MCP 로 다룬다(포털 계약 W-18 · context-notes 결정 85) | 창구 404 · 주인 있는 실행은 MCP 에 없다(종전) |
+
+파일은 호출마다 읽는다 — 넣고 빼는 데 재기동이 없다. 게이트웨이 쪽 짝(`heax_registry.per_user_sso.web_design_agents`)은
+HWAXMcpGateway README 의 'WebDesignAgents — MCP 쪽 주인' 을 따른다. 켜졌는지는 `/api/health` 의 features 에 `mcp_owner` 가 있는지로 본다.
+
 ## 통째 나르기 대상
 
 | 요소 | 크기 | 이동 방법 |
