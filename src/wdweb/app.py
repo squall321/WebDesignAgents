@@ -210,13 +210,14 @@ async def _ownership_guard(request: Request, call_next):
         run = runledger.read_run(run_id)
         if run is not None and not visible_to(run, identity(request)):
             return miss
-        # W-13 — 보존 기한이 지나 산출물을 지운 실행. '모르는 실행'(404)과 구분해 410 으로
-        # 답한다. 주인 검사를 통과한 뒤이므로 존재를 흘리지 않는다.
-        if run is not None and run.get("deleted_at"):
+        # W-13 · W-17 — 산출물을 지운 실행(보존 기한 · 주인이 지움). '모르는 실행'(404)과 구분해
+        # 410 으로 답한다. 주인 검사를 통과한 뒤이므로 존재를 흘리지 않는다. 지우기(DELETE)만은
+        # 지나간다 — 다시 불러도 같은 답이고(멱등) 남은 조각을 마저 치운다.
+        if run is not None and run.get("deleted_at") and request.method != "DELETE":
             return JSONResponse(
                 status_code=410,
                 content=envelope(None, success=False, code="NOT_FOUND",
-                                 message=f"보존 기한이 지나 지워진 실행입니다: {run_id}"),
+                                 message=f"지워진 실행입니다: {run_id}"),
             )
     return await call_next(request)
 
@@ -266,7 +267,7 @@ def health() -> dict:
         "status": "ok",
         "features": sorted(
             ["owner", "render_chain", "doc_formats", "skipped_report", "interrupted",
-             "idempotency", "error_codes"]
+             "idempotency", "error_codes", "delete"]
             + [f"format:{f['id']}" for f in rows]
         ),
         "formats": {f["id"]: f["status"] for f in rows},
@@ -357,13 +358,40 @@ async def create_run(request: Request) -> JSONResponse:
 def get_runs(request: Request) -> dict:
     """W-3 — 내 run 과 주인 없는 run 만. 신원이 없으면 주인 없는 것만."""
     who = identity(request)
-    runs = [r for r in runledger.list_runs() if visible_to(r, who)]
+    # 주인이 지운 실행(W-17)의 묘비는 목록에 싣지 않는다 — 지운 사람에게 그 실행은 없는 것이다
+    runs = [r for r in runledger.list_runs() if visible_to(r, who) and not r.get("deleted_by")]
     return envelope({"runs": runs})
 
 
 @app.get("/api/runs/{run_id}")
 def get_run(run_id: str) -> dict:
     return envelope(_run_or_404(run_id))
+
+
+@app.delete("/api/runs/{run_id}")
+def delete_run(run_id: str, request: Request) -> dict:
+    """W-17 — 주인이 자기 실행과 그 산출물을 지운다(보고서 본문 사본 포함).
+
+    남의 실행 · 신원 없음은 없는 것과 같은 404, 주인 없는 실행은 403, 도는 중이면 409 BUSY 다.
+    ⚠ 주인을 **여기서 한 번 더** 본다. 미들웨어(_ownership_guard)가 이미 거르지만 지우기는 되돌릴 수
+    없고, 그 한 곳이 틀렸을 때(2026-11-01 root_path 실사고) 남의 산출물이 사라지게 둘 수 없다.
+    """
+    run = _run_or_404(run_id)
+    owner = run.get("owner")
+    if owner is None:
+        # 주인 없는 실행은 모두에게 열려 있다 — 그래서 아무나 지우게 두지 않는다(운영자가 박스에서 치운다)
+        raise HTTPException(status_code=403, detail="주인 없는 실행은 이 창구로 지울 수 없습니다")
+    if owner != identity(request):
+        raise ApiError(404, "NOT_FOUND", f"실행을 찾을 수 없습니다: {run_id}")
+    try:
+        result = runledger.delete_run(run_id)
+    except runledger.RunBusy as exc:
+        raise ApiError(409, "BUSY", str(exc)) from None
+    if result["left"]:
+        # 묘비는 섰다(그 실행은 이미 닫혔다) — 못 지운 조각이 있음을 숨기지 않는다. 다시 부르면 마저 치운다
+        log.warning("run_delete_incomplete", run_id=run_id, left=result["left"])
+        raise ApiError(500, "INTERNAL", "실행은 닫았지만 일부 산출물을 지우지 못했습니다 — 다시 시도하세요")
+    return envelope(result, message="실행과 산출물을 지웠습니다")
 
 
 @app.post("/api/runs/{run_id}/render", status_code=status.HTTP_202_ACCEPTED)

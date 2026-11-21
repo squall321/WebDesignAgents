@@ -243,6 +243,84 @@ def mark_interrupted() -> list[str]:
     return touched
 
 
+# ── 지우기 (DELETE /api/runs/{id}) — W-17 ────────────────────────────────────
+#
+# 주인이 자기 실행과 산출물을 지운다 — RA 에서 보고서를 지운 사람이 WDA 의 사본(report.raw.json 에
+# 보고서 본문이 통째로 있다)도 지울 수 있게. 보존 만료(W-13)는 꺼 두기로 했으므로 이 길이 유일하다.
+
+
+class RunBusy(RuntimeError):
+    """도는 중인 실행 — 지우지 않는다(취소가 없어 워커가 쓰는 디렉터리를 밑에서 빼게 된다)."""
+
+
+def is_busy(run: dict) -> bool:
+    """파이프라인이나 렌더가 돌고 있는가(차례를 기다리는 것 포함)."""
+    if run.get("status") in ("queued", "running"):
+        return True
+    rnd = run.get("render")
+    return isinstance(rnd, dict) and rnd.get("status") in ("queued", "building", "rendering")
+
+
+def delete_run(run_id: str) -> dict:
+    """실행의 산출물(pipeline · build · renders · QA 리포트)을 지우고 원장을 **묘비**로 바꾼다.
+
+    원장 파일은 없애지 않는다. 묘비가 주인 · slug 를 쥐고 있어야 (1) 지워졌다는 사실(410)을 답하고
+    (2) 혹시 남은 조각이 '주인 없는 run' 으로 MCP 에 열리지 않는다(wdmcp.ownership 은 원장으로 판정한다).
+    대신 내용이 실린 칸(요약 · 단계 출력 · 오류 글 · 대화 · 멱등 키)은 전부 비운다.
+
+    순서는 묘비 먼저 · 디렉터리 나중이다 — 묘비가 서는 순간 그 실행의 다른 창구가 전부 410 이라
+    지우는 사이에 새 렌더 · 재개가 끼지 못한다. 이미 지운 실행을 다시 부르면 남은 조각만 치운다.
+    누가 지울 수 있는지는 호출부(REST 핸들러)가 본다. 도는 중이면 RunBusy.
+    """
+    import shutil
+
+    droot = data_dir()
+    with _lock:
+        run = read_run(run_id)
+        if run is None:
+            raise FileNotFoundError(f"실행 없음: {run_id}")
+        already = bool(run.get("deleted_at"))
+        if not already and is_busy(run):
+            raise RunBusy("아직 만드는 중인 실행은 지울 수 없습니다 — 끝난 뒤에 지우세요")
+        slug = str(run.get("slug") or "")
+        qa_path = (run.get("qa") or {}).get("report_path") if isinstance(run.get("qa"), dict) else None
+        # slug 꼬리는 run_id 끝 4자라 드물게 겹친다 — 살아 있는 다른 실행과 같이 쓰는 build · renders 는 두고 알린다
+        shared = bool(slug) and any(r.get("slug") == slug and r.get("run_id") != run_id and not r.get("deleted_at")
+                                    for r in list_runs())
+        if not already:
+            now = _now_iso()
+            write_run({
+                "run_id": run_id, "slug": slug, "owner": run.get("owner"), "status": run.get("status"),
+                "stages": [], "format": run.get("format"), "idempotency_key": None, "render_request": None,
+                "scenario_summary": None, "build_dir": None, "entry": None, "render": None, "qa": None,
+                "error": None, "created_at": run.get("created_at"), "updated_at": now,
+                "deleted_at": now, "deleted_by": "owner",
+            })
+
+    targets: list[tuple[str, Path, Path]] = [("pipeline", droot / "pipeline", droot / "pipeline" / run_id)]
+    kept_shared: list[str] = []
+    for kind in ("build", "renders"):
+        if not slug:
+            continue
+        if shared:
+            kept_shared.append(kind)
+        else:
+            targets.append((kind, droot / kind, droot / kind / slug))
+    if isinstance(qa_path, str) and qa_path:
+        # QA 리포트는 data/qa_reports/<stamp>/qa.json — 그 stamp 디렉터리만. 원장이 다른 곳을 가리키면 건드리지 않는다
+        targets.append(("qa", droot / "qa_reports", Path(qa_path).parent))
+    removed: list[str] = []
+    left: list[str] = []
+    for kind, parent, d in targets:
+        # 되돌릴 수 없는 일이다 — 정해진 부모의 **바로 아래** 디렉터리일 때만 지운다(원장 값이 이상해도 밖으로 나가지 않는다)
+        if d.resolve().parent != parent.resolve() or not d.is_dir():
+            continue
+        shutil.rmtree(d, ignore_errors=True)
+        (left if d.exists() else removed).append(kind)
+    return {"run_id": run_id, "deleted": True, "already": already, "removed": removed, "left": left,
+            "kept_shared": kept_shared}
+
+
 # ── 파이프라인 실행 (POST /api/runs) ─────────────────────────────────────────
 
 
