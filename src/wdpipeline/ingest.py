@@ -442,8 +442,13 @@ def _page_blocks(page: dict) -> tuple[list[dict], dict]:
     return [defs[bid] for bid in order], content_map
 
 
-def normalize_report(raw: Any, assets_dir: Path | None = None, *, base_url: str | None = None) -> dict:
-    """관용 입력(draft/REST/pages/마크다운) → report.norm.json dict (블록 구조 보존)."""
+def normalize_report(raw: Any, assets_dir: Path | None = None, *, base_url: str | None = None,
+                     service_rest: bool = True) -> dict:
+    """관용 입력(draft/REST/pages/마크다운) → report.norm.json dict (블록 구조 보존).
+
+    service_rest=False 면 그림(file_id)을 서비스 자격(WDA_RA_*)으로 받지 않는다 — 주인 있는 실행이
+    그렇게 부른다(wdpipeline.assets.resolve_assets).
+    """
     doc, form = sniff_input(raw)
 
     title = str(doc.get("title") or doc.get("name") or "").strip()
@@ -522,7 +527,8 @@ def normalize_report(raw: Any, assets_dir: Path | None = None, *, base_url: str 
 
     from .assets import resolve_assets
 
-    records = resolve_assets(sorted(file_ids), assets_dir=assets_dir, base_url=base_url)
+    records = resolve_assets(sorted(file_ids), assets_dir=assets_dir, base_url=base_url,
+                             service_rest=service_rest)
     # assets 는 기존 계약 그대로 2키 유지, 해결 사유·이미지 메타는 assets_meta 로 덧붙인다
     assets = [{"file_id": r["file_id"], "local_path": r["local_path"]} for r in records]
 
@@ -548,7 +554,8 @@ def normalize_report(raw: Any, assets_dir: Path | None = None, *, base_url: str 
 
 
 def ingest_report_file(
-    path: Path, assets_dir: Path | None = None, base_url: str | None = None
+    path: Path, assets_dir: Path | None = None, base_url: str | None = None,
+    *, service_rest: bool = True,
 ) -> dict:
     """P0 진입점 — 파일을 읽어 정규화 dict 를 반환한다 (모듈 간 계약).
 
@@ -564,4 +571,5 @@ def ingest_report_file(
             raw = json.loads(text)
         except json.JSONDecodeError:
             raw = text  # JSON 이 아니면 마크다운으로 재시도(스니핑이 최종 판단)
-    return normalize_report(raw, assets_dir=assets_dir, base_url=base_url)
+    return normalize_report(raw, assets_dir=assets_dir, base_url=base_url,
+                            service_rest=service_rest)

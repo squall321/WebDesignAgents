@@ -324,6 +324,33 @@ def submit_run(report: dict, slug: str | None = None, format_id: str | None = No
     return run
 
 
+# 원장에 싣는 '못 실은 그림' 줄의 상한 — 그림이 수백 장인 보고서가 원장을 부풀리지 않게. 수는 따로 센다.
+ASSETS_SKIPPED_MAX = 200
+
+
+def _assets_report(norm: dict) -> dict:
+    """주인 있는 실행의 그림 처리 결과 — 원장(GET /api/runs/{id})에 드러낸다.
+
+    서비스 자격으로 받지 않았으므로 file_id 그림은 못 싣는다. 조용히 빠지면 호출자(포털)는 '그림이
+    왜 없는가' 를 물을 길이 없다 — render.skipped 와 같은 자세로 무엇을 왜 뺐는지 남긴다.
+    """
+    meta = [r for r in (norm.get("assets_meta") or []) if isinstance(r, dict)]
+    missed = [r for r in meta if r.get("status") != "resolved"]
+    out: dict = {"assets": {
+        "service_fetch": False,
+        "total": len(meta),
+        "resolved": len(meta) - len(missed),
+        "skipped": [{"file_id": str(r.get("file_id")), "reason": r.get("reason")}
+                    for r in missed[:ASSETS_SKIPPED_MAX]],
+        "skipped_count": len(missed),
+    }}
+    if missed:
+        out["warnings"] = [
+            f"그림 · 첨부 {len(missed)}개를 싣지 않았다 — 주인 있는 실행은 서비스 자격(WDA_RA_*)으로 "
+            "Report Archive 를 읽지 않는다"]
+    return out
+
+
 def _run_pipeline(run_id: str, raw_path: Path, slug: str, droot: Path,
                   start_from: str | None = None, format_id: str | None = None,
                   render: dict | None = None) -> None:
@@ -348,9 +375,16 @@ def _run_pipeline(run_id: str, raw_path: Path, slug: str, droot: Path,
             _update_stage(run_id, stage, status="running")
             from wdpipeline.ingest import ingest_report_file
 
-            norm = ingest_report_file(raw_path)
+            # 주인 있는 실행은 서비스 자격(WDA_RA_*)으로 RA 그림을 받지 않는다. 주인은 인자가 아니라
+            # **원장**에서 읽는다 — 재개(resume_run)도 이 함수를 타므로 인자로 받으면 그 길에서 빠진다.
+            # 주인 없는 실행의 호출은 종전 글자 그대로 둔다(그 길은 바뀌지 않는다).
+            owned = bool((read_run(run_id) or {}).get("owner"))
+            norm = (ingest_report_file(raw_path, service_rest=False) if owned
+                    else ingest_report_file(raw_path))
             norm_path.write_text(json.dumps(norm, ensure_ascii=False, indent=2), encoding="utf-8")
             _update_stage(run_id, stage, status="done", output=str(norm_path))
+            if owned:
+                update_run(run_id, **_assets_report(norm))
         else:
             norm = json.loads(norm_path.read_text(encoding="utf-8"))
 
