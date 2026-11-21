@@ -683,3 +683,40 @@ def test_mcp_owner_over_real_http(client, report, root_path, tmp_path):
     finally:
         proc.terminate()
         proc.wait(timeout=20)
+
+
+# ── 재개는 받은 자리에서 '도는 중' 이 된다 ───────────────────────────────────────
+#
+# 포털의 '다시 시도' 가 재개(POST /api/runs/{id}/resume)를 부른 뒤 곧바로 진행을 묻는다. 재개가 202 를 준
+# 뒤에도 워커가 running 을 적기 전까지 원장이 failed 로 남으면, 그 틈에 물은 쪽은 '또 실패했다' 로 읽는다.
+
+
+def test_resume_marks_the_run_running_before_it_returns(client, tmp_path, monkeypatch):
+    import threading
+
+    run = _seed(tmp_path, monkeypatch, status="failed", render={}, error="ValueError: x")
+    (tmp_path / "pipeline" / RID / "report.raw.json").write_text("{}", encoding="utf-8")
+    led = runledger.read_run(RID)
+    led["stages"][1].update(status="failed", error="ValueError: x")
+    runledger.write_run(led)
+    gate = threading.Event()
+    started: list[str] = []
+
+    def held(run_id, *a, **k):       # 워커가 아직 아무것도 적지 않았다
+        started.append(run_id)
+        gate.wait(10)
+
+    monkeypatch.setattr(runledger, "_run_pipeline", held)
+    try:
+        res = client.post(f"/api/runs/{RID}/resume", headers=ALICE)
+        assert res.status_code == 202 and res.json()["data"]["resumed"] is True
+        now = client.get(f"/api/runs/{RID}", headers=ALICE).json()["data"]
+        assert now["status"] == "running" and now["error"] is None, "재개를 받고도 failed 로 보인다"
+        assert all(s["status"] != "failed" for s in now["stages"])
+        # 도는 중인 실행을 또 재개하지 않는다 — 워커가 둘 뜨면 같은 디렉터리에 겹쳐 쓴다
+        again = client.post(f"/api/runs/{RID}/resume", headers=ALICE)
+        assert again.status_code == 409
+    finally:
+        gate.set()
+    assert started == [RID]
+    assert run["slug"] == now["slug"]

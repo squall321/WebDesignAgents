@@ -581,28 +581,35 @@ def resume_run(run_id: str) -> dict:
     """
     from wdpipeline.resume import resume_point
 
-    run = read_run(run_id)
-    if run is None:
-        raise FileNotFoundError(f"실행 없음: {run_id}")
-    if run.get("status") == "running":
-        raise RuntimeError("이미 진행 중이다 — 끝나거나 실패한 뒤에 재개하라")
-
     droot = data_dir()
-    pipe_dir = droot / "pipeline" / run_id
-    build_dir = droot / "build" / run["slug"]
-    start = resume_point(pipe_dir, build_dir)
-    if start is None:
-        return {"run_id": run_id, "resumed": False,
-                "note": "모든 단계의 산출물이 이미 있다 — 다시 돌릴 것이 없다"}
+    # 읽기 → 판정 → '도는 중' 적기를 한 잠금 안에서 한다. 두 가지를 막는다.
+    #   ① 재개를 받은 뒤에도 워커가 running 을 적기 전까지 원장이 failed 로 남아, 곧바로 진행을 묻는 호출자
+    #      (포털의 '다시 시도')가 '또 실패했다' 로 읽는 틈.
+    #   ② 잇달아 온 두 재개가 둘 다 판정을 지나 워커가 둘 뜨는 것(같은 디렉터리에 겹쳐 쓴다).
+    with _lock:
+        run = read_run(run_id)
+        if run is None:
+            raise FileNotFoundError(f"실행 없음: {run_id}")
+        if run.get("status") == "running":
+            raise RuntimeError("이미 진행 중이다 — 끝나거나 실패한 뒤에 재개하라")
 
-    raw_path = pipe_dir / "report.raw.json"
-    if not raw_path.is_file():
-        raise FileNotFoundError(f"원본 보고서가 없다: {raw_path}")
+        pipe_dir = droot / "pipeline" / run_id
+        build_dir = droot / "build" / run["slug"]
+        start = resume_point(pipe_dir, build_dir)
+        if start is None:
+            return {"run_id": run_id, "resumed": False,
+                    "note": "모든 단계의 산출물이 이미 있다 — 다시 돌릴 것이 없다"}
 
-    for row in run["stages"]:
-        if row["stage"] == start or row["status"] == "failed":
-            row["status"], row["error"] = "pending", None
-    write_run(run)
+        raw_path = pipe_dir / "report.raw.json"
+        if not raw_path.is_file():
+            raise FileNotFoundError(f"원본 보고서가 없다: {raw_path}")
+
+        for row in run["stages"]:
+            if row["stage"] == start or row["status"] == "failed":
+                row["status"], row["error"] = "pending", None
+        run["status"], run["error"] = "running", None
+        run["updated_at"] = _now_iso()
+        write_run(run)
 
     threading.Thread(
         target=_run_pipeline,
