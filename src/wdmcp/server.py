@@ -407,9 +407,23 @@ def _roster_line() -> str:
 # MCP 의 신원은 확인할 수 없으므로(게이트웨이가 상주 세션 하나로 서비스 토큰을 싣는다)
 # 주인 있는 run 은 **없는 것으로** 답한다. 핸들러마다 넣지 않고 한 겹으로 싼다 — 도구가
 # 늘어날 때 잊히지 않게.
+# W-18 — 게이트웨이 사람별 위임으로 **확인된** 호출자(서명된 단언, wdmcp.delegation)가 그 run 의
+# 주인이면 연다. 위임이 꺼진 박스(기본) · 단언 없는 호출은 종전 그대로 닫힌다.
 
 _RUN_ARGS = ("run_id",)
 _PATH_ARGS = ("scenario_path", "build_dir", "run_dir", "build_path")
+
+
+def _closed_to_caller(*, run_ids=(), paths=()) -> bool:
+    """이 호출이 가리키는 주인 있는 run 이 호출자에게 닫혀 있는가 — 확인된 주인에게만 연다(W-4 · W-18)."""
+    from .delegation import caller
+    from .ownership import closed_to
+
+    # 먼저 '확인된 신원 없음' 으로 본다 — 대부분의 호출은 주인 있는 run 을 가리키지 않아 단언을 읽을 일이 없다
+    if not closed_to(None, run_ids=run_ids, paths=paths):
+        return False
+    who = caller()
+    return who is None or closed_to(who, run_ids=run_ids, paths=paths)
 
 
 def _block_owned(fn):
@@ -421,17 +435,13 @@ def _block_owned(fn):
 
     @functools.wraps(fn)
     def wrapper(*args, **kwargs):
-        from .ownership import is_owned_path, is_owned_run
-
         bound = sig.bind_partial(*args, **kwargs)
-        hit = any(is_owned_run(bound.arguments.get(k)) for k in _RUN_ARGS) or any(
-            is_owned_path(bound.arguments.get(k)) for k in _PATH_ARGS
-        )
-        if hit:
+        if _closed_to_caller(run_ids=[bound.arguments.get(k) for k in _RUN_ARGS],
+                             paths=[bound.arguments.get(k) for k in _PATH_ARGS]):
             return error_envelope(
                 get_session(), "NOT_FOUND",
                 "해당 run 을 찾을 수 없다.",
-                "웹에서 신원과 함께 만든 실행은 MCP 로 다룰 수 없다 — 웹 콘솔에서 이어가라.",
+                "웹에서 신원과 함께 만든 실행은 그 주인만 다룬다 — 웹 콘솔에서 이어가라.",
             )
         return fn(*args, **kwargs)
 
@@ -1152,7 +1162,10 @@ def render_status(job_id: str) -> dict:
     """렌더 잡 상태·산출물 경로/열람 URL을 조회한다 (data/render_jobs/{job_id}.json이 진실)."""
     state = get_session()
     job = jobs.read_job(job_id)
-    if job is None:
+    # 확인된 주인이 MCP 로 렌더를 맡길 수 있게 되면(W-18) 주인 있는 run 위의 잡이 생긴다 — 잡 id 만으로
+    # 남의 경로 · 산출물 주소를 보여 주지 않는다(W-4). 없는 잡과 같은 답이다.
+    if job is None or _closed_to_caller(paths=[job.scenario_path, job.build_dir, job.run_dir,
+                                               *(job.outputs or {}).values()]):
         return error_envelope(
             state, "NOT_FOUND", f"렌더 잡 없음: {job_id}",
             "render_submit이 반환한 job_id를 사용하라.",

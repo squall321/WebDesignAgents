@@ -2,6 +2,7 @@
 # 순서가 뒤집히면 API 가 전부 SPA 로 먹힌다 (VoiceRecorder backend/app/main.py 실물 규약 준수).
 from __future__ import annotations
 
+import hmac
 import json
 import os
 import re
@@ -272,6 +273,11 @@ def health() -> dict:
         ),
         "formats": {f["id"]: f["status"] for f in rows},
     }
+    # W-18 — MCP 쪽 주인은 게이트웨이와 나눈 비밀이 이 박스에 있을 때만 켜진다(기본 꺼짐)
+    from wdmcp import delegation
+
+    if delegation.gateway_secret():
+        out["features"] = sorted([*out["features"], "mcp_owner"])
     # version — HEAXHub 가 매니페스트 version 과 대조해 '앱만 새로 배포되고 매니페스트는
     # 구버전' 을 잡는다(integrations_scanner._check_version_drift, 키는 version/app_version).
     # 손으로 적지 않고 **패키지 메타데이터**에서 뽑는다 — 그래야 pyproject 와 어긋날 수 없다.
@@ -282,6 +288,38 @@ def health() -> dict:
     except Exception:  # noqa: BLE001 — 버전 노출은 선택 기능이다. 못 읽어도 health 는 살아야 한다
         pass
     return out
+
+
+# ── 게이트웨이 사람별 위임 (W-18) ─────────────────────────────────────────────
+
+
+@app.post("/api/auth/sso")
+def post_auth_sso(request: Request) -> dict:
+    """게이트웨이 전용 — 공유 비밀을 받고 **위임 머리의 사람**에게 단기 단언을 내준다(wdmcp.delegation).
+
+    게이트웨이의 `heax_registry.per_user_sso.web_design_agents` 가 부른다. 받은 단언은 그 사람의 MCP
+    호출에 X-Heax-Sso-Assertion 으로 실려 오고, 도구는 그 서명으로 주인 있는 실행을 그 주인에게만 연다.
+
+    · 비밀이 없는 박스(기본)에서는 404 다 — 열려 있지 않다는 것을 굳이 알리지 않는다.
+    · 사람은 X-Hwax-Delegate-Email 로만 정한다. **X-Heax-User-Email 로 내려가지 않는다** — 이 길은
+      게이트웨이가 허브 서비스 토큰으로 Caddy 를 지나므로 그 머리는 서비스 토큰의 주인(허브 첫 관리자)
+      으로 접혀 있다. 그 값으로 발급하면 게이트웨이를 거친 모든 사람이 관리자의 실행을 본다.
+    """
+    from wdmcp import delegation
+
+    secret = delegation.gateway_secret()
+    if not secret:
+        raise HTTPException(status_code=404, detail="Not Found")
+    got = request.headers.get("X-Heax-Gateway-Secret") or ""
+    if not hmac.compare_digest(got.encode("utf-8"), secret.encode("utf-8")):
+        raise HTTPException(status_code=401, detail="게이트웨이 비밀이 맞지 않습니다")
+    email = runledger.normalize_owner(request.headers.get("X-Hwax-Delegate-Email"))
+    if email is None or "@" not in email:
+        raise ApiError(400, "INVALID",
+                       "X-Hwax-Delegate-Email 이 없거나 이메일 꼴이 아닙니다 — 이 창구는 게이트웨이가 확인한 사람에게만 발급합니다")
+    token = delegation.mint(email, secret=secret)
+    log.info("sso_assertion_minted", email=email)          # 단언 · 비밀은 남기지 않는다
+    return envelope({"access_token": token, "token_type": "bearer", "expires_in": delegation.TTL_S})
 
 
 @app.get("/api/formats")
@@ -698,7 +736,7 @@ _JOB_DOWNLOAD_META = {
 
 
 @app.get("/api/render_jobs/{job_id}/download/{kind}")
-def download_render_job(job_id: str, kind: str) -> FileResponse:
+def download_render_job(job_id: str, kind: str, request: Request) -> FileResponse:
     """render_submit 산출물 서빙 — 잡 원장의 경로가 데이터 루트 안인지 검증한 뒤 스트리밍."""
     if kind not in _JOB_DOWNLOAD_META:
         raise HTTPException(
@@ -714,10 +752,12 @@ def download_render_job(job_id: str, kind: str) -> FileResponse:
         raise HTTPException(status_code=404, detail=f"산출물이 아직 없습니다: {kind}")
     # W-4 — 이 잡의 입력·출력이 주인 있는 run 아래면 없는 것으로 답한다. 잡 원장에는
     # 신원이 없으므로 job_id 만 알면 남의 산출물을 받을 수 있었다.
-    from wdmcp.ownership import is_owned_path
+    # W-18 — 그 run 의 주인에게만 연다. 여기는 REST 라 신원은 Caddy 가 실은 X-Heax-User-Email 이다
+    # (확인된 주인이 MCP 로 맡긴 렌더의 산출물을 그 사람이 브라우저로 받는 길).
+    from wdmcp.ownership import closed_to
 
-    if is_owned_path(raw) or is_owned_path(getattr(job, "build_dir", None)) \
-            or is_owned_path(getattr(job, "scenario_path", None)):
+    if closed_to(identity(request), paths=[raw, getattr(job, "build_dir", None),
+                                           getattr(job, "scenario_path", None)]):
         raise ApiError(404, "NOT_FOUND", f"렌더 잡 없음: {job_id}")
     # 원장 값이라도 경계 검사는 한다 — 데이터 루트 밖 파일이 URL 하나로 노출되지 않게.
     target = Path(raw).resolve()

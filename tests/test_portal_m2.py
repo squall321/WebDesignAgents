@@ -385,3 +385,301 @@ def test_delete_ownership_holds_behind_a_proxy_prefix(client, report, root_path)
     finally:
         proc.terminate()
         proc.wait(timeout=20)
+
+
+# ── W-18 MCP 쪽 주인 — 게이트웨이 사람별 위임(per_user_sso)으로 확인된 사람만 자기 실행에 닿는다 ───────
+#
+# MCP 길의 신원은 두 머리 어느 것도 아니다. X-Heax-User-Email 은 /mcp 에서 게이트웨이 서비스 토큰의
+# 주인(허브 첫 관리자)으로 접히고, x-hwax-user 는 Caddy 가 지우지 않아 누구나 적어 보낸다(포털 WD-D4).
+# 믿는 것은 **서명**이다 — 게이트웨이와만 나눠 가진 비밀로 POST /api/auth/sso 가 낸 단기 단언(wdsso_)을
+# 게이트웨이가 X-Heax-Sso-Assertion 으로 싣는다(HWAXRisk 꼴, 포털 요청서 §9 W-18 · WD-D19).
+# 비밀이 없으면(기본) 창구는 404 이고 단언 머리는 무시된다 — W-4 그대로(주인 있는 실행은 MCP 에 없다).
+
+SECRET = "wda-gateway-secret-for-tests-0123456789"
+
+
+@pytest.fixture()
+def gateway_secret(monkeypatch, tmp_path):
+    """박스에 게이트웨이 비밀이 있는 상태 — secrets.env 가 아니라 환경변수로 준다."""
+    monkeypatch.setenv("WDA_GATEWAY_SECRET", SECRET)
+    return SECRET
+
+
+def _sso(client, **headers):
+    return client.post("/api/auth/sso", headers=headers)
+
+
+def test_sso_is_closed_without_a_secret(client, monkeypatch):
+    monkeypatch.delenv("WDA_GATEWAY_SECRET", raising=False)
+    res = _sso(client, **{"X-Heax-Gateway-Secret": SECRET, "X-Hwax-Delegate-Email": "alice@corp.example"})
+    assert res.status_code == 404
+    assert "mcp_owner" not in client.get("/api/health").json()["features"]
+
+
+def test_short_secret_counts_as_no_secret(client, monkeypatch):
+    """짧은 비밀은 서명을 지어낼 수 있다 — 켜지지 않은 것으로 본다."""
+    monkeypatch.setenv("WDA_GATEWAY_SECRET", "short")
+    res = _sso(client, **{"X-Heax-Gateway-Secret": "short", "X-Hwax-Delegate-Email": "alice@corp.example"})
+    assert res.status_code == 404
+
+
+def test_sso_needs_the_shared_secret(client, gateway_secret):
+    for got in ({}, {"X-Heax-Gateway-Secret": "wrong-secret-wrong-secret"}):
+        res = _sso(client, **got, **{"X-Hwax-Delegate-Email": "alice@corp.example"})
+        assert res.status_code == 401 and res.json()["success"] is False
+
+
+def test_sso_never_mints_from_the_folded_identity_header(client, gateway_secret):
+    """X-Heax-User-Email 만으로는 내주지 않는다 — 이 길에서 그 머리는 허브 관리자로 접힌 값이다."""
+    res = _sso(client, **{"X-Heax-Gateway-Secret": SECRET, "X-Heax-User-Email": "admin@corp.example"})
+    assert res.status_code == 400 and res.json()["code"] == "INVALID"
+    bad = _sso(client, **{"X-Heax-Gateway-Secret": SECRET, "X-Hwax-Delegate-Email": "not-an-email"})
+    assert bad.status_code == 400
+
+
+def test_sso_mints_a_short_lived_assertion_for_the_delegate(client, gateway_secret):
+    from wdmcp import delegation
+
+    res = _sso(client, **{"X-Heax-Gateway-Secret": SECRET, "X-Hwax-Delegate-Email": " Alice@Corp.Example ",
+                          "X-Heax-User-Email": "admin@corp.example"})
+    assert res.status_code == 200, res.text
+    data = res.json()["data"]
+    tok = data["access_token"]
+    assert tok.startswith("wdsso_") and data["token_type"] == "bearer"
+    # 게이트웨이는 수명이 호출 한도(600초)보다 길어야 한다고 본다(README 'ste 방식 사람별 위임')
+    assert 600 < data["expires_in"] <= 3600
+    assert delegation.verify(tok) == "alice@corp.example", "위임 머리의 사람이다 — 접힌 관리자가 아니다"
+    assert "mcp_owner" in client.get("/api/health").json()["features"]
+
+
+def test_assertion_is_rejected_when_forged_expired_or_from_another_secret(gateway_secret, monkeypatch):
+    from wdmcp import delegation
+
+    now = time.time()
+    tok = delegation.mint("alice@corp.example", secret=SECRET, now=now)
+    assert delegation.verify(tok, now=now + 10) == "alice@corp.example"
+    assert delegation.verify(tok, now=now + delegation.TTL_S + 1) is None, "만료"
+    body, _, sig = tok[len("wdsso_"):].partition(".")
+    import base64
+
+    forged = base64.urlsafe_b64encode(json.dumps({"e": "bob@corp.example", "x": int(now) + 600}).encode()).decode().rstrip("=")
+    assert delegation.verify(f"wdsso_{forged}.{sig}", now=now) is None, "몸을 바꾸면 서명이 맞지 않는다"
+    assert delegation.verify(f"wdsso_{body}.", now=now) is None and delegation.verify(f"wdsso_{body}", now=now) is None
+    assert delegation.verify(delegation.mint("alice@corp.example", secret="another-secret-0123456789", now=now), now=now) is None
+    assert delegation.verify("rrsso_" + tok[len("wdsso_"):], now=now) is None, "다른 앱의 단언 꼴은 받지 않는다"
+    for junk in ("", "wdsso_", "wdsso_!!!.###", None, 7):
+        assert delegation.verify(junk, now=now) is None
+    monkeypatch.delenv("WDA_GATEWAY_SECRET")
+    assert delegation.verify(tok, now=now) is None, "비밀이 없으면 어떤 단언도 받지 않는다"
+
+
+def test_secret_can_live_in_the_data_dir_secrets_file(tmp_path, monkeypatch):
+    """허브 앱의 비밀은 매니페스트(git)가 아니라 앱 데이터 디렉터리의 secrets.env 에 둔다 — 파일이 환경변수를 이긴다."""
+    from wdmcp import delegation
+
+    monkeypatch.setattr(runledger, "data_dir", lambda: tmp_path)
+    monkeypatch.setenv("WDA_GATEWAY_SECRET", "env-secret-0123456789abcdef")
+    assert delegation.gateway_secret() == "env-secret-0123456789abcdef"
+    (tmp_path / "secrets.env").write_text('# 게이트웨이와만 나눈다\nOTHER=1\nWDA_GATEWAY_SECRET="file-secret-0123456789abcdef"\n',
+                                         encoding="utf-8")
+    assert delegation.gateway_secret() == "file-secret-0123456789abcdef"
+
+
+def _as(monkeypatch, headers: dict | None):
+    """이 MCP 요청의 머리를 흉내 낸다 — 진짜 머리 길은 아래 실기동 시험이 본다."""
+    from wdmcp import delegation
+
+    monkeypatch.setattr(delegation, "_request_headers", lambda: headers)
+
+
+def _assertion(email: str) -> dict:
+    from wdmcp import delegation
+
+    return {"x-heax-sso-assertion": delegation.mint(email, secret=SECRET)}
+
+
+def test_mcp_opens_an_owned_run_only_to_its_verified_owner(tmp_path, monkeypatch, gateway_secret):
+    from wdmcp import server as mcp_server
+
+    run = _seed(tmp_path, monkeypatch)
+
+    def code(**kw):
+        out = mcp_server.scene_list(**kw)
+        return "OK" if out["ok"] else out["error"]["code"]
+
+    _as(monkeypatch, None)
+    assert code(run_id=RID) == "NOT_FOUND", "확인된 신원이 없으면 종전 그대로 닫힌다(W-4)"
+    _as(monkeypatch, _assertion("bob@corp.example"))
+    assert code(run_id=RID) == "NOT_FOUND", "남의 단언으로는 열리지 않는다"
+    _as(monkeypatch, {"x-heax-user-email": "alice@corp.example", "x-hwax-user": "alice@corp.example"})
+    assert code(run_id=RID) == "NOT_FOUND", "접히는 머리 · 위조할 수 있는 머리는 신원이 아니다"
+    _as(monkeypatch, {"x-heax-sso-assertion": "wdsso_e30.AAAA"})
+    assert code(run_id=RID) == "NOT_FOUND"
+    _as(monkeypatch, _assertion("alice@corp.example"))
+    assert code(run_id=RID) != "NOT_FOUND", "확인된 주인에게는 연다"
+    # 경로로 들어오는 도구도 같은 판정이다
+    build = str(tmp_path / "build" / run["slug"])
+    assert mcp_server.qa_run(build_path=build).get("error", {}).get("code") != "NOT_FOUND"
+    _as(monkeypatch, _assertion("bob@corp.example"))
+    assert mcp_server.qa_run(build_path=build)["error"]["code"] == "NOT_FOUND"
+
+
+def test_mcp_assertion_is_ignored_when_the_feature_is_off(tmp_path, monkeypatch):
+    """비밀이 없는 박스(기본)에서는 단언 머리가 있어도 종전 그대로다."""
+    from wdmcp import delegation
+    from wdmcp import server as mcp_server
+
+    _seed(tmp_path, monkeypatch)
+    tok = delegation.mint("alice@corp.example", secret=SECRET)
+    monkeypatch.delenv("WDA_GATEWAY_SECRET", raising=False)
+    _as(monkeypatch, {"x-heax-sso-assertion": tok})
+    assert mcp_server.scene_list(run_id=RID)["error"]["code"] == "NOT_FOUND"
+
+
+def test_mcp_never_opens_a_deleted_run_even_to_its_owner(client, tmp_path, monkeypatch, gateway_secret):
+    from wdmcp import server as mcp_server
+
+    _seed(tmp_path, monkeypatch)
+    assert client.delete(f"/api/runs/{RID}", headers=ALICE).status_code == 200
+    _as(monkeypatch, _assertion("alice@corp.example"))
+    assert mcp_server.scene_list(run_id=RID)["error"]["code"] == "NOT_FOUND"
+
+
+def test_mcp_ownerless_runs_stay_open_to_everyone(tmp_path, monkeypatch, gateway_secret):
+    from wdmcp.ownership import closed_to
+
+    _seed(tmp_path, monkeypatch, owner=None)
+    for who in (None, "alice@corp.example", "bob@corp.example"):
+        assert closed_to(who, run_ids=[RID]) is False
+
+
+def test_shared_slug_is_closed_unless_every_owner_is_the_caller(tmp_path, monkeypatch):
+    """slug 가 겹친 두 주인의 build 자리 — 한 사람의 단언으로 다른 사람의 조각에 닿지 않는다."""
+    from wdmcp.ownership import closed_to
+
+    other = "wr-20261121-000001-" + "cd" * 14 + "abab"
+    run = _seed(tmp_path, monkeypatch)
+    _seed(tmp_path, monkeypatch, owner="bob@corp.example", run_id=other)
+    path = f"data/build/{run['slug']}/index.html"
+    assert closed_to("alice@corp.example", paths=[path]) and closed_to("bob@corp.example", paths=[path])
+    assert closed_to("alice@corp.example", run_ids=[RID]) is False
+
+
+def _job(tmp: Path, run: dict, monkeypatch, job_id: str = "job-m2"):
+    """주인 있는 실행 위에 선 렌더 잡 하나(확인된 주인이 MCP render_submit 으로 만든 것)."""
+    from wdmcp import jobs as mcp_jobs
+    from wdmcp.schemas import RenderJob
+
+    out = tmp / "renders" / run["slug"] / "slides.pptx"
+    out.write_bytes(b"PK\x03\x04deck")
+    job = RenderJob(job_id=job_id, status="done", targets=["pptx"], build_dir=run["build_dir"], entry="index.html",
+                    outputs={"pptx": str(out)}, created_at="2026-11-21T00:00:00+00:00", updated_at="2026-11-21T00:00:00+00:00")
+    monkeypatch.setattr(mcp_jobs, "read_job", lambda jid: job if jid == job_id else None)
+    return job
+
+
+def test_render_status_hides_jobs_on_someone_elses_run(tmp_path, monkeypatch, gateway_secret):
+    """확인된 주인이 MCP 로 렌더를 맡길 수 있게 되면 그 잡이 생긴다 — 잡 id 만으로 남의 경로를 보여 주지 않는다(W-4)."""
+    from wdmcp import server as mcp_server
+
+    run = _seed(tmp_path, monkeypatch)
+    _job(tmp_path, run, monkeypatch)
+    _as(monkeypatch, None)
+    assert mcp_server.render_status(job_id="job-m2")["error"]["code"] == "NOT_FOUND"
+    _as(monkeypatch, _assertion("bob@corp.example"))
+    assert mcp_server.render_status(job_id="job-m2")["error"]["code"] == "NOT_FOUND"
+    _as(monkeypatch, _assertion("alice@corp.example"))
+    assert mcp_server.render_status(job_id="job-m2")["ok"] is True
+
+
+def test_render_job_download_opens_to_the_rest_identified_owner(client, tmp_path, monkeypatch):
+    """렌더 잡 내려받기(REST)는 Caddy 가 실은 신원이 그 실행의 주인일 때만 — 남 · 신원 없음은 종전대로 404(W-4)."""
+    import wdweb.app as webapp
+
+    run = _seed(tmp_path, monkeypatch)
+    _job(tmp_path, run, monkeypatch)
+    monkeypatch.setattr(webapp, "data_dir", lambda: tmp_path)
+    for headers in (BOB, {}):
+        res = client.get("/api/render_jobs/job-m2/download/pptx", headers=headers)
+        assert res.status_code == 404 and res.json()["code"] == "NOT_FOUND"
+    ok = client.get("/api/render_jobs/job-m2/download/pptx", headers=ALICE)
+    assert ok.status_code == 200 and ok.content.startswith(b"PK\x03\x04")
+    assert ok.headers["x-content-type-options"] == "nosniff"
+
+
+@pytest.mark.parametrize("root_path", ["/apps/web_design_agents", ""])
+def test_mcp_owner_over_real_http(client, report, root_path, tmp_path):
+    """실기동 — 진짜 uvicorn 의 /mcp 에 streamable HTTP 로 붙어 단언 머리가 도구까지 닿는지 본다.
+
+    단위 시험은 머리 읽기를 흉내 낸다. 이 시험만이 '요청 머리 → MCP 도구 문맥 → 서명 검증' 길 전체와
+    --root-path 뒤의 /api/auth/sso · /mcp 를 본다.
+    """
+    import os
+    import socket
+    import subprocess
+    import sys
+    import urllib.error
+    import urllib.request
+
+    import anyio
+    from mcp import ClientSession
+    from mcp.client.streamable_http import streamablehttp_client
+
+    rid = client.post("/api/runs", json={"report_json": report, "slug": "mcp"},
+                      headers=ALICE).json()["data"]["run_id"]
+    run = _wait(rid, lambda r: r["status"] in ("done", "failed"))
+    assert run["status"] == "done", run.get("error")
+
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        port = s.getsockname()[1]
+    argv = [sys.executable, "-m", "uvicorn", "wdweb.app:app", "--host", "127.0.0.1", "--port", str(port)]
+    if root_path:
+        argv += ["--root-path", root_path]
+    proc = subprocess.Popen(argv, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                            env={**os.environ, "WDA_GATEWAY_SECRET": SECRET})
+    base = f"http://127.0.0.1:{port}"
+
+    def mint(email: str) -> str:
+        req = urllib.request.Request(f"{base}/api/auth/sso", method="POST", data=b"", headers={
+            "X-Heax-Gateway-Secret": SECRET, "X-Hwax-Delegate-Email": email})
+        return json.loads(urllib.request.urlopen(req, timeout=20).read())["data"]["access_token"]
+
+    async def scene_list(headers: dict) -> dict:
+        async with streamablehttp_client(f"{base}/mcp", headers=headers) as (read, write, _sid):
+            async with ClientSession(read, write) as sess:
+                await sess.initialize()
+                res = await sess.call_tool("scene_list", {"run_id": rid})
+                return json.loads(res.content[0].text)
+
+    def code(headers: dict) -> str:
+        out = anyio.run(scene_list, headers)
+        return "OK" if out["ok"] else out["error"]["code"]
+
+    try:
+        for _ in range(60):
+            try:
+                urllib.request.urlopen(f"{base}/api/health", timeout=2)
+                break
+            except Exception:  # noqa: BLE001
+                time.sleep(0.5)
+        else:
+            pytest.skip("uvicorn 이 뜨지 않았다")
+        assert code({}) == "NOT_FOUND"
+        assert code({"X-Heax-User-Email": "alice@corp.example", "x-hwax-user": "alice@corp.example"}) == "NOT_FOUND"
+        assert code({"X-Heax-Sso-Assertion": mint("bob@corp.example")}) == "NOT_FOUND"
+        assert code({"X-Heax-Sso-Assertion": mint("alice@corp.example")}) == "OK", (
+            f"root_path={root_path!r} 에서 확인된 주인에게 열리지 않았다 — 단언 머리가 도구까지 닿지 않는다")
+        # 창구 자체 — 비밀 없이는 401, 위임 머리 없이는 400
+        for hdrs, want in (({"X-Hwax-Delegate-Email": "alice@corp.example"}, 401),
+                           ({"X-Heax-Gateway-Secret": SECRET, "X-Heax-User-Email": "alice@corp.example"}, 400)):
+            try:
+                urllib.request.urlopen(urllib.request.Request(f"{base}/api/auth/sso", method="POST", data=b"", headers=hdrs),
+                                       timeout=20)
+                got = 200
+            except urllib.error.HTTPError as exc:
+                got = exc.code
+            assert got == want, hdrs
+    finally:
+        proc.terminate()
+        proc.wait(timeout=20)
