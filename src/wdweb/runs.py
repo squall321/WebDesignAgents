@@ -382,9 +382,10 @@ def _run_pipeline(run_id: str, raw_path: Path, slug: str, droot: Path,
             norm = (ingest_report_file(raw_path, service_rest=False) if owned
                     else ingest_report_file(raw_path))
             norm_path.write_text(json.dumps(norm, ensure_ascii=False, indent=2), encoding="utf-8")
-            _update_stage(run_id, stage, status="done", output=str(norm_path))
+            # 그림 결과를 단계 끝보다 **먼저** 적는다 — 'ingest done' 을 본 호출자가 그 결과도 함께 본다.
             if owned:
                 update_run(run_id, **_assets_report(norm))
+            _update_stage(run_id, stage, status="done", output=str(norm_path))
         else:
             norm = json.loads(norm_path.read_text(encoding="utf-8"))
 
