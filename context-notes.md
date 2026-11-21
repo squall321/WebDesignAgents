@@ -649,4 +649,6 @@ cd ~/claude/HWAXPortal && bash infra/env-kits/apply-envs.sh webdesignagents
 ### M2 회귀 (2026-11-21, 가지 wt1121/deck)
 - 고치기 전 전체 — 2 실패·2,905 통과·48 건너뜀. 실패 둘은 작업 폴더에 버전 관리 밖 데이터가 없어서다(`test_wide_16x9_carries_the_delib_v2_experience` 의 `data/qa_reports/…/qa.json`, `test_usage_counts_real_scenarios` 의 `short_v2`).
 - **같은 작업 폴더에서 두 번째로 돌리면 실패가 둘 는다** — `test_appendix_carries_deliberation_with_open_issues`(`data/meetings` 가 있으면 건너뛰지 않는다)·`test_golden_artifacts_exist`(`data/renders`). 첫 실행의 시험들이 그 디렉터리를 만들기 때문이다(22:11·22:14 생성 — 첫 실행 도중). 코드와 무관하다. 견주려면 `git clean -fdx -- data` 로 시험 산출물을 걷고 돌린다.
+- 고친 뒤 전체(`1302042`, 시험 산출물을 걷은 작업 폴더) — **2 실패·2,949 통과·48 건너뜀**(11분 37초). 실패는 위의 같은 둘이고 새 실패는 없다. 는 44 는 `tests/test_portal_m2.py` 다(그림 6·지우기 19·위임 18·재개 1). 실기동 시험(`--root-path` 있는/없는 두 조건의 지우기·MCP)은 건너뛰지 않고 돌았다.
+- 변이(커밋한 뒤 한 줄씩 깨뜨리고 `git checkout` 으로 되돌림) — 서비스 자격 건너뛰기 2/2 붉음 · 지우기 6 가운데 5 붉음(미들웨어만 뺀 하나는 핸들러가 막아 초록 — 두 겹이라 그렇다. 둘 다 빼면 실기동 시험까지 여섯이 붉다) · 위임 10/10 붉음.
 

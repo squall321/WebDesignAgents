@@ -337,7 +337,8 @@ push 까지는 끝냈다 — `origin/main = 9029df9`. **SIF 재빌드·라이브
       **기본 꺼짐** — 비밀(`secrets.env` 의 `WDA_GATEWAY_SECRET`)이 있는 박스에서만 켜지고 health features 에 `mcp_owner` 가 실린다.
       실기동 시험 — 진짜 uvicorn `/mcp` 에 streamable HTTP 로 붙어 두 조건에서 확인
 - [x] **재개는 받은 자리에서 running** — `19dc123`. 판정과 적기를 한 잠금 안에서(포털 '다시 시도' 가 재개 직후 진행을 묻는다 · 두 재개가 겹치지 않는다)
-- [x] 전체 회귀 — 고치기 전 2 실패(작업 폴더에 없는 버전 관리 밖 데이터 — `data/qa_reports`·`short_v2`) 그대로, 새 실패 0(수치는 context-notes 결정 86 아래)
+- [x] 전체 회귀 — 고치기 전 2 실패·2,905 통과 → 고친 뒤 2 실패·2,949 통과(같은 둘 — 작업 폴더에 없는 버전 관리 밖 데이터 `data/qa_reports`·`short_v2`), 새 실패 0.
+      변이 18 가운데 17 붉음(남은 하나는 두 겹의 한쪽 — context-notes 결정 86 아래)
 - [ ] **박스에서 켜기(사람)** — W-18 은 ① 허브 앱 데이터의 `secrets.env` 에 `WDA_GATEWAY_SECRET`(16자 이상) ② 게이트웨이
       `gateway_config.json` 의 `heax_registry.per_user_sso.web_design_agents`(HWAXMcpGateway README 'WebDesignAgents — MCP 쪽 주인') ③ 게이트웨이 재기동
 - [ ] 배치 — main 병합 · push · SIF 재빌드 · redeploy · **배치본 검증(QA 게이트 포함)**. 지우기·W-18 은 배치본에서 한 번 더 본다(허브 Caddy 뒤)
