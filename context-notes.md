@@ -675,4 +675,7 @@ cd ~/claude/HWAXPortal && bash infra/env-kits/apply-envs.sh webdesignagents
 - 남긴 것 — 세션 칸 나누기는 여전히 `x-hwax-user`(위조할 수 있다)다. 같은 칸을 쓰는 남이 주인의 회의 id 를 알면 그 메모리 원장 요약(연결된 실행 id · 전달 수 — 본문은 아니다)이 오류 봉투에 실릴 수 있다. 실행 id 는 이제 열쇠가 아니라(문이 신원을 본다) 막지 않았다.
 
 ### M3 회귀 (2026-11-22, 가지 wt1121/deck)
+- 전체(`31179bb`, 시험 산출물을 걷은 작업 폴더) — 2 실패 · 3,008 통과 · 48 건너뜀(12분 8초). 실패는 기준선의 같은 둘이고 새 실패는 없다. 는 59 는 `tests/test_portal_templates.py` 26 · `tests/test_portal_meeting_owner.py` 33 이다. 실기동 시험(`--root-path` 두 조건)은 건너뛰지 않고 돌았다.
+- 변이 15 가운데 13 붉음. 산 둘 — 옛 회의의 브리핑 문(시험이 모더레이터 차례만 봤다 — 전문가 차례 · 대조군으로 고쳐 붉혔다, `1da9733`) · 웹 길 신원이 None 일 때 MCP 단언으로 내려가게(같은 동작 — 웹 길에는 MCP 요청이 없다).
+- 11-21 탐침(`probe_w4_hole.py`)을 새 코드로 다시 돌렸다 — `meeting_start` RUN_NOT_FOUND · `report_ingest` 거절.
 
