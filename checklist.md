@@ -342,7 +342,21 @@ push 까지는 끝냈다 — `origin/main = 9029df9`. **SIF 재빌드·라이브
 - [ ] **박스에서 켜기(사람)** — W-18 은 ① 허브 앱 데이터의 `secrets.env` 에 `WDA_GATEWAY_SECRET`(16자 이상) ② 게이트웨이
       `gateway_config.json` 의 `heax_registry.per_user_sso.web_design_agents`(HWAXMcpGateway README 'WebDesignAgents — MCP 쪽 주인') ③ 게이트웨이 재기동
 - [ ] 배치 — main 병합 · push · SIF 재빌드 · redeploy · **배치본 검증(QA 게이트 포함)**. 지우기·W-18 은 배치본에서 한 번 더 본다(허브 Caddy 뒤)
-- [ ] **발견(고치지 않았다 — 결정이 필요하다)** — W-4 가 덮지 않는 길이 있다(context-notes 결정 85 끝 '발견').
-      `meeting_start(run_id)`·`report_ingest(file·run_id)` 가 주인 있는 실행의 조각·원본에 닿고(run_id 를 알아야 한다 — 128비트),
-      회의에는 주인이 없으며(`meeting_list`·`meeting_get_briefing`), 웹 콘솔의 심의 → 시나리오(`/api/meetings/{id}/scenario`)는
-      주인 있는 실행에서 주인에게도 막힌다(`scenario_build` 의 `_block_owned` 가 웹 길의 신원을 모른다)
+- [x] **발견 — W-4 가 덮지 않는 길**(context-notes 결정 85 끝) — 사용자 결정(2026-11-22)으로 아래 M3 에서 닫았다
+
+## 2026-11-22 — 포털 계약 M3 (같은 가지 `wt1121/deck` · 사용자 결정 둘 — 포털 세션이 전했다)
+정본: 포털 `docs/wda-deck/context-notes.md` WD-D94 · WD-D96 ~ · 요청서 14절. 결정은 이 파일의 결정 87 · 88. **커밋까지다 — push · SIF · redeploy 없음.**
+
+- [x] **① 실물 꼴의 심의 보고서 — 템플릿 스키마로 푼다**(포털 선택지 (나)) — `56bb9e9`. 만들기의 `template_schemas` 칸
+      `{"<template_id>@<version>": <RA data.schema>}` · 받은 보고서 곁에 저장(재개도) · 쪽이 쓰는 템플릿 블록만 그 정의(종류 · 라벨)로 ·
+      긴 글 `items` 꼴 · 블록 라벨이 그 블록의 머리글 · 쪽 이름 None · health features 에 `template_schemas`.
+      세 출처(심의 결과 · '/보고서' · 분석 루틴 초안) 다 `delib-16x9` 로 빌드까지 — `tests/test_portal_templates.py`
+- [x] **② 회의 · ingest 도구의 주인**(포털 선택지 (나)) — `4c25b08` · `1da9733`. 웹 길이 신원을 도구에 넘기고(`use_identity`) 회의에
+      주인 칸(`MeetingMeta.owner`)을 둔다 · 주인 있는 회의는 그 주인에게만(`OwnedMeetingStore`) · `meeting_start(run_id)` · `report_ingest`
+      는 남 · 신원 없음에 없는 것과 같은 답 · 주인도 원본을 주인 없는 실행으로 옮기지 않는다(OWNED_COPY) · 경로는 실제 자리로(resolve) ·
+      웹 자율 심의의 run_id 문. 11-21 탐침(`probe_w4_hole.py`)이 이제 막힌다. 실기동 시험(`--root-path` 두 조건) —
+      `tests/test_portal_meeting_owner.py`
+- [x] ③ 내 실행 목록 도구 · ④ PDF 미리보기 격리 — 포털 세션이 둔 닫힌 기본값 그대로(③ 짓지 않음 · ④ 포털 쪽 '받기' 안내)
+- [x] 전체 회귀 · 변이 — 수치는 context-notes 결정 88 아래
+- [ ] 배치 — main 병합 · push · SIF 재빌드 · redeploy · **배치본 검증(QA 게이트 포함)**. 실물 RA 보고서 하나로 '보고서 읽기' 가 서는지,
+      콘솔에서 주인 있는 실행으로 회의를 열어 시나리오까지 가는지 배치본에서 한 번 더 본다
