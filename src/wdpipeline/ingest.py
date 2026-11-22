@@ -61,6 +61,23 @@ def _collect_strings(node: Any, acc: list[str]) -> None:
             _collect_strings(v, acc)
 
 
+def rich_text_items(content: dict | None) -> list[str]:
+    """긴 글(rich_text)의 항목 꼴 `{"items": [{"depth", "text"}]}` → 항목 글 목록(마크다운 기호는 벗긴다).
+
+    Report Archive 는 ai-draft 로 받은 문자열 목록을 이 꼴로 저장한다(RA `ai_authoring._norm_rich_items`) — 포털의 심의 ·
+    '/보고서' · 분석 루틴 보고서가 다 이 꼴이다. 옛 꼴(`markdown`)은 block_text 가 그대로 읽는다. 항목이 문자열이어도 받는다.
+    """
+    if not isinstance(content, dict) or not isinstance(content.get("items"), list):
+        return []
+    out = []
+    for it in content["items"]:
+        raw = it.get("text") if isinstance(it, dict) else it if isinstance(it, str) else None
+        text = _strip_markdown(raw) if isinstance(raw, str) else ""
+        if text:
+            out.append(text)
+    return out
+
+
 def block_text(block_type: str, content: dict | None) -> str:
     """위젯 타입별 텍스트 평탄화 — search_text 자체 생성의 핵심 (PLAN §4 P0).
 
@@ -73,7 +90,8 @@ def block_text(block_type: str, content: dict | None) -> str:
     if block_type == "heading":
         return str(c.get("text", "")).strip()
     if block_type == "rich_text":
-        return _strip_markdown(str(c.get("markdown", "")))
+        md = _strip_markdown(str(c.get("markdown") or ""))
+        return md or " ".join(rich_text_items(c))
     if block_type == "bulleted_list":
         return " ".join(str(x).strip() for x in c.get("items", []) if str(x).strip())
     if block_type == "key_value":
@@ -404,16 +422,51 @@ def _infer_block_type(content: Any) -> str:
     return "unknown"
 
 
-def _page_blocks(page: dict) -> tuple[list[dict], dict]:
+def _template_blocks(schema: Any, used: set[str]) -> list[dict]:
+    """템플릿 스키마(RA `data.schema` — widget-v1)의 블록 가운데 **쪽이 쓰는 것**(내용 · 순서에 id 가 있는 것)만, 템플릿 순서로.
+
+    쓰지 않는 블록은 만들지 않는다 — 빈 블록을 지어내면 장면 조립이 빈 자리를 채우려 든다. 꼴이 틀린 항목은 건너뛴다.
+    """
+    blocks = schema.get("blocks") if isinstance(schema, dict) else None
+    out = []
+    for b in blocks if isinstance(blocks, list) else []:
+        if not (isinstance(b, dict) and isinstance(b.get("id"), str) and isinstance(b.get("type"), str)):
+            continue
+        if b["id"] in used:
+            props = b.get("props") if isinstance(b.get("props"), dict) else {}
+            out.append({"id": b["id"], "type": b["type"], "props": props})
+    return out
+
+
+def _schema_for(page: dict, doc: dict, template_schemas: dict | None) -> Any:
+    """이 쪽의 템플릿 스키마 — 키는 `<template_id>@<version>`, 쪽의 템플릿 · 판이 이기고 없으면 보고서의 것."""
+    if not template_schemas:
+        return None
+    tid = page.get("template_id") or doc.get("template_id")
+    ver = page.get("template_version") if page.get("template_id") else doc.get("template_version")
+    if not tid or ver is None:
+        return None
+    return template_schemas.get(f"{tid}@{ver}")
+
+
+def _page_blocks(page: dict, schema: Any = None) -> tuple[list[dict], dict]:
     """페이지 하나에서 (블록 정의 목록, 순서) 를 뽑는다.
 
     extra_blocks 의 인라인 content(ai-draft 형태)와 별도 content 맵을 모두 받고,
     blocks_order 에 빠진 블록도 뒤에 이어 붙여 조용한 유실을 막는다.
+
+    schema(템플릿 스키마)가 있으면 정의 없이 content 에만 있는 **템플릿 블록**을 그 정의(종류 · 라벨)로 푼다 — RA 템플릿
+    보고서는 블록 정의를 보고서에 싣지 않는다. RA 의 암묵 순서(blocks_order 가 비면)는 템플릿 블록 → 덧붙인 블록이다.
     """
     extra_blocks = page.get("extra_blocks") or []
     content_map = dict(page.get("content") or {})
     defs: dict[str, dict] = {}
     declared: list[str] = []
+    extra_ids = {str(b["id"]) for b in extra_blocks if isinstance(b, dict) and "id" in b}
+    used = (set(content_map) | {str(x) for x in (page.get("blocks_order") or [])}) - extra_ids
+    for tb in _template_blocks(schema, used):
+        defs[tb["id"]] = tb
+        declared.append(tb["id"])
     for b in extra_blocks:
         if not isinstance(b, dict) or "id" not in b:
             continue
@@ -443,11 +496,12 @@ def _page_blocks(page: dict) -> tuple[list[dict], dict]:
 
 
 def normalize_report(raw: Any, assets_dir: Path | None = None, *, base_url: str | None = None,
-                     service_rest: bool = True) -> dict:
+                     service_rest: bool = True, template_schemas: dict | None = None) -> dict:
     """관용 입력(draft/REST/pages/마크다운) → report.norm.json dict (블록 구조 보존).
 
     service_rest=False 면 그림(file_id)을 서비스 자격(WDA_RA_*)으로 받지 않는다 — 주인 있는 실행이
     그렇게 부른다(wdpipeline.assets.resolve_assets).
+    template_schemas 는 `{"<template_id>@<version>": <RA 템플릿 스키마>}` — 템플릿 보고서의 블록 id 를 블록으로 푼다(_page_blocks).
     """
     doc, form = sniff_input(raw)
 
@@ -465,9 +519,10 @@ def normalize_report(raw: Any, assets_dir: Path | None = None, *, base_url: str 
     for page in pages_in:
         if not isinstance(page, dict):
             continue
-        name = str(page.get("name", ""))
+        # RA 는 이름 없는 쪽을 None 으로 준다 — str(None) 이면 'None' 이 쪽 이름(간지 · 목차)으로 나간다
+        name = str(page.get("name") or "")
         sections: dict = page.get("block_sections", {}) or {}
-        block_defs, content_map = _page_blocks(page)
+        block_defs, content_map = _page_blocks(page, _schema_for(page, doc, template_schemas))
 
         blocks_out = []
         search_parts.append(name)
@@ -555,7 +610,7 @@ def normalize_report(raw: Any, assets_dir: Path | None = None, *, base_url: str 
 
 def ingest_report_file(
     path: Path, assets_dir: Path | None = None, base_url: str | None = None,
-    *, service_rest: bool = True,
+    *, service_rest: bool = True, template_schemas: dict | None = None,
 ) -> dict:
     """P0 진입점 — 파일을 읽어 정규화 dict 를 반환한다 (모듈 간 계약).
 
@@ -572,4 +627,4 @@ def ingest_report_file(
         except json.JSONDecodeError:
             raw = text  # JSON 이 아니면 마크다운으로 재시도(스니핑이 최종 판단)
     return normalize_report(raw, assets_dir=assets_dir, base_url=base_url,
-                            service_rest=service_rest)
+                            service_rest=service_rest, template_schemas=template_schemas)

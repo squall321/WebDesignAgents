@@ -336,9 +336,12 @@ def _format_of(build_dir: Path) -> str | None:
         return None
 
 
+TEMPLATE_SCHEMAS_FILE = "template_schemas.json"
+
+
 def submit_run(report: dict, slug: str | None = None, format_id: str | None = None,
                owner: str | None = None, render: dict | None = None,
-               idempotency_key: str | None = None) -> dict:
+               idempotency_key: str | None = None, template_schemas: dict | None = None) -> dict:
     """보고서 JSON을 임시 저장하고 백그라운드 스레드로 ingest→fragmentize→scenario→build 를 돌린다.
 
     format_id 를 주면 그 포맷의 골격으로 조립한다(미지정은 기본 포맷). 알 수 없는 포맷은
@@ -368,6 +371,10 @@ def submit_run(report: dict, slug: str | None = None, format_id: str | None = No
     pipe_dir.mkdir(parents=True, exist_ok=True)
     raw_path = pipe_dir / "report.raw.json"
     raw_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    # 템플릿 스키마는 받은 보고서 곁에 둔다 — 재개(resume_run)가 ingest 부터 다시 돌 때도 같은 스키마로 푼다
+    if template_schemas:
+        (pipe_dir / TEMPLATE_SCHEMAS_FILE).write_text(
+            json.dumps(template_schemas, ensure_ascii=False, indent=2), encoding="utf-8")
 
     now = _now_iso()
     run = {
@@ -383,6 +390,8 @@ def submit_run(report: dict, slug: str | None = None, format_id: str | None = No
         "owner": owner,
         "idempotency_key": idempotency_key or None,
         "render_request": render or None,     # W-8 — 빌드 뒤 이어서 걸 렌더 옵션
+        # 받은 템플릿 스키마의 키(`<template_id>@<version>`)만 — 진단용. 스키마 본문은 pipeline/<run_id>/template_schemas.json
+        "template_schemas": sorted(template_schemas) if template_schemas else None,
         "scenario_summary": None,
         "build_dir": None,
         "entry": None,
@@ -457,8 +466,12 @@ def _run_pipeline(run_id: str, raw_path: Path, slug: str, droot: Path,
             # **원장**에서 읽는다 — 재개(resume_run)도 이 함수를 타므로 인자로 받으면 그 길에서 빠진다.
             # 주인 없는 실행의 호출은 종전 글자 그대로 둔다(그 길은 바뀌지 않는다).
             owned = bool((read_run(run_id) or {}).get("owner"))
-            norm = (ingest_report_file(raw_path, service_rest=False) if owned
-                    else ingest_report_file(raw_path))
+            kw: dict = {"service_rest": False} if owned else {}
+            ts_path = pipe_dir / TEMPLATE_SCHEMAS_FILE
+            if ts_path.is_file():
+                kw["template_schemas"] = json.loads(ts_path.read_text(encoding="utf-8"))
+            # 주인 없고 스키마 없는 실행의 호출은 종전 글자 그대로다(그 길은 바뀌지 않는다)
+            norm = ingest_report_file(raw_path, **kw)
             norm_path.write_text(json.dumps(norm, ensure_ascii=False, indent=2), encoding="utf-8")
             # 그림 결과를 단계 끝보다 **먼저** 적는다 — 'ingest done' 을 본 호출자가 그 결과도 함께 본다.
             if owned:

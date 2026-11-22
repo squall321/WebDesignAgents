@@ -81,6 +81,36 @@ _FRONTEND_DIST = REPO_ROOT / "frontend" / "dist"
 # 수 MB 다. 16MB 는 그 위에 여유를 둔 값이고, 넘으면 받아 두고 나중에 죽지 않고 즉시 413 이다.
 MAX_BODY_BYTES = 16 * 1024 * 1024
 
+# 만들기의 template_schemas 칸 — `{"<template_id>@<version>": <RA 템플릿 스키마>}`(포털이 그 사람 명의로 RA 에서 읽어 싣는다).
+# 키는 경로가 되지 않는 이름 · 양의 정수 판이고, 값은 블록 목록(id · type 이 글)이 있는 객체다. 개수 상한은 보고서 한 건이 쓰는 템플릿 수의 여유다.
+TEMPLATE_SCHEMAS_MAX = 64
+_TEMPLATE_KEY_RE = re.compile(r"^(?!\.{1,2}@)[A-Za-z0-9._-]{1,64}@[1-9][0-9]{0,8}$")
+
+
+def check_template_schemas(value) -> dict | None:
+    """만들기의 template_schemas 칸을 본다 — 없으면 None, 꼴이 틀리면 ApiError(400 INVALID)."""
+    if value is None:
+        return None
+    bad = None
+    if not isinstance(value, dict):
+        bad = "객체가 아닙니다"
+    elif len(value) > TEMPLATE_SCHEMAS_MAX:
+        bad = f"{len(value)}개 — 상한 {TEMPLATE_SCHEMAS_MAX}개"
+    else:
+        for k, v in value.items():
+            if not (isinstance(k, str) and _TEMPLATE_KEY_RE.match(k)):
+                bad = f"키 {str(k)[:80]!r} 가 '<template_id>@<version>' 꼴이 아닙니다"
+            elif not (isinstance(v, dict) and isinstance(v.get("blocks"), list)):
+                bad = f"{k} 에 blocks 목록이 없습니다"
+            elif not all(isinstance(b, dict) and isinstance(b.get("id"), str) and isinstance(b.get("type"), str)
+                         for b in v["blocks"]):
+                bad = f"{k} 의 블록에 id · type 글이 없습니다"
+            if bad:
+                break
+    if bad:
+        raise ApiError(400, "INVALID", f"template_schemas — {bad}")
+    return value or None
+
 
 # ── 응답 봉투 (VoiceRecorder responses 패턴) ────────────────────────────────
 
@@ -268,7 +298,7 @@ def health() -> dict:
         "status": "ok",
         "features": sorted(
             ["owner", "render_chain", "doc_formats", "skipped_report", "interrupted",
-             "idempotency", "error_codes", "delete"]
+             "idempotency", "error_codes", "delete", "template_schemas"]
             + [f"format:{f['id']}" for f in rows]
         ),
         "formats": {f["id"]: f["status"] for f in rows},
@@ -341,6 +371,7 @@ async def create_run(request: Request) -> JSONResponse:
     slug: str | None = None
     format_id: str | None = None
     render_opts: dict | None = None
+    template_schemas: dict | None = None
     # W-7 — 본문 상한. 포털은 미리 재서 넘으면 부르지 않지만, 재지 않는 호출자도 있다.
     declared = request.headers.get("content-length")
     if declared and declared.isdigit() and int(declared) > MAX_BODY_BYTES:
@@ -371,6 +402,7 @@ async def create_run(request: Request) -> JSONResponse:
         slug = body.get("slug")
         format_id = body.get("format")
         render_opts = body.get("render") if isinstance(body.get("render"), dict) else None
+        template_schemas = check_template_schemas(body.get("template_schemas"))
     if not isinstance(report, dict):
         raise ApiError(400, "INVALID",
                        "report_json 은 report_archive_draft_v1 객체여야 합니다")
@@ -381,6 +413,7 @@ async def create_run(request: Request) -> JSONResponse:
             owner=identity(request),                       # W-1 본문의 owner 칸은 안 믿는다
             render=render_opts,                            # W-8 빌드 뒤 이어서 렌더
             idempotency_key=request.headers.get("Idempotency-Key"),   # W-15
+            template_schemas=template_schemas,             # 템플릿 보고서의 블록 정의(RA 템플릿 스키마)
         )
     except ValueError as exc:   # 알 수 없는 포맷 — 조립까지 끌고 가지 않고 여기서 거절한다
         raise ApiError(400, "INVALID", str(exc)) from exc
