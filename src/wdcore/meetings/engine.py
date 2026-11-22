@@ -34,15 +34,19 @@ class MeetingEngine:
         self.registry = registry
 
     # --- 생성 ---
-    def create(self, type: MeetingType | str, topic: str, participants: list[str]) -> MeetingMeta:
-        """회의를 생성하고 meta.json을 저장한다. 참가 확정 순서가 곧 발언 순서다."""
+    def create(self, type: MeetingType | str, topic: str, participants: list[str],
+               owner: str | None = None) -> MeetingMeta:
+        """회의를 생성하고 meta.json을 저장한다. 참가 확정 순서가 곧 발언 순서다.
+
+        owner 는 회의의 주인(주인 있는 실행을 물고 열 때 그 실행의 주인) — 없으면 지금처럼 누구에게나 열린 회의다.
+        """
         if len(set(participants)) != len(participants):
             raise ValueError("참가자 목록에 중복이 있다")
         if self.registry is not None:
             for pid in participants:
                 self.registry.get(pid)  # 미존재 시 PersonaNotFoundError
         meta = MeetingMeta(
-            id=str(uuid4()), type=MeetingType(type), topic=topic, participants=participants,
+            id=str(uuid4()), type=MeetingType(type), topic=topic, participants=participants, owner=owner,
         )
         self.store.save_meta(meta)
         return meta

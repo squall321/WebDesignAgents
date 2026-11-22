@@ -13,6 +13,8 @@
 from __future__ import annotations
 
 import base64
+import contextlib
+import contextvars
 import hashlib
 import hmac
 import json
@@ -20,7 +22,7 @@ import os
 import time
 from pathlib import Path
 
-__all__ = ["ASSERTION_HEADER", "TTL_S", "gateway_secret", "mint", "verify", "caller"]
+__all__ = ["ASSERTION_HEADER", "TTL_S", "gateway_secret", "mint", "verify", "caller", "use_identity"]
 
 ASSERTION_HEADER = "x-heax-sso-assertion"
 PREFIX = "wdsso_"
@@ -120,8 +122,29 @@ def _request_headers():
         return None
 
 
+# 웹(REST) 길의 확인된 신원 — 웹 콘솔은 MCP 도구 **본체**를 같은 프로세스에서 부른다(wdweb.deliberation.call_tool). 그 길의
+# 신원은 허브 Caddy 가 실은 X-Heax-User-Email 이고(W-1 과 같은 근거) 라우트가 use_identity 로 싣는다. 값이 None 이어도 '웹 길이고
+# 신원이 없다' 는 뜻이라 MCP 단언으로 내려가지 않는다 — 웹 길에는 MCP 요청이 없다.
+_UNSET = object()
+_web_identity: contextvars.ContextVar = contextvars.ContextVar("wda_web_identity", default=_UNSET)
+
+
+@contextlib.contextmanager
+def use_identity(email: str | None):
+    """이 블록 안의 caller() 가 웹 길의 확인된 신원(email — 없으면 None)을 돌려주게 한다."""
+    token = _web_identity.set((email or "").strip().lower() or None)
+    try:
+        yield
+    finally:
+        _web_identity.reset(token)
+
+
 def caller() -> str | None:
-    """이 MCP 요청의 **확인된** 신원 — 게이트웨이가 실은 단언의 서명이 맞을 때만. 그 밖은 전부 None."""
+    """이 요청의 **확인된** 신원 — 웹 길이면 라우트가 실은 신원(use_identity), MCP 길이면 게이트웨이가 실은 단언의 서명이
+    맞을 때만. 그 밖은 전부 None(X-Heax-User-Email · x-hwax-user 는 MCP 길에서 신원이 아니다)."""
+    web = _web_identity.get()
+    if web is not _UNSET:
+        return web
     headers = _request_headers()
     if not headers:
         return None

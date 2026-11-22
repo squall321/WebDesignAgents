@@ -27,11 +27,11 @@ def _meetings_root() -> Path:
 
 
 def ledger_path(meeting_id: str) -> Path | None:
-    """회의 디렉터리 안의 원장 파일 경로. 회의가 없으면 None."""
-    from wdcore.meetings.store import MeetingStore
+    """회의 디렉터리 안의 원장 파일 경로. 회의가 없으면 None — 남의 회의(주인 있는)도 없는 것과 같다(라우트가 실은 신원으로)."""
+    from wdmcp.ownership import OwnedMeetingStore
 
     try:
-        return MeetingStore(_meetings_root()).find_dir(meeting_id) / _LEDGER_NAME
+        return OwnedMeetingStore(_meetings_root()).find_dir(meeting_id) / _LEDGER_NAME
     except (FileNotFoundError, ValueError):
         return None
 

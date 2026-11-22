@@ -810,23 +810,37 @@ def download_render_job(job_id: str, kind: str, request: Request) -> FileRespons
 
 
 def _meeting_store():
-    from wdcore.meetings.store import MeetingStore
+    """웹 콘솔의 회의 저장소 — 주인 있는 회의는 그 주인에게만 보인다(라우트가 실은 신원, 포털 계약 M3)."""
+    from wdmcp.ownership import OwnedMeetingStore
 
-    return MeetingStore(root=data_dir() / "meetings")
+    return OwnedMeetingStore(root=data_dir() / "meetings")
+
+
+def _as(request: Request):
+    """이 요청의 신원(허브 Caddy 가 실은 X-Heax-User-Email — W-1 과 같은 근거)을 회의 · 실행 도구의 문에 싣는다.
+
+    웹 콘솔은 MCP 도구 **본체**를 같은 프로세스에서 부른다 — 이것이 없으면 도구 문은 MCP 의 단언만 보고, 주인 있는 실행으로 여는
+    회의가 주인에게도 막혔다(콘솔의 심의 → 시나리오, 2026-11-21 탐침).
+    """
+    from wdmcp.delegation import use_identity
+
+    return use_identity(identity(request))
 
 
 @app.get("/api/meetings")
-def get_meetings() -> dict:
-    metas = _meeting_store().list_meetings()
+def get_meetings(request: Request) -> dict:
+    with _as(request):
+        metas = _meeting_store().list_meetings()
     items = [json.loads(m.model_dump_json()) for m in metas]
     items.sort(key=lambda m: m.get("created_at") or "", reverse=True)
     return envelope({"meetings": items})
 
 
 @app.get("/api/meetings/{meeting_id}/minutes")
-def get_minutes(meeting_id: str) -> dict:
+def get_minutes(meeting_id: str, request: Request) -> dict:
     try:
-        d = _meeting_store().find_dir(meeting_id)
+        with _as(request):
+            d = _meeting_store().find_dir(meeting_id)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     minutes = d / "minutes.md"
@@ -840,6 +854,7 @@ def get_minutes(meeting_id: str) -> dict:
 # 웹에도 심의가 있어야 한다. 없으면 웹은 규칙기반 데모 조립밖에 못 하고, 같은 플랫폼의
 # 두 창구가 서로 다른 품질의 자료를 낸다. 구현은 wdweb/deliberation.call_tool 이
 # MCP 도구 **본체를 그대로** 호출한다 — 검증 규칙을 복제하지 않기 위해서다.
+# 주인 문은 도구 본체에 있다 — 라우트는 신원만 싣는다(_as). 막힌 것은 없는 것과 같은 답이다.
 
 
 def _tool(name: str, *, meeting_id: str | None = None, **kwargs) -> dict:
@@ -870,51 +885,59 @@ def get_persona_roster() -> dict:
 
 
 @app.post("/api/meetings", status_code=status.HTTP_201_CREATED)
-def post_meeting(body: dict = Body(...)) -> dict:
-    """심의 개회. body: {topic, type, participants[], run_id?, format_id?}"""
+def post_meeting(request: Request, body: dict = Body(...)) -> dict:
+    """심의 개회. body: {topic, type, participants[], run_id?, format_id?}
+
+    주인 있는 실행(run_id)은 그 주인만 물 수 있고, 그 회의는 그 주인 것이 된다(남 · 신원 없음에는 없는 실행과 같은 400).
+    """
     for key in ("topic", "type", "participants"):
         if not body.get(key):
             raise HTTPException(status_code=400, detail=f"{key} 는 필수입니다")
-    return _tool(
-        "meeting_start", topic=body["topic"], type=body["type"],
-        participants=list(body["participants"]), run_id=body.get("run_id"),
-        format_id=body.get("format_id"),
-    )
+    with _as(request):
+        return _tool(
+            "meeting_start", topic=body["topic"], type=body["type"],
+            participants=list(body["participants"]), run_id=body.get("run_id"),
+            format_id=body.get("format_id"),
+        )
 
 
 @app.get("/api/meetings/{meeting_id}")
-def get_meeting(meeting_id: str) -> dict:
+def get_meeting(meeting_id: str, request: Request) -> dict:
     """심의 진행 현황 (meeting_status 사영)."""
-    return _tool("meeting_status", meeting_id=meeting_id)
+    with _as(request):
+        return _tool("meeting_status", meeting_id=meeting_id)
 
 
 @app.get("/api/meetings/{meeting_id}/briefing")
-def get_briefing(meeting_id: str) -> dict:
+def get_briefing(meeting_id: str, request: Request) -> dict:
     """다음 발언자 브리핑 (meeting_get_briefing 사영). 전달한 ref 는 원장에 축적된다."""
-    return _tool("meeting_get_briefing", meeting_id=meeting_id)
+    with _as(request):
+        return _tool("meeting_get_briefing", meeting_id=meeting_id)
 
 
 @app.post("/api/meetings/{meeting_id}/turns")
-def post_turn(meeting_id: str, body: dict = Body(...)) -> dict:
+def post_turn(meeting_id: str, request: Request, body: dict = Body(...)) -> dict:
     """발언 턴 제출 (meeting_submit_turn 사영). 엔진 검증 거부는 400 이다."""
     if body.get("round_no") is None or not body.get("role") or not body.get("content_md"):
         raise HTTPException(status_code=400, detail="round_no·role·content_md 는 필수입니다")
-    return _tool(
-        "meeting_submit_turn", meeting_id=meeting_id,
-        round_no=int(body["round_no"]), role=body["role"], content_md=body["content_md"],
-        expert_id=body.get("expert_id"), stance=body.get("stance"),
-        citations=body.get("citations"), artifacts=body.get("artifacts"),
-    )
+    with _as(request):
+        return _tool(
+            "meeting_submit_turn", meeting_id=meeting_id,
+            round_no=int(body["round_no"]), role=body["role"], content_md=body["content_md"],
+            expert_id=body.get("expert_id"), stance=body.get("stance"),
+            citations=body.get("citations"), artifacts=body.get("artifacts"),
+        )
 
 
 @app.post("/api/meetings/{meeting_id}/close")
-def post_close(meeting_id: str) -> dict:
+def post_close(meeting_id: str, request: Request) -> dict:
     """폐회 — 회의록(minutes.md)을 굽고 미해결 쟁점을 뽑는다."""
-    return _tool("meeting_close", meeting_id=meeting_id)
+    with _as(request):
+        return _tool("meeting_close", meeting_id=meeting_id)
 
 
 @app.post("/api/meetings/{meeting_id}/scenario")
-def post_scenario(meeting_id: str, body: dict | None = Body(default=None)) -> dict:
+def post_scenario(meeting_id: str, request: Request, body: dict | None = Body(default=None)) -> dict:
     """심의 산출물 → 시나리오 (scenario_build 사영) + 그 실행의 렌더 패키지 재빌드.
 
     body: {run_id?, format?}. 재빌드까지 해야 루프가 닫힌다 — scenario.json 만 갈아두면
@@ -925,7 +948,8 @@ def post_scenario(meeting_id: str, body: dict | None = Body(default=None)) -> di
     for key in ("run_id", "format"):
         if body.get(key):
             kwargs[key] = body[key]
-    out = _tool("scenario_build", meeting_id=meeting_id, **kwargs)
+    with _as(request):
+        out = _tool("scenario_build", meeting_id=meeting_id, **kwargs)
     rid = (out.get("data") or {}).get("run_id")
     run = runledger.read_run(rid) if rid else None
     if run is not None:
@@ -944,19 +968,35 @@ def post_scenario(meeting_id: str, body: dict | None = Body(default=None)) -> di
 
 
 @app.post("/api/meetings/{meeting_id}/autorun", status_code=status.HTTP_202_ACCEPTED)
-def post_autorun(meeting_id: str, body: dict | None = Body(default=None)) -> JSONResponse:
+def post_autorun(meeting_id: str, request: Request, body: dict | None = Body(default=None)) -> JSONResponse:
     """vLLM(GLM) 무인 완주를 백그라운드로 시작한다. body: {max_turns?, run_id?}
 
     브라우저에는 페르소나를 연기할 주체가 없다 — MCP 는 클라이언트가 연기하지만
     웹은 이 경로(PLAN 경로 B)로 같은 엔진 위에서 심의를 돌린다.
     전 라운드 완주는 LLM 턴이 수십 번이라 동기 요청으로는 프록시 타임아웃에 걸린다.
+
+    문은 여기서 본다 — 자율 심의는 뒤 스레드에서 돌고(신원이 따라가지 않는다) run_id 의 조각(fragments.json)을 바로 읽는다.
+    회의가 남의 것이면 없는 회의와 같은 404, run_id 가 남의 실행 · 없는 실행 · 경로가 될 꼴이면 같은 404 다(종전에는 없는
+    실행도 받아 놓고 뒤에서 실패했다).
     """
+    from wdmcp.ownership import closed_to
     from wdweb.deliberation import start_autorun
 
     body = body or {}
+    run_id = body.get("run_id")
+    who = identity(request)
     try:
-        state = start_autorun(meeting_id, max_turns=body.get("max_turns"),
-                              run_id=body.get("run_id"))
+        with _as(request):
+            _meeting_store().find_dir(meeting_id)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    if run_id is not None:
+        rid = str(run_id)
+        if (not runledger.valid_run_id(rid) or closed_to(who, run_ids=[rid])
+                or not (runledger.data_dir() / "pipeline" / rid / "fragments.json").is_file()):
+            raise ApiError(404, "NOT_FOUND", f"실행을 찾을 수 없습니다: {rid}")
+    try:
+        state = start_autorun(meeting_id, max_turns=body.get("max_turns"), run_id=run_id)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except RuntimeError as exc:  # 이미 진행 중
@@ -966,11 +1006,16 @@ def post_autorun(meeting_id: str, body: dict | None = Body(default=None)) -> JSO
 
 
 @app.get("/api/meetings/{meeting_id}/autorun")
-def get_autorun(meeting_id: str) -> dict:
-    """자율 심의 진행 상태 — 콘솔이 폴링한다."""
+def get_autorun(meeting_id: str, request: Request) -> dict:
+    """자율 심의 진행 상태 — 콘솔이 폴링한다. 남의 회의는 기록이 없는 회의와 같은 404 다."""
     from wdweb.deliberation import autorun_state
 
-    state = autorun_state(meeting_id)
+    try:
+        with _as(request):
+            _meeting_store().find_dir(meeting_id)
+        state = autorun_state(meeting_id)
+    except FileNotFoundError:
+        state = None
     if state is None:
         raise HTTPException(status_code=404, detail="이 심의에는 자율 실행 기록이 없습니다")
     return envelope(state)
