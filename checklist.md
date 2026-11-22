@@ -314,6 +314,19 @@ push 까지는 끝냈다 — `origin/main = 9029df9`. **SIF 재빌드·라이브
 - 라운드를 닫을 때 포털에 넘길 것 — **main 판 · Drive dist · SIF sha256 · 알고 받을 것**.
 - 배치본 확인에 **QA 게이트를 반드시 포함한다**(11-07 라운드에서 빠뜨렸다).
 
+### 내려받기 kind 이름이 두 라우트에서 다르다 (2026-11-22 배치본 검증에서 걸림)
+
+- `POST /api/runs` 의 렌더 요청은 `targets: ["video","pptx"]` 로 **video** 라 부른다.
+- `GET /api/runs/{id}/download/{kind}` 는 그 영상을 **mp4** 로 부른다(`_DOWNLOAD_META`).
+- `GET /api/render_jobs/{id}/download/{kind}` 는 다시 **video** 로 부른다(`_JOB_DOWNLOAD_META`).
+
+렌더를 `video` 로 요청한 호출자가 `download/video` 를 부르면 **404** 다. 실제로 배치본
+검증에서 내가 그대로 걸렸다 — 산출물은 멀쩡히 있는데 이름이 달라서 못 받았다.
+404 본문이 `kind 는 [...] 중 하나입니다` 로 쓸 수 있는 이름을 알려 주긴 한다.
+
+- [ ] 고칠 때는 **`video` 를 별칭으로 받는 쪽**이 맞다(기존 `mp4` 호출자를 깨지 않는다).
+      포털이 어느 이름을 쓰는지 먼저 확인할 것. 지금은 push 보류 중이라 손대지 않는다.
+
 ### 하지 않는 것
 - 역사 다시 쓰기(rebase·force) — 문서가 커밋 해시를 인용한다
 - 포털 `backend/.env` 의 `WDA_DECK_ENABLED` — 그쪽 설정이다
