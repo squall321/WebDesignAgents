@@ -2,6 +2,7 @@
 # 순서가 뒤집히면 API 가 전부 SPA 로 먹힌다 (VoiceRecorder backend/app/main.py 실물 규약 준수).
 from __future__ import annotations
 
+import hmac
 import json
 import os
 import re
@@ -79,6 +80,36 @@ _FRONTEND_DIST = REPO_ROOT / "frontend" / "dist"
 # W-7 — 본문 상한. 심의 보고서는 블록 상한(회의록 400 · 결과·권고 각 200항목 × 1,900자)이라
 # 수 MB 다. 16MB 는 그 위에 여유를 둔 값이고, 넘으면 받아 두고 나중에 죽지 않고 즉시 413 이다.
 MAX_BODY_BYTES = 16 * 1024 * 1024
+
+# 만들기의 template_schemas 칸 — `{"<template_id>@<version>": <RA 템플릿 스키마>}`(포털이 그 사람 명의로 RA 에서 읽어 싣는다).
+# 키는 경로가 되지 않는 이름 · 양의 정수 판이고, 값은 블록 목록(id · type 이 글)이 있는 객체다. 개수 상한은 보고서 한 건이 쓰는 템플릿 수의 여유다.
+TEMPLATE_SCHEMAS_MAX = 64
+_TEMPLATE_KEY_RE = re.compile(r"^(?!\.{1,2}@)[A-Za-z0-9._-]{1,64}@[1-9][0-9]{0,8}$")
+
+
+def check_template_schemas(value) -> dict | None:
+    """만들기의 template_schemas 칸을 본다 — 없으면 None, 꼴이 틀리면 ApiError(400 INVALID)."""
+    if value is None:
+        return None
+    bad = None
+    if not isinstance(value, dict):
+        bad = "객체가 아닙니다"
+    elif len(value) > TEMPLATE_SCHEMAS_MAX:
+        bad = f"{len(value)}개 — 상한 {TEMPLATE_SCHEMAS_MAX}개"
+    else:
+        for k, v in value.items():
+            if not (isinstance(k, str) and _TEMPLATE_KEY_RE.match(k)):
+                bad = f"키 {str(k)[:80]!r} 가 '<template_id>@<version>' 꼴이 아닙니다"
+            elif not (isinstance(v, dict) and isinstance(v.get("blocks"), list)):
+                bad = f"{k} 에 blocks 목록이 없습니다"
+            elif not all(isinstance(b, dict) and isinstance(b.get("id"), str) and isinstance(b.get("type"), str)
+                         for b in v["blocks"]):
+                bad = f"{k} 의 블록에 id · type 글이 없습니다"
+            if bad:
+                break
+    if bad:
+        raise ApiError(400, "INVALID", f"template_schemas — {bad}")
+    return value or None
 
 
 # ── 응답 봉투 (VoiceRecorder responses 패턴) ────────────────────────────────
@@ -210,13 +241,14 @@ async def _ownership_guard(request: Request, call_next):
         run = runledger.read_run(run_id)
         if run is not None and not visible_to(run, identity(request)):
             return miss
-        # W-13 — 보존 기한이 지나 산출물을 지운 실행. '모르는 실행'(404)과 구분해 410 으로
-        # 답한다. 주인 검사를 통과한 뒤이므로 존재를 흘리지 않는다.
-        if run is not None and run.get("deleted_at"):
+        # W-13 · W-17 — 산출물을 지운 실행(보존 기한 · 주인이 지움). '모르는 실행'(404)과 구분해
+        # 410 으로 답한다. 주인 검사를 통과한 뒤이므로 존재를 흘리지 않는다. 지우기(DELETE)만은
+        # 지나간다 — 다시 불러도 같은 답이고(멱등) 남은 조각을 마저 치운다.
+        if run is not None and run.get("deleted_at") and request.method != "DELETE":
             return JSONResponse(
                 status_code=410,
                 content=envelope(None, success=False, code="NOT_FOUND",
-                                 message=f"보존 기한이 지나 지워진 실행입니다: {run_id}"),
+                                 message=f"지워진 실행입니다: {run_id}"),
             )
     return await call_next(request)
 
@@ -266,11 +298,16 @@ def health() -> dict:
         "status": "ok",
         "features": sorted(
             ["owner", "render_chain", "doc_formats", "skipped_report", "interrupted",
-             "idempotency", "error_codes"]
+             "idempotency", "error_codes", "delete", "template_schemas"]
             + [f"format:{f['id']}" for f in rows]
         ),
         "formats": {f["id"]: f["status"] for f in rows},
     }
+    # W-18 — MCP 쪽 주인은 게이트웨이와 나눈 비밀이 이 박스에 있을 때만 켜진다(기본 꺼짐)
+    from wdmcp import delegation
+
+    if delegation.gateway_secret():
+        out["features"] = sorted([*out["features"], "mcp_owner"])
     # version — HEAXHub 가 매니페스트 version 과 대조해 '앱만 새로 배포되고 매니페스트는
     # 구버전' 을 잡는다(integrations_scanner._check_version_drift, 키는 version/app_version).
     # 손으로 적지 않고 **패키지 메타데이터**에서 뽑는다 — 그래야 pyproject 와 어긋날 수 없다.
@@ -281,6 +318,38 @@ def health() -> dict:
     except Exception:  # noqa: BLE001 — 버전 노출은 선택 기능이다. 못 읽어도 health 는 살아야 한다
         pass
     return out
+
+
+# ── 게이트웨이 사람별 위임 (W-18) ─────────────────────────────────────────────
+
+
+@app.post("/api/auth/sso")
+def post_auth_sso(request: Request) -> dict:
+    """게이트웨이 전용 — 공유 비밀을 받고 **위임 머리의 사람**에게 단기 단언을 내준다(wdmcp.delegation).
+
+    게이트웨이의 `heax_registry.per_user_sso.web_design_agents` 가 부른다. 받은 단언은 그 사람의 MCP
+    호출에 X-Heax-Sso-Assertion 으로 실려 오고, 도구는 그 서명으로 주인 있는 실행을 그 주인에게만 연다.
+
+    · 비밀이 없는 박스(기본)에서는 404 다 — 열려 있지 않다는 것을 굳이 알리지 않는다.
+    · 사람은 X-Hwax-Delegate-Email 로만 정한다. **X-Heax-User-Email 로 내려가지 않는다** — 이 길은
+      게이트웨이가 허브 서비스 토큰으로 Caddy 를 지나므로 그 머리는 서비스 토큰의 주인(허브 첫 관리자)
+      으로 접혀 있다. 그 값으로 발급하면 게이트웨이를 거친 모든 사람이 관리자의 실행을 본다.
+    """
+    from wdmcp import delegation
+
+    secret = delegation.gateway_secret()
+    if not secret:
+        raise HTTPException(status_code=404, detail="Not Found")
+    got = request.headers.get("X-Heax-Gateway-Secret") or ""
+    if not hmac.compare_digest(got.encode("utf-8"), secret.encode("utf-8")):
+        raise HTTPException(status_code=401, detail="게이트웨이 비밀이 맞지 않습니다")
+    email = runledger.normalize_owner(request.headers.get("X-Hwax-Delegate-Email"))
+    if email is None or "@" not in email:
+        raise ApiError(400, "INVALID",
+                       "X-Hwax-Delegate-Email 이 없거나 이메일 꼴이 아닙니다 — 이 창구는 게이트웨이가 확인한 사람에게만 발급합니다")
+    token = delegation.mint(email, secret=secret)
+    log.info("sso_assertion_minted", email=email)          # 단언 · 비밀은 남기지 않는다
+    return envelope({"access_token": token, "token_type": "bearer", "expires_in": delegation.TTL_S})
 
 
 @app.get("/api/formats")
@@ -302,6 +371,7 @@ async def create_run(request: Request) -> JSONResponse:
     slug: str | None = None
     format_id: str | None = None
     render_opts: dict | None = None
+    template_schemas: dict | None = None
     # W-7 — 본문 상한. 포털은 미리 재서 넘으면 부르지 않지만, 재지 않는 호출자도 있다.
     declared = request.headers.get("content-length")
     if declared and declared.isdigit() and int(declared) > MAX_BODY_BYTES:
@@ -332,6 +402,7 @@ async def create_run(request: Request) -> JSONResponse:
         slug = body.get("slug")
         format_id = body.get("format")
         render_opts = body.get("render") if isinstance(body.get("render"), dict) else None
+        template_schemas = check_template_schemas(body.get("template_schemas"))
     if not isinstance(report, dict):
         raise ApiError(400, "INVALID",
                        "report_json 은 report_archive_draft_v1 객체여야 합니다")
@@ -342,6 +413,7 @@ async def create_run(request: Request) -> JSONResponse:
             owner=identity(request),                       # W-1 본문의 owner 칸은 안 믿는다
             render=render_opts,                            # W-8 빌드 뒤 이어서 렌더
             idempotency_key=request.headers.get("Idempotency-Key"),   # W-15
+            template_schemas=template_schemas,             # 템플릿 보고서의 블록 정의(RA 템플릿 스키마)
         )
     except ValueError as exc:   # 알 수 없는 포맷 — 조립까지 끌고 가지 않고 여기서 거절한다
         raise ApiError(400, "INVALID", str(exc)) from exc
@@ -357,13 +429,40 @@ async def create_run(request: Request) -> JSONResponse:
 def get_runs(request: Request) -> dict:
     """W-3 — 내 run 과 주인 없는 run 만. 신원이 없으면 주인 없는 것만."""
     who = identity(request)
-    runs = [r for r in runledger.list_runs() if visible_to(r, who)]
+    # 주인이 지운 실행(W-17)의 묘비는 목록에 싣지 않는다 — 지운 사람에게 그 실행은 없는 것이다
+    runs = [r for r in runledger.list_runs() if visible_to(r, who) and not r.get("deleted_by")]
     return envelope({"runs": runs})
 
 
 @app.get("/api/runs/{run_id}")
 def get_run(run_id: str) -> dict:
     return envelope(_run_or_404(run_id))
+
+
+@app.delete("/api/runs/{run_id}")
+def delete_run(run_id: str, request: Request) -> dict:
+    """W-17 — 주인이 자기 실행과 그 산출물을 지운다(보고서 본문 사본 포함).
+
+    남의 실행 · 신원 없음은 없는 것과 같은 404, 주인 없는 실행은 403, 도는 중이면 409 BUSY 다.
+    ⚠ 주인을 **여기서 한 번 더** 본다. 미들웨어(_ownership_guard)가 이미 거르지만 지우기는 되돌릴 수
+    없고, 그 한 곳이 틀렸을 때(2026-11-01 root_path 실사고) 남의 산출물이 사라지게 둘 수 없다.
+    """
+    run = _run_or_404(run_id)
+    owner = run.get("owner")
+    if owner is None:
+        # 주인 없는 실행은 모두에게 열려 있다 — 그래서 아무나 지우게 두지 않는다(운영자가 박스에서 치운다)
+        raise HTTPException(status_code=403, detail="주인 없는 실행은 이 창구로 지울 수 없습니다")
+    if owner != identity(request):
+        raise ApiError(404, "NOT_FOUND", f"실행을 찾을 수 없습니다: {run_id}")
+    try:
+        result = runledger.delete_run(run_id)
+    except runledger.RunBusy as exc:
+        raise ApiError(409, "BUSY", str(exc)) from None
+    if result["left"]:
+        # 묘비는 섰다(그 실행은 이미 닫혔다) — 못 지운 조각이 있음을 숨기지 않는다. 다시 부르면 마저 치운다
+        log.warning("run_delete_incomplete", run_id=run_id, left=result["left"])
+        raise ApiError(500, "INTERNAL", "실행은 닫았지만 일부 산출물을 지우지 못했습니다 — 다시 시도하세요")
+    return envelope(result, message="실행과 산출물을 지웠습니다")
 
 
 @app.post("/api/runs/{run_id}/render", status_code=status.HTTP_202_ACCEPTED)
@@ -670,7 +769,7 @@ _JOB_DOWNLOAD_META = {
 
 
 @app.get("/api/render_jobs/{job_id}/download/{kind}")
-def download_render_job(job_id: str, kind: str) -> FileResponse:
+def download_render_job(job_id: str, kind: str, request: Request) -> FileResponse:
     """render_submit 산출물 서빙 — 잡 원장의 경로가 데이터 루트 안인지 검증한 뒤 스트리밍."""
     if kind not in _JOB_DOWNLOAD_META:
         raise HTTPException(
@@ -686,10 +785,12 @@ def download_render_job(job_id: str, kind: str) -> FileResponse:
         raise HTTPException(status_code=404, detail=f"산출물이 아직 없습니다: {kind}")
     # W-4 — 이 잡의 입력·출력이 주인 있는 run 아래면 없는 것으로 답한다. 잡 원장에는
     # 신원이 없으므로 job_id 만 알면 남의 산출물을 받을 수 있었다.
-    from wdmcp.ownership import is_owned_path
+    # W-18 — 그 run 의 주인에게만 연다. 여기는 REST 라 신원은 Caddy 가 실은 X-Heax-User-Email 이다
+    # (확인된 주인이 MCP 로 맡긴 렌더의 산출물을 그 사람이 브라우저로 받는 길).
+    from wdmcp.ownership import closed_to
 
-    if is_owned_path(raw) or is_owned_path(getattr(job, "build_dir", None)) \
-            or is_owned_path(getattr(job, "scenario_path", None)):
+    if closed_to(identity(request), paths=[raw, getattr(job, "build_dir", None),
+                                           getattr(job, "scenario_path", None)]):
         raise ApiError(404, "NOT_FOUND", f"렌더 잡 없음: {job_id}")
     # 원장 값이라도 경계 검사는 한다 — 데이터 루트 밖 파일이 URL 하나로 노출되지 않게.
     target = Path(raw).resolve()
@@ -709,23 +810,37 @@ def download_render_job(job_id: str, kind: str) -> FileResponse:
 
 
 def _meeting_store():
-    from wdcore.meetings.store import MeetingStore
+    """웹 콘솔의 회의 저장소 — 주인 있는 회의는 그 주인에게만 보인다(라우트가 실은 신원, 포털 계약 M3)."""
+    from wdmcp.ownership import OwnedMeetingStore
 
-    return MeetingStore(root=data_dir() / "meetings")
+    return OwnedMeetingStore(root=data_dir() / "meetings")
+
+
+def _as(request: Request):
+    """이 요청의 신원(허브 Caddy 가 실은 X-Heax-User-Email — W-1 과 같은 근거)을 회의 · 실행 도구의 문에 싣는다.
+
+    웹 콘솔은 MCP 도구 **본체**를 같은 프로세스에서 부른다 — 이것이 없으면 도구 문은 MCP 의 단언만 보고, 주인 있는 실행으로 여는
+    회의가 주인에게도 막혔다(콘솔의 심의 → 시나리오, 2026-11-21 탐침).
+    """
+    from wdmcp.delegation import use_identity
+
+    return use_identity(identity(request))
 
 
 @app.get("/api/meetings")
-def get_meetings() -> dict:
-    metas = _meeting_store().list_meetings()
+def get_meetings(request: Request) -> dict:
+    with _as(request):
+        metas = _meeting_store().list_meetings()
     items = [json.loads(m.model_dump_json()) for m in metas]
     items.sort(key=lambda m: m.get("created_at") or "", reverse=True)
     return envelope({"meetings": items})
 
 
 @app.get("/api/meetings/{meeting_id}/minutes")
-def get_minutes(meeting_id: str) -> dict:
+def get_minutes(meeting_id: str, request: Request) -> dict:
     try:
-        d = _meeting_store().find_dir(meeting_id)
+        with _as(request):
+            d = _meeting_store().find_dir(meeting_id)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     minutes = d / "minutes.md"
@@ -739,6 +854,7 @@ def get_minutes(meeting_id: str) -> dict:
 # 웹에도 심의가 있어야 한다. 없으면 웹은 규칙기반 데모 조립밖에 못 하고, 같은 플랫폼의
 # 두 창구가 서로 다른 품질의 자료를 낸다. 구현은 wdweb/deliberation.call_tool 이
 # MCP 도구 **본체를 그대로** 호출한다 — 검증 규칙을 복제하지 않기 위해서다.
+# 주인 문은 도구 본체에 있다 — 라우트는 신원만 싣는다(_as). 막힌 것은 없는 것과 같은 답이다.
 
 
 def _tool(name: str, *, meeting_id: str | None = None, **kwargs) -> dict:
@@ -769,51 +885,59 @@ def get_persona_roster() -> dict:
 
 
 @app.post("/api/meetings", status_code=status.HTTP_201_CREATED)
-def post_meeting(body: dict = Body(...)) -> dict:
-    """심의 개회. body: {topic, type, participants[], run_id?, format_id?}"""
+def post_meeting(request: Request, body: dict = Body(...)) -> dict:
+    """심의 개회. body: {topic, type, participants[], run_id?, format_id?}
+
+    주인 있는 실행(run_id)은 그 주인만 물 수 있고, 그 회의는 그 주인 것이 된다(남 · 신원 없음에는 없는 실행과 같은 400).
+    """
     for key in ("topic", "type", "participants"):
         if not body.get(key):
             raise HTTPException(status_code=400, detail=f"{key} 는 필수입니다")
-    return _tool(
-        "meeting_start", topic=body["topic"], type=body["type"],
-        participants=list(body["participants"]), run_id=body.get("run_id"),
-        format_id=body.get("format_id"),
-    )
+    with _as(request):
+        return _tool(
+            "meeting_start", topic=body["topic"], type=body["type"],
+            participants=list(body["participants"]), run_id=body.get("run_id"),
+            format_id=body.get("format_id"),
+        )
 
 
 @app.get("/api/meetings/{meeting_id}")
-def get_meeting(meeting_id: str) -> dict:
+def get_meeting(meeting_id: str, request: Request) -> dict:
     """심의 진행 현황 (meeting_status 사영)."""
-    return _tool("meeting_status", meeting_id=meeting_id)
+    with _as(request):
+        return _tool("meeting_status", meeting_id=meeting_id)
 
 
 @app.get("/api/meetings/{meeting_id}/briefing")
-def get_briefing(meeting_id: str) -> dict:
+def get_briefing(meeting_id: str, request: Request) -> dict:
     """다음 발언자 브리핑 (meeting_get_briefing 사영). 전달한 ref 는 원장에 축적된다."""
-    return _tool("meeting_get_briefing", meeting_id=meeting_id)
+    with _as(request):
+        return _tool("meeting_get_briefing", meeting_id=meeting_id)
 
 
 @app.post("/api/meetings/{meeting_id}/turns")
-def post_turn(meeting_id: str, body: dict = Body(...)) -> dict:
+def post_turn(meeting_id: str, request: Request, body: dict = Body(...)) -> dict:
     """발언 턴 제출 (meeting_submit_turn 사영). 엔진 검증 거부는 400 이다."""
     if body.get("round_no") is None or not body.get("role") or not body.get("content_md"):
         raise HTTPException(status_code=400, detail="round_no·role·content_md 는 필수입니다")
-    return _tool(
-        "meeting_submit_turn", meeting_id=meeting_id,
-        round_no=int(body["round_no"]), role=body["role"], content_md=body["content_md"],
-        expert_id=body.get("expert_id"), stance=body.get("stance"),
-        citations=body.get("citations"), artifacts=body.get("artifacts"),
-    )
+    with _as(request):
+        return _tool(
+            "meeting_submit_turn", meeting_id=meeting_id,
+            round_no=int(body["round_no"]), role=body["role"], content_md=body["content_md"],
+            expert_id=body.get("expert_id"), stance=body.get("stance"),
+            citations=body.get("citations"), artifacts=body.get("artifacts"),
+        )
 
 
 @app.post("/api/meetings/{meeting_id}/close")
-def post_close(meeting_id: str) -> dict:
+def post_close(meeting_id: str, request: Request) -> dict:
     """폐회 — 회의록(minutes.md)을 굽고 미해결 쟁점을 뽑는다."""
-    return _tool("meeting_close", meeting_id=meeting_id)
+    with _as(request):
+        return _tool("meeting_close", meeting_id=meeting_id)
 
 
 @app.post("/api/meetings/{meeting_id}/scenario")
-def post_scenario(meeting_id: str, body: dict | None = Body(default=None)) -> dict:
+def post_scenario(meeting_id: str, request: Request, body: dict | None = Body(default=None)) -> dict:
     """심의 산출물 → 시나리오 (scenario_build 사영) + 그 실행의 렌더 패키지 재빌드.
 
     body: {run_id?, format?}. 재빌드까지 해야 루프가 닫힌다 — scenario.json 만 갈아두면
@@ -824,7 +948,8 @@ def post_scenario(meeting_id: str, body: dict | None = Body(default=None)) -> di
     for key in ("run_id", "format"):
         if body.get(key):
             kwargs[key] = body[key]
-    out = _tool("scenario_build", meeting_id=meeting_id, **kwargs)
+    with _as(request):
+        out = _tool("scenario_build", meeting_id=meeting_id, **kwargs)
     rid = (out.get("data") or {}).get("run_id")
     run = runledger.read_run(rid) if rid else None
     if run is not None:
@@ -843,19 +968,35 @@ def post_scenario(meeting_id: str, body: dict | None = Body(default=None)) -> di
 
 
 @app.post("/api/meetings/{meeting_id}/autorun", status_code=status.HTTP_202_ACCEPTED)
-def post_autorun(meeting_id: str, body: dict | None = Body(default=None)) -> JSONResponse:
+def post_autorun(meeting_id: str, request: Request, body: dict | None = Body(default=None)) -> JSONResponse:
     """vLLM(GLM) 무인 완주를 백그라운드로 시작한다. body: {max_turns?, run_id?}
 
     브라우저에는 페르소나를 연기할 주체가 없다 — MCP 는 클라이언트가 연기하지만
     웹은 이 경로(PLAN 경로 B)로 같은 엔진 위에서 심의를 돌린다.
     전 라운드 완주는 LLM 턴이 수십 번이라 동기 요청으로는 프록시 타임아웃에 걸린다.
+
+    문은 여기서 본다 — 자율 심의는 뒤 스레드에서 돌고(신원이 따라가지 않는다) run_id 의 조각(fragments.json)을 바로 읽는다.
+    회의가 남의 것이면 없는 회의와 같은 404, run_id 가 남의 실행 · 없는 실행 · 경로가 될 꼴이면 같은 404 다(종전에는 없는
+    실행도 받아 놓고 뒤에서 실패했다).
     """
+    from wdmcp.ownership import closed_to
     from wdweb.deliberation import start_autorun
 
     body = body or {}
+    run_id = body.get("run_id")
+    who = identity(request)
     try:
-        state = start_autorun(meeting_id, max_turns=body.get("max_turns"),
-                              run_id=body.get("run_id"))
+        with _as(request):
+            _meeting_store().find_dir(meeting_id)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    if run_id is not None:
+        rid = str(run_id)
+        if (not runledger.valid_run_id(rid) or closed_to(who, run_ids=[rid])
+                or not (runledger.data_dir() / "pipeline" / rid / "fragments.json").is_file()):
+            raise ApiError(404, "NOT_FOUND", f"실행을 찾을 수 없습니다: {rid}")
+    try:
+        state = start_autorun(meeting_id, max_turns=body.get("max_turns"), run_id=run_id)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except RuntimeError as exc:  # 이미 진행 중
@@ -865,11 +1006,16 @@ def post_autorun(meeting_id: str, body: dict | None = Body(default=None)) -> JSO
 
 
 @app.get("/api/meetings/{meeting_id}/autorun")
-def get_autorun(meeting_id: str) -> dict:
-    """자율 심의 진행 상태 — 콘솔이 폴링한다."""
+def get_autorun(meeting_id: str, request: Request) -> dict:
+    """자율 심의 진행 상태 — 콘솔이 폴링한다. 남의 회의는 기록이 없는 회의와 같은 404 다."""
     from wdweb.deliberation import autorun_state
 
-    state = autorun_state(meeting_id)
+    try:
+        with _as(request):
+            _meeting_store().find_dir(meeting_id)
+        state = autorun_state(meeting_id)
+    except FileNotFoundError:
+        state = None
     if state is None:
         raise HTTPException(status_code=404, detail="이 심의에는 자율 실행 기록이 없습니다")
     return envelope(state)

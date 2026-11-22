@@ -318,4 +318,45 @@ push 까지는 끝냈다 — `origin/main = 9029df9`. **SIF 재빌드·라이브
 ### 하지 않는 것
 - 역사 다시 쓰기(rebase·force) — 문서가 커밋 해시를 인용한다
 - 포털 `backend/.env` 의 `WDA_DECK_ENABLED` — 그쪽 설정이다
-- W-16~W-20 — M2. W-19(슬라이드 PDF)는 청하지 않기로 결정됨.
+- W-16(그림 함께 받기)·W-20(취소) — M2 에 남는다. W-19(슬라이드 PDF)는 청하지 않기로 결정됨.
+  W-17·W-18 은 2026-11-21 에 지었다(아래).
+
+## 2026-11-21 — 포털 계약 M2 (가지 `wt1121/deck` · 사용자 지시 — 포털 세션이 전했다)
+정본: 포털 `docs/wda-deck/wda-request.md` §6 그림 · §9(W-17·W-18) · 포털 체크리스트 44·186행.
+결정은 context-notes.md 결정 83~86. **이 가지는 커밋까지다 — push·SIF·redeploy 는 하지 않았다**(포털 세션이 검토 뒤 병합한다).
+
+- [x] **주인 있는 실행은 서비스 자격(`WDA_RA_*`)으로 RA 그림을 받지 않는다** — `bca5988`·`66a606c`.
+      `resolve_assets(service_rest=False)` 가 REST 걸음을 통째로 건너뛴다(로그인도 없다). 주인은 원장에서 읽는다(재개도 같은 워커).
+      건너뛴 사실은 원장 `run.assets{service_fetch,total,resolved,skipped[],skipped_count}`·`run.warnings` 와 정규화본 `assets_meta` 에 남는다.
+      주인 없는 실행은 호출 글자까지 종전 그대로다
+- [x] **W-17 지우기** `DELETE /api/runs/{id}` — `7664a70`. 주인만(남·익명 404 — 미들웨어 + 핸들러 두 겹) · 주인 없는 실행 403 ·
+      도는 중 409 BUSY · 멱등(지운 뒤 200 already) · 못 지운 조각이 있으면 500. 원장은 묘비로 남는다(주인·slug 유지, 내용 칸은 비움).
+      health features 에 `delete`. 실기동 시험(`--root-path` 있는/없는 두 조건)
+- [x] **W-18 MCP 쪽 주인** — `28d7c69`. `POST /api/auth/sso`(공유 비밀 + `X-Hwax-Delegate-Email` → 단기 단언 `wdsso_`) ·
+      도구는 `X-Heax-Sso-Assertion` 의 서명으로 확인된 주인에게만 연다(`wdmcp/delegation.py`·`ownership.closed_to`).
+      **기본 꺼짐** — 비밀(`secrets.env` 의 `WDA_GATEWAY_SECRET`)이 있는 박스에서만 켜지고 health features 에 `mcp_owner` 가 실린다.
+      실기동 시험 — 진짜 uvicorn `/mcp` 에 streamable HTTP 로 붙어 두 조건에서 확인
+- [x] **재개는 받은 자리에서 running** — `19dc123`. 판정과 적기를 한 잠금 안에서(포털 '다시 시도' 가 재개 직후 진행을 묻는다 · 두 재개가 겹치지 않는다)
+- [x] 전체 회귀 — 고치기 전 2 실패·2,905 통과 → 고친 뒤 2 실패·2,949 통과(같은 둘 — 작업 폴더에 없는 버전 관리 밖 데이터 `data/qa_reports`·`short_v2`), 새 실패 0.
+      변이 18 가운데 17 붉음(남은 하나는 두 겹의 한쪽 — context-notes 결정 86 아래)
+- [ ] **박스에서 켜기(사람)** — W-18 은 ① 허브 앱 데이터의 `secrets.env` 에 `WDA_GATEWAY_SECRET`(16자 이상) ② 게이트웨이
+      `gateway_config.json` 의 `heax_registry.per_user_sso.web_design_agents`(HWAXMcpGateway README 'WebDesignAgents — MCP 쪽 주인') ③ 게이트웨이 재기동
+- [ ] 배치 — main 병합 · push · SIF 재빌드 · redeploy · **배치본 검증(QA 게이트 포함)**. 지우기·W-18 은 배치본에서 한 번 더 본다(허브 Caddy 뒤)
+- [x] **발견 — W-4 가 덮지 않는 길**(context-notes 결정 85 끝) — 사용자 결정(2026-11-22)으로 아래 M3 에서 닫았다
+
+## 2026-11-22 — 포털 계약 M3 (같은 가지 `wt1121/deck` · 사용자 결정 둘 — 포털 세션이 전했다)
+정본: 포털 `docs/wda-deck/context-notes.md` WD-D94 · WD-D96 ~ · 요청서 14절. 결정은 이 파일의 결정 87 · 88. **커밋까지다 — push · SIF · redeploy 없음.**
+
+- [x] **① 실물 꼴의 심의 보고서 — 템플릿 스키마로 푼다**(포털 선택지 (나)) — `56bb9e9`. 만들기의 `template_schemas` 칸
+      `{"<template_id>@<version>": <RA data.schema>}` · 받은 보고서 곁에 저장(재개도) · 쪽이 쓰는 템플릿 블록만 그 정의(종류 · 라벨)로 ·
+      긴 글 `items` 꼴 · 블록 라벨이 그 블록의 머리글 · 쪽 이름 None · health features 에 `template_schemas`.
+      세 출처(심의 결과 · '/보고서' · 분석 루틴 초안) 다 `delib-16x9` 로 빌드까지 — `tests/test_portal_templates.py`
+- [x] **② 회의 · ingest 도구의 주인**(포털 선택지 (나)) — `4c25b08` · `1da9733`. 웹 길이 신원을 도구에 넘기고(`use_identity`) 회의에
+      주인 칸(`MeetingMeta.owner`)을 둔다 · 주인 있는 회의는 그 주인에게만(`OwnedMeetingStore`) · `meeting_start(run_id)` · `report_ingest`
+      는 남 · 신원 없음에 없는 것과 같은 답 · 주인도 원본을 주인 없는 실행으로 옮기지 않는다(OWNED_COPY) · 경로는 실제 자리로(resolve) ·
+      웹 자율 심의의 run_id 문. 11-21 탐침(`probe_w4_hole.py`)이 이제 막힌다. 실기동 시험(`--root-path` 두 조건) —
+      `tests/test_portal_meeting_owner.py`
+- [x] ③ 내 실행 목록 도구 · ④ PDF 미리보기 격리 — 포털 세션이 둔 닫힌 기본값 그대로(③ 짓지 않음 · ④ 포털 쪽 '받기' 안내)
+- [x] 전체 회귀 · 변이 — 2 실패 · 3,008 통과(기준선의 같은 둘 · 새 실패 0) · 변이 15 가운데 13 붉음(context-notes 'M3 회귀')
+- [ ] 배치 — main 병합 · push · SIF 재빌드 · redeploy · **배치본 검증(QA 게이트 포함)**. 실물 RA 보고서 하나로 '보고서 읽기' 가 서는지,
+      콘솔에서 주인 있는 실행으로 회의를 열어 시나리오까지 가는지 배치본에서 한 번 더 본다

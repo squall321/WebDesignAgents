@@ -114,3 +114,7 @@ class MeetingMeta(StrictModel):
     created_at: datetime = Field(default_factory=utcnow)
     closed_at: datetime | None = None
     round_index: int = Field(default=0, ge=0, description="현재 라운드 인덱스 (템플릿 길이 도달 시 전 라운드 종료)")
+    owner: str | None = Field(
+        default=None,
+        description="주인(소문자 이메일) — 주인 있는 실행을 물고 연 회의만 갖는다. 있으면 그 주인에게만 보인다(포털 계약 M3)",
+    )

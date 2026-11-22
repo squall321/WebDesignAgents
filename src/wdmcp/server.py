@@ -20,7 +20,7 @@ from pydantic import ValidationError
 
 from wdcore.config import get_settings
 from wdcore.errors import WebDesignAgentsError
-from wdcore.meetings import MEETING_TEMPLATES, MeetingEngine, MeetingStore
+from wdcore.meetings import MEETING_TEMPLATES, MeetingEngine
 from wdcore.models import (
     Artifact,
     ArtifactType,
@@ -126,8 +126,13 @@ def reset_services() -> None:
 
 
 def _engine() -> MeetingEngine:
-    """호출 시점 설정으로 조립하는 회의 엔진. 회의 상태의 진실은 항상 파일에 있다."""
-    return MeetingEngine(MeetingStore(get_settings().meetings_dir), get_registry())
+    """호출 시점 설정으로 조립하는 회의 엔진. 회의 상태의 진실은 항상 파일에 있다.
+
+    저장소는 주인 있는 회의를 그 주인(확인된 신원)에게만 보이는 것이다(포털 계약 M3) — 모든 회의 도구가 이 문을 지난다.
+    """
+    from .ownership import OwnedMeetingStore
+
+    return MeetingEngine(OwnedMeetingStore(get_settings().meetings_dir), get_registry())
 
 
 def modules_root() -> Path:
@@ -294,6 +299,9 @@ def _facts_for_briefing(
     """run 조각 중 미전달분을 단순 키워드 겹침으로 top_k 선별해 [F#] 마커로 전달한다."""
     if not ledger.run_id:
         return []
+    # 이 고침(M3) 전에 열린 회의는 주인 없이 주인 있는 run 을 물고 있을 수 있다 — 그 조각은 확인된 주인에게만 나간다
+    if _closed_to_caller(run_ids=[ledger.run_id]):
+        return []
     try:
         frags = _load_fragments(ledger.run_id)
     except (FileNotFoundError, ValueError):
@@ -407,9 +415,23 @@ def _roster_line() -> str:
 # MCP 의 신원은 확인할 수 없으므로(게이트웨이가 상주 세션 하나로 서비스 토큰을 싣는다)
 # 주인 있는 run 은 **없는 것으로** 답한다. 핸들러마다 넣지 않고 한 겹으로 싼다 — 도구가
 # 늘어날 때 잊히지 않게.
+# W-18 — 게이트웨이 사람별 위임으로 **확인된** 호출자(서명된 단언, wdmcp.delegation)가 그 run 의
+# 주인이면 연다. 위임이 꺼진 박스(기본) · 단언 없는 호출은 종전 그대로 닫힌다.
 
 _RUN_ARGS = ("run_id",)
 _PATH_ARGS = ("scenario_path", "build_dir", "run_dir", "build_path")
+
+
+def _closed_to_caller(*, run_ids=(), paths=()) -> bool:
+    """이 호출이 가리키는 주인 있는 run 이 호출자에게 닫혀 있는가 — 확인된 주인에게만 연다(W-4 · W-18)."""
+    from .delegation import caller
+    from .ownership import closed_to
+
+    # 먼저 '확인된 신원 없음' 으로 본다 — 대부분의 호출은 주인 있는 run 을 가리키지 않아 단언을 읽을 일이 없다
+    if not closed_to(None, run_ids=run_ids, paths=paths):
+        return False
+    who = caller()
+    return who is None or closed_to(who, run_ids=run_ids, paths=paths)
 
 
 def _block_owned(fn):
@@ -421,17 +443,13 @@ def _block_owned(fn):
 
     @functools.wraps(fn)
     def wrapper(*args, **kwargs):
-        from .ownership import is_owned_path, is_owned_run
-
         bound = sig.bind_partial(*args, **kwargs)
-        hit = any(is_owned_run(bound.arguments.get(k)) for k in _RUN_ARGS) or any(
-            is_owned_path(bound.arguments.get(k)) for k in _PATH_ARGS
-        )
-        if hit:
+        if _closed_to_caller(run_ids=[bound.arguments.get(k) for k in _RUN_ARGS],
+                             paths=[bound.arguments.get(k) for k in _PATH_ARGS]):
             return error_envelope(
                 get_session(), "NOT_FOUND",
                 "해당 run 을 찾을 수 없다.",
-                "웹에서 신원과 함께 만든 실행은 MCP 로 다룰 수 없다 — 웹 콘솔에서 이어가라.",
+                "웹에서 신원과 함께 만든 실행은 그 주인만 다룬다 — 웹 콘솔에서 이어가라.",
             )
         return fn(*args, **kwargs)
 
@@ -550,17 +568,25 @@ def meeting_start(
                 f"쓸 수 있는 포맷: {', '.join(known)}",
             )
     fragments_loaded = 0
+    owner = None
     if run_id:
         try:
+            if _closed_to_caller(run_ids=[run_id]):
+                # 남 · 확인된 신원 없음 — 없는 run 과 같은 답이다(있는지도 알리지 않는다, 포털 계약 M3 · W-4)
+                raise FileNotFoundError(f"fragments.json 없음: {_run_dir(run_id) / 'fragments.json'}")
             fragments_loaded = len(_load_fragments(run_id))
         except (FileNotFoundError, ValueError) as exc:
             return error_envelope(
                 state, "RUN_NOT_FOUND", str(exc),
                 "report_ingest → report_fragmentize로 run을 먼저 만들거나 run_id를 빼고 호출하라.",
             )
+        # 주인 있는 run 을 문 회의는 그 run 의 주인 것이다 — 브리핑이 그 보고서의 조각을 싣는다
+        from .ownership import run_owner
+
+        owner = run_owner(run_id)
     engine = _engine()
     try:
-        meta = engine.create(mtype, topic, participants)
+        meta = engine.create(mtype, topic, participants, owner=owner)
     except WebDesignAgentsError as exc:
         # 힌트 없이 코드만 돌려주면 클라이언트는 무엇을 고쳐야 하는지 모른다.
         return error_envelope(
@@ -866,14 +892,32 @@ def report_ingest(file: str, assets_dir: str | None = None, run_id: str | None =
             "wdpipeline 모듈이 아직 구현 중일 수 있다. 구현 완료 후 다시 호출하라.",
         )
     src = Path(file)
-    if not src.is_file():
+    # 포털 계약 M3 — 주인 있는 실행의 원본 · 산출물은 확인된 주인에게만. 남 · 신원 없음에게는 없는 파일과 같은 답이다
+    if not src.is_file() or _closed_to_caller(paths=[file]):
         return error_envelope(
             state, "FILE_NOT_FOUND", f"보고서 파일 없음: {src}",
             "ReportArchive에서 복사한 report_archive_draft_v1 JSON 파일 경로를 넘겨라.",
         )
+    if _closed_to_caller(paths=[assets_dir], run_ids=[run_id]):
+        # 남의 실행에 써 넣거나(run_id) 남의 실행 아래에서 그림을 읽지(assets_dir) 않는다 — _block_owned 와 같은 답
+        return error_envelope(
+            state, "NOT_FOUND", "해당 run 을 찾을 수 없다.",
+            "웹에서 신원과 함께 만든 실행은 그 주인만 다룬다 — 웹 콘솔에서 이어가라.",
+        )
+    from .ownership import owned_runs_at, run_owner
+
+    src_owned = owned_runs_at([file, assets_dir])
+    if src_owned and run_id not in src_owned:
+        # 주인이어도 그 원본을 주인 없는 새 실행으로 옮기지 않는다 — MCP 로 만든 실행은 주인이 없어(W-1) 누구에게나 열린 사본이 된다
+        return error_envelope(
+            state, "OWNED_COPY", "주인 있는 실행의 원본을 다른 실행으로 옮기지 않는다.",
+            "그 실행을 다시 ingest 하려면 run_id 를 그 실행으로 주어라(또는 웹 콘솔에서 이어가라).",
+        )
     rid = run_id or _new_run_id()
+    # 주인 있는 실행에 다시 ingest 하면 그림을 서비스 자격(WDA_RA_*)으로 받지 않는다(웹 워커와 같은 규칙 — 포털 체크리스트 44행)
+    ingest_kw = {"service_rest": False} if run_owner(rid) else {}
     try:
-        norm = mod.ingest_report_file(src, Path(assets_dir) if assets_dir else None)
+        norm = mod.ingest_report_file(src, Path(assets_dir) if assets_dir else None, **ingest_kw)
     except Exception as exc:
         return error_envelope(state, "INGEST_FAILED", f"{type(exc).__name__}: {exc}")
     run_dir = _run_dir(rid)
@@ -962,6 +1006,12 @@ def scenario_build(meeting_id: str, run_id: str | None = None) -> dict:
             state, "NOT_FOUND", str(exc), "meeting_start가 반환한 meeting_id를 사용하라."
         )
     rid = run_id or state.ledger(meeting_id).run_id
+    if rid and _closed_to_caller(run_ids=[rid]):
+        # 회의가 물고 있던 run(run_id 를 안 줬을 때)도 본다 — 이 고침 전에 열린 주인 없는 회의가 주인 있는 run 을 물 수 있다
+        return error_envelope(
+            state, "NOT_FOUND", "해당 run 을 찾을 수 없다.",
+            "웹에서 신원과 함께 만든 실행은 그 주인만 다룬다 — 웹 콘솔에서 이어가라.",
+        )
     if not rid:
         return error_envelope(
             state, "RUN_REQUIRED",
@@ -1152,7 +1202,10 @@ def render_status(job_id: str) -> dict:
     """렌더 잡 상태·산출물 경로/열람 URL을 조회한다 (data/render_jobs/{job_id}.json이 진실)."""
     state = get_session()
     job = jobs.read_job(job_id)
-    if job is None:
+    # 확인된 주인이 MCP 로 렌더를 맡길 수 있게 되면(W-18) 주인 있는 run 위의 잡이 생긴다 — 잡 id 만으로
+    # 남의 경로 · 산출물 주소를 보여 주지 않는다(W-4). 없는 잡과 같은 답이다.
+    if job is None or _closed_to_caller(paths=[job.scenario_path, job.build_dir, job.run_dir,
+                                               *(job.outputs or {}).values()]):
         return error_envelope(
             state, "NOT_FOUND", f"렌더 잡 없음: {job_id}",
             "render_submit이 반환한 job_id를 사용하라.",
@@ -1413,8 +1466,10 @@ def meeting_minutes(meeting_id: str) -> dict:
     try:
         d = _engine().store.find_dir(meeting_id)
     except (FileNotFoundError, ValueError) as exc:
+        # 회의 id 를 싣지 않는다 — 실으면 세션 요약이 그 회의의 원장(연결된 실행 id · 전달 기록)을 붙인다. 남의 회의(주인 있는)는
+        # 없는 회의와 같은 답이어야 한다(다른 회의 도구도 없음 오류에는 싣지 않는다)
         return error_envelope(state, "NOT_FOUND", str(exc),
-                              "meeting_list 로 저장된 회의 id 를 확인하라.", meeting_id)
+                              "meeting_list 로 저장된 회의 id 를 확인하라.")
     path = d / "minutes.md"
     if not path.is_file():
         return error_envelope(

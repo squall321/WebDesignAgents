@@ -15,6 +15,11 @@ DEFAULT_MAX_EDGE = 1920
 # assets_dir 안의 선택적 매핑 파일 — {file_id: 상대경로} 또는 {"assets": {...}} 봉투
 MAPPING_FILE = "assets.json"
 
+# 주인 있는 실행(웹 REST 가 X-Heax-User-Email 로 주인을 정한 run)은 서비스 자격(WDA_RA_*)으로 RA 를
+# 읽지 않는다 — 그 본문은 **그 사람 명의로** 읽어 온 것이고, file_id 를 서비스 계정으로 다시 받으면
+# '사람 대신 서비스 계정이 RA 를 읽는 길' 이 된다(포털 요청서 §6 그림). 못 받은 까닭은 지금처럼 남긴다.
+OWNED_SKIP_REASON = "주인 있는 실행 — 서비스 자격(WDA_RA_*)으로 Report Archive 를 읽지 않는다."
+
 _IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".tif", ".tiff", ".avif"}
 _SAFE_RE = re.compile(r"[^\w.\-]")
 
@@ -232,11 +237,13 @@ def resolve_assets(
     token: str | None = None,
     run_dir: Path | str | None = None,
     max_edge: int = DEFAULT_MAX_EDGE,
+    service_rest: bool = True,
 ) -> list[dict]:
     """file_id 목록을 로컬/REST 로 해결해 자산 레코드 목록을 만든다.
 
     ① assets_dir 이 있으면 매핑 파일(assets.json) → {file_id}.* 순으로 찾는다.
     ② 로컬에서 못 찾고 REST 자격증명(base_url/WDA_RA_*)이 있으면 GET /api/files/{file_id} 로 받는다.
+       service_rest=False(주인 있는 실행)면 이 걸음을 **통째로** 건너뛴다 — 로그인도 받기도 하지 않는다.
     ③ 어느 쪽으로도 못 찾으면 status=unresolved 와 reason 을 남긴다.
 
     run_dir 을 주면 해결된 파일을 run_dir/assets/ 로 모으고(그 사본에 한해) 긴 변이
@@ -271,7 +278,9 @@ def resolve_assets(
             if src_path is None:
                 reasons.append(f"로컬 미발견 — {adir}/{fid}.* 및 {MAPPING_FILE} 매핑에 없다.")
 
-        if src_path is None:
+        if src_path is None and not service_rest:
+            reasons.append(OWNED_SKIP_REASON)
+        elif src_path is None:
             if not rest_tried:
                 ctx, rest_skip = _rest_context(base_url, token)
                 rest_tried = True

@@ -1,7 +1,7 @@
 # P1 fragmentize — 정규화 보고서를 위젯 타입별 규칙으로 Claim/Evidence/Case/Metric/CTA 조각으로 1차 분해
 from __future__ import annotations
 
-from .ingest import block_text
+from .ingest import block_text, rich_text_items
 from .widgets import GROUP_BY_TYPE, extract_structured, structured_summary
 
 # PLAN §4 P1 위젯 타입별 기본 매핑 표 (규칙 기반 1차 — LLM 정제는 prompts/fragmentize.md 어댑터 몫)
@@ -28,7 +28,7 @@ _MAX_TEXT = 200
 # 것(topic·round)만 새로 둔다.
 _HEADING_SECTIONS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("topic", ("화두", "의제", "안건", "논제", "심의 주제", "검토 배경")),
-    ("round", ("라운드", "토론", "논의 경과", "심의 경과", "발언", "쟁점 토의")),
+    ("round", ("라운드", "토론", "논의 경과", "심의 경과", "발언", "쟁점 토의", "심화 논의", "회의록")),
     ("decision", ("의사결정", "결정", "결론", "판정", "합의", "수렴")),
     ("action_item", ("액션", "후속", "조치", "다음 단계", "이행", "follow")),
     ("alternatives", ("대안", "검토안", "선택지", "비교안")),
@@ -82,6 +82,9 @@ def _item_texts(block_type: str, content: dict | None) -> list[str]:
         return []
     if block_type == "bulleted_list":
         return [str(x).strip() for x in content.get("items", []) if str(x).strip()]
+    if block_type == "rich_text" and not str(content.get("markdown") or "").strip() and rich_text_items(content):
+        # RA 의 항목 꼴 — 항목마다 한 조각(bulleted_list 와 같은 단위). 통짜로 두면 결정문 십여 항목이 200자 한 조각으로 잘린다
+        return rich_text_items(content)
     if block_type in ("flowchart", "milestone", "progress_bar"):
         out = []
         for item in content.get("items", []):
@@ -177,7 +180,11 @@ def fragmentize(norm: dict) -> list[dict]:
             btype = block.get("type", "")
             if btype == "heading":
                 heading_section = infer_section(block_text("heading", block.get("content")))
-            section = block.get("section") or heading_section
+            # 블록의 라벨(템플릿 스키마의 props.label — 예 '의사결정문')은 **그 블록만의** 머리글이다. 명시 태그가 이기고, 라벨이
+            # 못 알아보는 말이면 앞 heading 을 따른다
+            label = (block.get("props") or {}).get("label") if isinstance(block.get("props"), dict) else None
+            label_section = infer_section(label) if isinstance(label, str) else None
+            section = block.get("section") or label_section or heading_section
             ftype = _classify(btype, section)
             if ftype is None:
                 continue
