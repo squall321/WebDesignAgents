@@ -169,19 +169,40 @@ def test_owner_reaches_their_meeting(alice_meeting, as_mcp):
     assert mcp_server.meeting_get_briefing(meeting_id=alice_meeting)["ok"] is True
 
 
-def test_a_legacy_ownerless_meeting_on_an_owned_run_gives_no_fragments(owned, ownerless, as_mcp):
-    """이 고침 전에 열린 회의(주인 없음 · 연결된 실행은 주인 있음) — 브리핑에 그 실행의 조각을 싣지 않고, 시나리오는 그 실행에 쓰지 않는다."""
-    as_mcp(None)
-    mid = _start(ownerless["run_id"])["data"]["meeting_id"]
-    path = mcp_server._engine().store.find_dir(mid) / "web_ledger.json"
-    led = json.loads(path.read_text(encoding="utf-8"))
-    led["run_id"] = owned["run_id"]                              # 옛 회의 — 막기 전에 주인 있는 실행을 물었다
-    path.write_text(json.dumps(led), encoding="utf-8")
-    mcp_server.reset_services()
+def _expert_facts(mid: str) -> list[dict]:
+    """모더레이터의 여는 말을 낸 뒤 첫 전문가 브리핑의 조각([F#]) — 모더레이터 차례에는 조각이 실리지 않는다."""
     from wdmcp.session import new_session
+
+    first = mcp_server.meeting_get_briefing(meeting_id=mid)
+    assert first["ok"] is True and first["data"]["speaker"]["role"] == "moderator"
+    turn = mcp_server.meeting_submit_turn(meeting_id=mid, round_no=0, role="moderator", content_md="이번 회의의 쟁점을 연다.")
+    assert turn["ok"] is True, turn
     new_session()
     brief = mcp_server.meeting_get_briefing(meeting_id=mid)
-    assert brief["ok"] is True and not (brief["data"].get("facts") or []), "주인 있는 실행의 조각이 나가지 않는다"
+    assert brief["ok"] is True and brief["data"]["speaker"]["role"] != "moderator", brief["data"]["speaker"]
+    return brief["data"].get("facts") or []
+
+
+def _legacy(mid: str, run_id: str) -> None:
+    """디스크 원장의 연결된 실행을 바꾼다 — 이 고침 전에 열린 회의가 그 실행을 물었던 꼴. 메모리 세션은 비운다(디스크에서 되살린다)."""
+    from wdmcp.session import new_session
+
+    path = mcp_server._engine().store.find_dir(mid) / "web_ledger.json"
+    led = json.loads(path.read_text(encoding="utf-8"))
+    led["run_id"] = run_id
+    path.write_text(json.dumps(led), encoding="utf-8")
+    new_session()
+
+
+def test_a_legacy_ownerless_meeting_on_an_owned_run_gives_no_fragments(owned, ownerless, as_mcp):
+    """이 고침 전에 열린 회의(주인 없음 · 연결된 실행은 주인 있음) — 브리핑에 그 실행의 조각을 싣지 않고, 시나리오는 그 실행에 쓰지 않는다.
+    대조군 — 주인 없는 실행을 문 회의는 같은 차례에 조각이 실린다(시험이 조각을 볼 수 있다는 증거)."""
+    as_mcp(None)
+    control = _start(ownerless["run_id"])["data"]["meeting_id"]
+    assert _expert_facts(control), "대조군 — 주인 없는 실행의 조각은 실린다"
+    mid = _start(ownerless["run_id"])["data"]["meeting_id"]
+    _legacy(mid, owned["run_id"])
+    assert _expert_facts(mid) == [], "주인 있는 실행의 조각이 나가지 않는다"
     sb = mcp_server.scenario_build(meeting_id=mid)
     assert sb["ok"] is False and sb["error"]["code"] in ("NOT_FOUND", "RUN_NOT_FOUND")
 
