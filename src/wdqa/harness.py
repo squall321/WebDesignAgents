@@ -21,6 +21,11 @@ _SCAN_JS = """
   if (!fo) return { error: 'no-foreignobject' };
   const stageRect = svg.getBoundingClientRect();
   const items = [];
+  // 요소 → items 인덱스. querySelectorAll 은 문서 순서라 조상이 먼저 담기므로,
+  // 자손이 담길 때 가장 가까운 **담긴 조상**의 인덱스를 알 수 있다. 게이트 5 가
+  // 조상·자손 쌍을 겹침에서 빼는 데 쓴다 — 부모의 textRect 는 직계 텍스트 노드들의
+  // 합집합이라 그 사이에 낀 자식 span 을 기하적으로 품어, 안 빼면 전부 겹침이 된다.
+  const seen = new Map();
   for (const el of fo.querySelectorAll('*')) {
     if (!(el instanceof HTMLElement)) continue;
     const cs = getComputedStyle(el);
@@ -58,7 +63,13 @@ _SCAN_JS = """
       node = node.parentElement;
     }
     if (op < opacityMin) continue;
+    let parent = -1;
+    for (let p = el.parentElement; p && p !== fo; p = p.parentElement) {
+      if (seen.has(p)) { parent = seen.get(p); break; }
+    }
+    seen.set(el, items.length);
     items.push({
+      parent,
       tag: el.tagName.toLowerCase(),
       text: direct.slice(0, 60),
       hasText: direct.length > 0,

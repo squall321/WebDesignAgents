@@ -53,6 +53,19 @@ function BadScene({ localTime: t }) {
                     whiteSpace: 'nowrap' }}>이탈텍스트</div>
       <div data-qa-clip-ok style={{ position: 'absolute', left: 1850, top: 600, fontSize: 30,
                     color: '#101B3E', whiteSpace: 'nowrap' }}>면제텍스트</div>
+      {/* 형제 글자 겹침 — 남남끼리 포개진다 */}
+      <div style={{ position: 'absolute', left: 200, top: 800, fontSize: 30, color: '#101B3E',
+                    whiteSpace: 'nowrap' }}>아래글자겹침</div>
+      <div style={{ position: 'absolute', left: 200, top: 812, fontSize: 30, color: '#101B3E',
+                    whiteSpace: 'nowrap' }}>위글자겹침</div>
+      {/* 강조 span 이 든 한 문장 — 조상·자손이라 겹침이 아니다 */}
+      <div style={{ position: 'absolute', left: 200, top: 900, fontSize: 30, color: '#101B3E',
+                    whiteSpace: 'nowrap' }}>근거는 실측 <span style={{ fontWeight: 800 }}>0.82mm</span> 다</div>
+      {/* 면제된 쪽이 낀 겹침 — 보고하지 않는다 */}
+      <div data-qa-clip-ok style={{ position: 'absolute', left: 900, top: 900, fontSize: 30,
+                    color: '#101B3E', whiteSpace: 'nowrap' }}>면제겹침바탕</div>
+      <div data-qa-clip-ok style={{ position: 'absolute', left: 900, top: 912, fontSize: 30,
+                    color: '#101B3E', whiteSpace: 'nowrap' }}>면제겹침위</div>
     </div>
   );
 }
@@ -171,6 +184,15 @@ def test_bad_build_all_gates_detect_violations(bad_build: Path, tmp_path: Path):
     assert rules.get("text-overflow")
     assert any("이탈텍스트" in r["detail"] for r in rules.get("stage-exit", []))
     assert not any("면제텍스트" in r["detail"] for r in rules.get("stage-exit", []))
+    # 게이트 5 — 형제 글자 겹침(2026-11-17 모듈 심의). 각 요소가 자기 상자에는 꼭 맞으므로
+    # text-overflow 로는 잡히지 않는다. 조상·자손과 data-qa-clip-ok 는 빠져야 한다.
+    collisions = rules.get("text-collision", [])
+    assert any("겹침" in r["detail"] for r in collisions), collisions
+    assert all(r["severity"] == "error" for r in collisions)
+    assert not any("0.82mm" in r["detail"] for r in collisions), \
+        f"강조 span 은 조상·자손이라 겹침이 아니다: {collisions}"
+    assert not any("면제겹침" in r["detail"] for r in collisions), \
+        f"data-qa-clip-ok 는 면제다: {collisions}"
     # 게이트 6 런타임 — 이중 seek 해시 불일치
     assert rules.get("seek-nondeterministic")
     # 게이트 7 — 씬 경계 프레임 diff 초과
