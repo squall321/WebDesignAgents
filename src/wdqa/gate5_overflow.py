@@ -154,7 +154,6 @@ def _box_exits(scan: dict, scene: str, cfg: QAConfig, seen: set) -> list[dict]:
     바탕으로 보는데, 글자가 상자 밖에 그려지면 실제 바탕은 그게 아니다. 그래서 error 다.
     """
     out: list[dict] = []
-    tol = cfg.overflow_tol_px
     for it in scan.get("items", []):
         if not (it.get("hasText") and it.get("textRect") and it.get("boxRect")):
             continue
@@ -163,6 +162,12 @@ def _box_exits(scan: dict, scene: str, cfg: QAConfig, seen: set) -> list[dict]:
         g, b = it["textRect"], it["boxRect"]
         over = max(b["x"] - g["x"], g["x"] + g["w"] - (b["x"] + b["w"]),
                    b["y"] - g["y"], g["y"] + g["h"] - (b["y"] + b["h"]))
+        # 한계는 글자 크기에 비례한다. 재는 것이 **잉크가 아니라 줄상자**이기 때문이다 —
+        # Range 의 rect 는 폰트의 어센트·디센트를 포함하므로 보이는 글자보다 늘 크고,
+        # 몇 px 쯤은 아무것도 삐져나오지 않은 상태에서도 생긴다. 디자인이 일부러 걸쳐
+        # 두는 배지(알약 모서리의 ✓ 같은)도 그만큼 나간다 — demo_sample 의 ✓(17px)가
+        # 3px 로 잡혀서 알았다. 렌더해 보니 의도된 걸침이었다.
+        tol = max(cfg.overflow_tol_px, 0.25 * float(it.get("fontSize") or 0))
         if over <= tol:
             continue
         label = it["text"][:24]

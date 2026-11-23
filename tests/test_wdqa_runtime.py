@@ -67,6 +67,11 @@ function BadScene({ localTime: t }) {
         <div style={{ position: 'absolute', left: 0, top: 120, fontSize: 30, color: '#101B3E',
                       whiteSpace: 'nowrap' }}>카드밖으로</div>
       </div>
+      {/* 줄상자 여유만큼 걸친 배지 — 보고하지 않는다 (글자 크기 비례 한계) */}
+      <div style={{ position: 'absolute', left: 1500, top: 200, width: 40, height: 62,
+                    background: '#E8EAF6' }}>
+        <div style={{ position: 'absolute', left: 8, top: 45, fontSize: 17, color: '#101B3E' }}>★</div>
+      </div>
       {/* 면제된 쪽이 낀 겹침 — 보고하지 않는다 */}
       <div data-qa-clip-ok style={{ position: 'absolute', left: 900, top: 900, fontSize: 30,
                     color: '#101B3E', whiteSpace: 'nowrap' }}>면제겹침바탕</div>
@@ -203,6 +208,10 @@ def test_bad_build_all_gates_detect_violations(bad_build: Path, tmp_path: Path):
     exits = rules.get("box-exit", [])
     assert any("카드밖으로" in r["detail"] for r in exits), exits
     assert all(r["severity"] == "error" for r in exits)
+    # 재는 것이 잉크가 아니라 줄상자라, 몇 px 걸친 배지는 보고하지 않는다 —
+    # 한계가 글자 크기에 비례한다(demo_sample 의 ✓ 17px·3px 가 그렇게 잡혔었다).
+    assert not any("★" in r["detail"] for r in exits), \
+        f"줄상자 여유만큼 걸친 배지는 이탈이 아니다: {exits}"
     # 게이트 6 런타임 — 이중 seek 해시 불일치
     assert rules.get("seek-nondeterministic")
     # 게이트 7 — 씬 경계 프레임 diff 초과
