@@ -50,6 +50,7 @@ _SCAN_JS = """
     }
     direct = direct.replace(/\\s+/g, ' ').trim();
     let op = 1, iconOk = false, clipOk = false;
+    let boxRect = null;
     const bgChain = [];
     let node = el;
     while (node && node instanceof HTMLElement) {
@@ -59,6 +60,20 @@ _SCAN_JS = """
       if (node.hasAttribute('data-qa-clip-ok')) clipOk = true;
       const bc = ncs.backgroundColor;
       if (bc && bc !== 'transparent' && bc !== 'rgba(0, 0, 0, 0)') bgChain.push(bc);
+      // 눈에 보이는 상자 = 배경이나 테두리를 **자기가** 그리는 가장 가까운 조상.
+      // 사람이 "카드 밖으로 삐져나왔다" 고 말할 때의 그 카드다. 자기 자신은 세지 않는다
+      // (글자 칸 자체에 배경이 있어도 그건 상자가 아니라 그 글자의 바탕이다).
+      if (boxRect === null && node !== el) {
+        const hasBg = bc && bc !== 'transparent' && bc !== 'rgba(0, 0, 0, 0)';
+        const hasBorder = parseFloat(ncs.borderTopWidth || '0') > 0
+          || parseFloat(ncs.borderBottomWidth || '0') > 0
+          || parseFloat(ncs.borderLeftWidth || '0') > 0
+          || parseFloat(ncs.borderRightWidth || '0') > 0;
+        if (hasBg || hasBorder) {
+          const br = node.getBoundingClientRect();
+          boxRect = { x: br.x - stageRect.x, y: br.y - stageRect.y, w: br.width, h: br.height };
+        }
+      }
       if (node.parentElement === null || node.parentNode === fo) break;
       node = node.parentElement;
     }
@@ -83,6 +98,7 @@ _SCAN_JS = """
       textRect: textRect === null ? null
         : { x: textRect.l - stageRect.x, y: textRect.t - stageRect.y,
             w: textRect.r - textRect.l, h: textRect.b - textRect.t },
+      boxRect,
       scrollW: el.scrollWidth, scrollH: el.scrollHeight,
       clientW: el.clientWidth, clientH: el.clientHeight,
       overflowX: cs.overflowX, overflowY: cs.overflowY,

@@ -61,6 +61,12 @@ function BadScene({ localTime: t }) {
       {/* 강조 span 이 든 한 문장 — 조상·자손이라 겹침이 아니다 */}
       <div style={{ position: 'absolute', left: 200, top: 900, fontSize: 30, color: '#101B3E',
                     whiteSpace: 'nowrap' }}>근거는 실측 <span style={{ fontWeight: 800 }}>0.82mm</span> 다</div>
+      {/* 부모 상자 이탈 — 카드 안 글자가 카드 밖으로 나간다 */}
+      <div style={{ position: 'absolute', left: 1200, top: 200, width: 200, height: 80,
+                    background: '#F6F7FA' }}>
+        <div style={{ position: 'absolute', left: 0, top: 120, fontSize: 30, color: '#101B3E',
+                      whiteSpace: 'nowrap' }}>카드밖으로</div>
+      </div>
       {/* 면제된 쪽이 낀 겹침 — 보고하지 않는다 */}
       <div data-qa-clip-ok style={{ position: 'absolute', left: 900, top: 900, fontSize: 30,
                     color: '#101B3E', whiteSpace: 'nowrap' }}>면제겹침바탕</div>
@@ -193,6 +199,10 @@ def test_bad_build_all_gates_detect_violations(bad_build: Path, tmp_path: Path):
         f"강조 span 은 조상·자손이라 겹침이 아니다: {collisions}"
     assert not any("면제겹침" in r["detail"] for r in collisions), \
         f"data-qa-clip-ok 는 면제다: {collisions}"
+    # 게이트 5 — 부모 상자(카드·패널) 이탈. 글자 기준이므로 상자만 넘은 경우는 잡지 않는다.
+    exits = rules.get("box-exit", [])
+    assert any("카드밖으로" in r["detail"] for r in exits), exits
+    assert all(r["severity"] == "error" for r in exits)
     # 게이트 6 런타임 — 이중 seek 해시 불일치
     assert rules.get("seek-nondeterministic")
     # 게이트 7 — 씬 경계 프레임 diff 초과

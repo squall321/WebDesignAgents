@@ -1,15 +1,16 @@
-# 게이트 5 — 텍스트 오버플로: 자기 상자 넘침·스테이지 이탈·safe margin·형제 글자 겹침
+# 게이트 5 — 오버플로: 자기 상자 넘침·스테이지 이탈·safe margin·형제 글자 겹침·부모 상자 이탈
 #
-# 규칙 넷 — ①자기 상자 넘침 ②스테이지 이탈 ③safe margin ④**형제 글자 겹침**.
+# 규칙 다섯 — ①자기 상자 넘침 ②스테이지 이탈 ③safe margin ④**형제 글자 겹침**
+# ⑤**부모 상자(카드·패널) 이탈**.
 #
 # ④는 2026-11-17 모듈 심의가 남긴 것이다. 전제 3줄이 결정 패널을 14px 뚫고 확정 메타와
 # 23px 겹친 화면이 그때 `passed: true` 0건으로 나왔다 — 각 요소가 **자기** 상자에는 꼭
 # 맞고 스테이지 안에 있었기 때문이다. 겹친 글자는 대비·크기를 통과해도 읽을 수 없으니
 # 하한선 문제이고(AX), 그래서 error 다.
 #
-# ⚠ 아직 **부모 상자(카드·패널) 이탈은 보지 않는다.** 겹칠 상대 없이 패널만 뚫고 나간
-# 경우는 지금도 통과한다 — 하네스가 부모의 상자를 싣지 않는다. 자리를 옮기는 변경은
-# 여전히 경계 조합을 직접 렌더해 확인해야 한다.
+# ④와 ⑤는 서로를 대신하지 못한다 — 전제 3줄 화면은 상자만 넘고 글자는 패널 안이라 ⑤가
+# 0건이고 ④가 잡으며, 전제 4줄이 되어 글자가 나가면 ⑤가 잡는다. 둘 다 넣기 전에 산출물
+# 9건(포맷 6종)으로 재서 거짓 양성 0건을 확인했다.
 
 from __future__ import annotations
 
@@ -83,6 +84,7 @@ def run_runtime_scan(scan: dict, scene: str, cfg: QAConfig, seen: set) -> list[d
                     )
 
     results += _text_collisions(scan, scene, cfg, seen)
+    results += _box_exits(scan, scene, cfg, seen)
     return results
 
 
@@ -135,4 +137,44 @@ def _text_collisions(scan: dict, scene: str, cfg: QAConfig, seen: set) -> list[d
                     "(의도한 겹침이면 data-qa-clip-ok)",
                     scene=scene)
             )
+    return out
+def _box_exits(scan: dict, scene: str, cfg: QAConfig, seen: set) -> list[dict]:
+    """글자가 자기 카드·패널 밖으로 나갔는가.
+
+    상자는 **배경이나 테두리를 자기가 그리는 가장 가까운 조상**이다 — 사람이 "카드 밖으로
+    삐져나왔다" 고 말할 때의 그 카드다. 스테이지 전체는 ②가 이미 보므로 여기서 다시 보지
+    않는다(하네스가 foreignObject 바깥을 올라가지 않아 자연히 제외된다).
+
+    **글자(textRect)로 잰다. 상자(rect)로 재지 않는다** — 그림자·절대배치 칩처럼 레이아웃
+    상자가 부모를 넘는 정상 요소가 많고, 눈에 보이는 손상은 글자가 나갔을 때 난다. 실측:
+    전제 3줄 화면은 상자만 넘고 글자는 패널 안이라 여기서 0건이고(그 화면의 피해는 메타와의
+    겹침이라 ④가 잡는다), 전제 4줄이 되어 글자가 나가면 68px 넘침으로 잡힌다.
+
+    **대비 게이트의 전제도 함께 깨진다** — 게이트 3 은 조상들의 배경(bgChain)을 그 글자의
+    바탕으로 보는데, 글자가 상자 밖에 그려지면 실제 바탕은 그게 아니다. 그래서 error 다.
+    """
+    out: list[dict] = []
+    tol = cfg.overflow_tol_px
+    for it in scan.get("items", []):
+        if not (it.get("hasText") and it.get("textRect") and it.get("boxRect")):
+            continue
+        if it.get("clipOk"):
+            continue
+        g, b = it["textRect"], it["boxRect"]
+        over = max(b["x"] - g["x"], g["x"] + g["w"] - (b["x"] + b["w"]),
+                   b["y"] - g["y"], g["y"] + g["h"] - (b["y"] + b["h"]))
+        if over <= tol:
+            continue
+        label = it["text"][:24]
+        key = ("boxexit", scene, label)
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(
+            row(GATE, "box-exit", "error",
+                f"{label!r} 의 글자가 자기 상자({b['w']:.0f}x{b['h']:.0f})를 "
+                f"{over:.0f}px 벗어났다 — 카드 밖에 그려지면 대비 판정의 바탕도 틀려진다 "
+                "(의도한 삐져나옴이면 data-qa-clip-ok)",
+                scene=scene)
+        )
     return out
